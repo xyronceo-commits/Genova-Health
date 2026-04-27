@@ -1,0 +1,10 @@
+{
+  "name": "Genova Health",
+  "description": "An intelligent health companion providing AI-driven diet plans, biometrics scanning, and localized Nigerian health insights.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation",
+    "bluetooth"
+  ]
+}
