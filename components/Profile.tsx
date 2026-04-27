@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { UserProfile, BloodGroup, Genotype } from '../types';
-import { User, Settings, Trash2, Save, ChevronLeft, Moon, Sun, Info, Shield } from 'lucide-react';
+import { User, Settings, Trash2, Save, ChevronLeft, Moon, Sun, Info, Shield, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 interface Props {
@@ -24,8 +24,8 @@ const Profile: React.FC<Props> = ({ user, onUpdate, onDelete, isDarkMode, toggle
     setTimeout(() => setSaved(false), 2000);
   };
 
-  const confirmDelete = () => {
-    if (window.confirm("Are you absolutely sure? This will delete all your local health records and bio-data. This action cannot be undone.")) {
+  const confirmLogout = () => {
+    if (window.confirm("Are you sure you want to log out?")) {
       onDelete();
     }
   };
@@ -197,12 +197,12 @@ const Profile: React.FC<Props> = ({ user, onUpdate, onDelete, isDarkMode, toggle
              </div>
              <button 
               type="button"
-              onClick={confirmDelete}
+              onClick={confirmLogout}
               className="px-6 py-3 bg-red-600 text-white rounded-xl font-bold flex items-center gap-2 hover:bg-red-700 transition-all shadow-lg shadow-red-200 dark:shadow-none"
              >
-               <Trash2 size={18}/>
-               Delete Account
-             </button>
+                <LogOut size={18}/>
+                Log Out
+              </button>
            </div>
         </div>
       </form>

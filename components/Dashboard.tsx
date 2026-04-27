@@ -2,7 +2,8 @@
 import React, { useEffect, useState } from 'react';
 import { UserProfile, HealthMetrics } from '../types';
 import { STORAGE_KEYS } from '../constants';
-import { Activity, Footprints, Heart, Droplets, Utensils, Zap, ChevronRight, MapPin, ClipboardList, Pill, Brain, Watch, Baby, Sun, Moon, Crown, Lock } from 'lucide-react';
+import { auth, getHealthHistory } from '../services/firebase';
+import { Activity, Footprints, Heart, Droplets, Utensils, Zap, ChevronRight, MapPin, ClipboardList, Pill, Brain, Watch, Baby, Sun, Moon, Crown, Lock, Play } from 'lucide-react';
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { Link, useNavigate } from 'react-router-dom';
 
@@ -19,8 +20,26 @@ const Dashboard: React.FC<Props> = ({ user, isDarkMode, toggleDarkMode }) => {
   const [location, setLocation] = useState('Lagos, Nigeria');
 
   useEffect(() => {
-    const storedHistory = localStorage.getItem(STORAGE_KEYS.HEALTH_HISTORY);
-    if (storedHistory) setHistory(JSON.parse(storedHistory));
+    const fetchHistory = async () => {
+      if (auth.currentUser) {
+        try {
+          const data = await getHealthHistory(auth.currentUser.uid);
+          if (data && data.length > 0) {
+            setHistory(data as HealthMetrics[]);
+          }
+        } catch (err) {
+          console.error("Error fetching history:", err);
+          // Fallback to local storage
+          const storedHistory = localStorage.getItem(STORAGE_KEYS.HEALTH_HISTORY);
+          if (storedHistory) setHistory(JSON.parse(storedHistory));
+        }
+      } else {
+        const storedHistory = localStorage.getItem(STORAGE_KEYS.HEALTH_HISTORY);
+        if (storedHistory) setHistory(JSON.parse(storedHistory));
+      }
+    };
+
+    fetchHistory();
 
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition((pos) => {
@@ -54,6 +73,12 @@ const Dashboard: React.FC<Props> = ({ user, isDarkMode, toggleDarkMode }) => {
             {isPremium && <Crown className="text-amber-500" size={24} />}
           </h1>
           <p className="text-gray-500 dark:text-gray-400 font-medium">Genotype: <span className="text-blue-600 font-bold">{user.genotype}</span> • Blood Group: <span className="text-red-600 font-bold">{user.bloodGroup}</span></p>
+          <button 
+            onClick={() => navigate('/showcase')}
+            className="mt-4 flex items-center gap-2 text-sm font-bold text-blue-600 hover:text-blue-700 transition-colors bg-blue-50 dark:bg-blue-900/20 px-4 py-2 rounded-full border border-blue-100 dark:border-blue-800"
+          >
+            <Play size={14} className="fill-current" /> Watch Intro Showreel
+          </button>
         </div>
         <div className="flex items-center gap-3">
           <button 

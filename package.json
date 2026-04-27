@@ -10,11 +10,14 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
+    "@google/genai": "^1.34.0",
+    "firebase": "^12.12.1",
+    "lucide-react": "^0.562.0",
+    "motion": "^12.38.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
-    "@google/genai": "^1.34.0",
+    "react-firebase-hooks": "^5.1.1",
     "react-router-dom": "^7.11.0",
-    "lucide-react": "^0.562.0",
     "recharts": "^3.6.0"
   },
   "devDependencies": {

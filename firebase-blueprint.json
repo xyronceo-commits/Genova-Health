@@ -1,0 +1,47 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Biological and health profile of the user.",
+      "type": "object",
+      "properties": {
+        "fullName": { "type": "string" },
+        "age": { "type": "integer" },
+        "gender": { "type": "string", "enum": ["male", "female", "other"] },
+        "bloodGroup": { "type": "string" },
+        "genotype": { "type": "string" },
+        "height": { "type": "integer" },
+        "weight": { "type": "integer" },
+        "allergies": { "type": "array", "items": { "type": "string" } },
+        "emergencyContactName": { "type": "string" },
+        "emergencyContactPhone": { "type": "string" },
+        "stepGoal": { "type": "integer" },
+        "subscriptionStatus": { "type": "string", "enum": ["free", "premium"] },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["fullName", "age", "gender", "bloodGroup", "genotype"]
+    },
+    "HealthMetric": {
+      "title": "Health Metric",
+      "description": "Recorded health data point.",
+      "type": "object",
+      "properties": {
+        "heartRate": { "type": "integer" },
+        "bloodPressure": { "type": "string" },
+        "stressLevel": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["heartRate", "bloodPressure", "stressLevel", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Main user document."
+    },
+    "/users/{userId}/history/{metricId}": {
+      "schema": "HealthMetric",
+      "description": "History of vital scans."
+    }
+  }
+}

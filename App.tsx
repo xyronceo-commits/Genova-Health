@@ -3,6 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { UserProfile } from './types';
 import { STORAGE_KEYS } from './constants';
+import { auth, getUserProfile, logout } from './services/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 import Dashboard from './components/Dashboard';
 import Onboarding from './components/Onboarding';
 import SmartScan from './components/SmartScan';
@@ -12,6 +14,7 @@ import Profile from './components/Profile';
 import Wearables from './components/Wearables';
 import Navigation from './components/Navigation';
 import Premium from './components/Premium';
+import Showcase from './components/Showcase';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -22,11 +25,23 @@ const App: React.FC = () => {
   });
 
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEYS.USER_PROFILE);
-    if (stored) {
-      setUser(JSON.parse(stored));
-    }
-    setLoading(false);
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        const profile = await getUserProfile(firebaseUser.uid);
+        if (profile) {
+          setUser(profile as UserProfile);
+        } else {
+          // Logged in but no profile - maybe mid-onboarding? 
+          // We'll let them continue onboarding if no user state is set
+          setUser(null);
+        }
+      } else {
+        setUser(null);
+      }
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -40,20 +55,20 @@ const App: React.FC = () => {
   }, [isDarkMode]);
 
   const handleOnboardingComplete = (profile: UserProfile) => {
-    const profileWithSub = { ...profile, subscriptionStatus: 'free' as const };
-    localStorage.setItem(STORAGE_KEYS.USER_PROFILE, JSON.stringify(profileWithSub));
-    setUser(profileWithSub);
+    setUser(profile);
   };
 
   const handleUpdateUser = (updated: UserProfile) => {
-    localStorage.setItem(STORAGE_KEYS.USER_PROFILE, JSON.stringify(updated));
     setUser(updated);
+    if (auth.currentUser) {
+      // Background save to firestore
+      import('./services/firebase').then(m => m.saveUserProfile(auth.currentUser!.uid, updated));
+    }
   };
 
   const handleDeleteAccount = () => {
-    localStorage.clear();
+    logout();
     setUser(null);
-    window.location.href = '/';
   };
 
   const toggleDarkMode = () => setIsDarkMode(!isDarkMode);
@@ -75,9 +90,10 @@ const App: React.FC = () => {
               <Route path="/" element={<Dashboard user={user} isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} />} />
               <Route path="/scan" element={<SmartScan user={user} />} />
               <Route path="/assistant/:type" element={<Assistant user={user} />} />
-              <Route path="/emergency" element={<Emergency />} />
+              <Route path="/emergency" element={<Emergency user={user} />} />
               <Route path="/wearables" element={<Wearables user={user} />} />
               <Route path="/premium" element={<Premium user={user} onUpdate={handleUpdateUser} />} />
+              <Route path="/showcase" element={<Showcase />} />
               <Route path="/profile" element={<Profile user={user} onUpdate={handleUpdateUser} onDelete={handleDeleteAccount} isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} />} />
               <Route path="*" element={<Navigate to="/" />} />
             </>

@@ -5,6 +5,7 @@ import { Camera, Zap, ShieldCheck, X, AlertCircle, Heart, Info, Activity, Utensi
 import { UserProfile, HealthMetrics } from '../types';
 import { STORAGE_KEYS } from '../constants';
 import { gemini } from '../services/gemini';
+import { auth, addHealthMetric } from '../services/firebase';
 
 type ScanMode = 'choosing' | 'vitals_sync' | 'nutrition_camera' | 'bio_scan';
 
@@ -129,11 +130,7 @@ const SmartScan: React.FC<Props> = ({ user }) => {
         const base64 = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
         
         try {
-          const storedProfile = localStorage.getItem(STORAGE_KEYS.USER_PROFILE);
-          const profileData = storedProfile ? JSON.parse(storedProfile) : user;
-          const userContext = `Name: ${profileData.fullName}, Genotype: ${profileData.genotype}, Blood Group: ${profileData.bloodGroup}, Allergies: ${profileData.allergies.join(', ') || 'None'}, Age: ${profileData.age}, Weight: ${profileData.weight}kg`;
-          
-          const analysis = await gemini.analyzeFood(base64, userContext);
+          const analysis = await gemini.analyzeFood(base64, JSON.stringify(user));
           
           if (streamRef.current) {
             streamRef.current.getTracks().forEach(track => track.stop());
@@ -222,9 +219,7 @@ const SmartScan: React.FC<Props> = ({ user }) => {
 
     setIsCapturing(true); // Reusing capturing state for loading
     try {
-      const storedProfile = localStorage.getItem(STORAGE_KEYS.USER_PROFILE);
-      const profileData = storedProfile ? JSON.parse(storedProfile) : user;
-      const userContext = `Name: ${profileData.fullName}, Genotype: ${profileData.genotype}, Blood Group: ${profileData.bloodGroup}, Age: ${profileData.age}, Weight: ${profileData.weight}kg`;
+      const userContext = JSON.stringify(user);
       
       // Downsample ppg data to send to Gemini (e.g., 100 points)
       const step = Math.max(1, Math.floor(ppgBufferRef.current.length / 100));
@@ -249,15 +244,21 @@ const SmartScan: React.FC<Props> = ({ user }) => {
       setResults(result);
       
       // Save to history
-      const stored = localStorage.getItem(STORAGE_KEYS.HEALTH_HISTORY);
-      const history = stored ? JSON.parse(stored) : [];
-      history.push({
+      const metric = {
         heartRate: result.heartRate,
         bloodPressure: result.bp,
         stressLevel: result.stress,
         timestamp: new Date().toISOString()
-      });
-      localStorage.setItem(STORAGE_KEYS.HEALTH_HISTORY, JSON.stringify(history.slice(-10)));
+      };
+
+      if (auth.currentUser) {
+        await addHealthMetric(auth.currentUser.uid, metric);
+      } else {
+        const stored = localStorage.getItem(STORAGE_KEYS.HEALTH_HISTORY);
+        const history = stored ? JSON.parse(stored) : [];
+        history.push(metric);
+        localStorage.setItem(STORAGE_KEYS.HEALTH_HISTORY, JSON.stringify(history.slice(-10)));
+      }
 
     } catch (err) {
       setError("BioScan failed. Please ensure your finger covers the camera lens completely and try again.");
@@ -266,7 +267,7 @@ const SmartScan: React.FC<Props> = ({ user }) => {
     }
   };
 
-  const completeVitalsSync = () => {
+  const completeVitalsSync = async () => {
     const hr = 65 + Math.floor(Math.random() * 15);
     const result = {
       type: 'vitals',
@@ -278,15 +279,21 @@ const SmartScan: React.FC<Props> = ({ user }) => {
     setResults(result);
     setIsSyncing(false);
 
-    const stored = localStorage.getItem(STORAGE_KEYS.HEALTH_HISTORY);
-    const history = stored ? JSON.parse(stored) : [];
-    history.push({
+    const metric = {
       heartRate: result.heartRate,
       bloodPressure: result.bp,
       stressLevel: result.stress,
       timestamp: new Date().toISOString()
-    });
-    localStorage.setItem(STORAGE_KEYS.HEALTH_HISTORY, JSON.stringify(history.slice(-10)));
+    };
+
+    if (auth.currentUser) {
+      await addHealthMetric(auth.currentUser.uid, metric);
+    } else {
+      const stored = localStorage.getItem(STORAGE_KEYS.HEALTH_HISTORY);
+      const history = stored ? JSON.parse(stored) : [];
+      history.push(metric);
+      localStorage.setItem(STORAGE_KEYS.HEALTH_HISTORY, JSON.stringify(history.slice(-10)));
+    }
   };
 
   const reset = () => {
@@ -486,7 +493,7 @@ const SmartScan: React.FC<Props> = ({ user }) => {
         )}
 
         {mode === 'vitals_sync' && isPremium && !results && (
-           <div className="w-full max-sm:px-4 max-w-sm space-y-8 text-center animate-in fade-in">
+          <div className="w-full max-sm:px-4 max-w-sm space-y-8 text-center animate-in fade-in">
            {!deviceConnected ? (
              <div className="space-y-8 py-10">
                 <div className="w-24 h-24 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mx-auto border border-red-500/20 shadow-2xl">

@@ -6,18 +6,18 @@ import { UserProfile } from '../types';
 import { STORAGE_KEYS } from '../constants';
 import { gemini } from '../services/gemini';
 
-const Emergency: React.FC = () => {
+interface Props {
+  user: UserProfile;
+}
+
+const Emergency: React.FC<Props> = ({ user }) => {
   const navigate = useNavigate();
   const [active, setActive] = useState(false);
-  const [user, setUser] = useState<UserProfile | null>(null);
   const [hospitals, setHospitals] = useState<any[]>([]);
   const [loadingHospitals, setLoadingHospitals] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEYS.USER_PROFILE);
-    if (stored) setUser(JSON.parse(stored));
-
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         async (pos) => {
