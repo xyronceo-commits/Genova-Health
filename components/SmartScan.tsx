@@ -7,7 +7,7 @@ import { STORAGE_KEYS } from '../constants';
 import { ai } from '../services/ai';
 import { auth, addHealthMetric } from '../services/firebase';
 
-type ScanMode = 'choosing' | 'vitals_sync' | 'nutrition_camera' | 'bio_scan';
+type ScanMode = 'choosing' | 'vitals_sync' | 'nutrition_camera' | 'vitals_camera';
 
 interface Props {
   user: UserProfile;
@@ -31,6 +31,7 @@ const SmartScan: React.FC<Props> = ({ user }) => {
   const [bioScanProgress, setBioScanProgress] = useState(0);
   const [fingerDetected, setFingerDetected] = useState(false);
   const [scanCount, setScanCount] = useState({ nutri: 0, bio: 0 });
+  const [torchEnabled, setTorchEnabled] = useState(false);
 
   const bioScanIntervalRef = useRef<number | null>(null);
   const ppgBufferRef = useRef<number[]>([]);
@@ -69,7 +70,7 @@ const SmartScan: React.FC<Props> = ({ user }) => {
     free: { nutri: 3, bio: 0, sync: false },
     silver: { nutri: 10, bio: 1, sync: true },
     gold: { nutri: Infinity, bio: Infinity, sync: true }
-  }[tier];
+  }[tier] || { nutri: 3, bio: 0, sync: false };
 
   useEffect(() => {
     return () => {
@@ -80,15 +81,27 @@ const SmartScan: React.FC<Props> = ({ user }) => {
   }, []);
 
   useEffect(() => {
-    if ((mode === 'nutrition_camera' || mode === 'bio_scan') && !results) {
+    if ((mode === 'nutrition_camera' || mode === 'vitals_camera') && !results) {
       const initCamera = async () => {
         try {
           const stream = await navigator.mediaDevices.getUserMedia({ 
-            video: { facingMode: mode === 'bio_scan' ? 'user' : 'environment' } 
+            video: { facingMode: mode === 'vitals_camera' ? 'environment' : 'environment' } 
           });
           streamRef.current = stream;
           if (videoRef.current) {
             videoRef.current.srcObject = stream;
+          }
+
+          // Try to enable torch if vitals mode
+          if (mode === 'vitals_camera') {
+            const track = stream.getVideoTracks()[0];
+            const capabilities = track.getCapabilities() as any;
+            if (capabilities.torch) {
+              await track.applyConstraints({
+                advanced: [{ torch: true }]
+              } as any);
+              setTorchEnabled(true);
+            }
           }
         } catch (err) {
           console.error("Camera Error:", err);
@@ -109,13 +122,13 @@ const SmartScan: React.FC<Props> = ({ user }) => {
     setMode('nutrition_camera');
   };
 
-  const startBioScan = () => {
+  const startVitalsCamera = () => {
     if (scanCount.bio >= limits.bio) {
       navigate('/premium');
       return;
     }
     setError(null);
-    setMode('bio_scan');
+    setMode('vitals_camera');
     setBioScanProgress(0);
     setPpgSignal([]);
     ppgBufferRef.current = [];
@@ -176,7 +189,7 @@ const SmartScan: React.FC<Props> = ({ user }) => {
     }
   };
 
-  const runBioScan = () => {
+  const runVitalsScan = () => {
     if (isBioScanning) return;
     setIsBioScanning(true);
     setBioScanProgress(0);
@@ -189,7 +202,7 @@ const SmartScan: React.FC<Props> = ({ user }) => {
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     if (!ctx) return;
 
-    const scanDuration = 10000; // 10 seconds
+    const scanDuration = 30000; // Increased to 30 seconds for better metrics
     const startTime = Date.now();
 
     const processFrame = () => {
@@ -200,12 +213,12 @@ const SmartScan: React.FC<Props> = ({ user }) => {
       setBioScanProgress(progress);
 
       if (progress >= 100) {
-        stopBioScan();
+        stopVitalsScan();
         return;
       }
 
       // Analyze frame for PPG
-      canvas.width = 100; // Small size for performance
+      canvas.width = 100; 
       canvas.height = 100;
       ctx.drawImage(video, 0, 0, 100, 100);
       const imageData = ctx.getImageData(0, 0, 100, 100);
@@ -221,9 +234,8 @@ const SmartScan: React.FC<Props> = ({ user }) => {
       const avgG = g / (data.length / 4);
       const avgB = b / (data.length / 4);
 
-      // Simple finger detection: high red, relatively low blue/green
-      // Relaxed a bit: red should be significantly higher than others
-      const isFinger = avgR > 120 && avgR > (avgG + 20) && avgR > (avgB + 20);
+      // Pulse detection: High red, Low others (when covered by finger with flash)
+      const isFinger = avgR > 180 && avgG < 150;
       setFingerDetected(isFinger);
 
       if (isFinger) {
@@ -236,22 +248,20 @@ const SmartScan: React.FC<Props> = ({ user }) => {
     bioScanIntervalRef.current = requestAnimationFrame(processFrame);
   };
 
-  const stopBioScan = async () => {
+  const stopVitalsScan = async () => {
     setIsBioScanning(false);
     if (bioScanIntervalRef.current) {
       cancelAnimationFrame(bioScanIntervalRef.current);
     }
 
-    if (ppgBufferRef.current.length < 50) {
-      setError("Insufficient data. Please keep your finger steady on the camera lens.");
+    if (ppgBufferRef.current.length < 150) {
+      setError("Insufficient data. Please keep your finger steady on the camera lens for the full 30 seconds.");
       return;
     }
 
-    setIsCapturing(true); // Reusing capturing state for loading
+    setIsCapturing(true); 
     try {
       const userContext = JSON.stringify(user);
-      
-      // Downsample ppg data to send to Gemini (e.g., 100 points)
       const step = Math.max(1, Math.floor(ppgBufferRef.current.length / 100));
       const sampledData = ppgBufferRef.current.filter((_, i) => i % step === 0).slice(0, 100);
 
@@ -269,12 +279,11 @@ const SmartScan: React.FC<Props> = ({ user }) => {
         bp: analysis.bloodPressure,
         stress: analysis.stressLevel,
         insight: analysis.insight,
-        source: 'Genova BioScan™'
+        source: 'Genova VitalsScan™'
       };
       
       setResults(result);
       
-      // Save to history
       const metric = {
         heartRate: result.heartRate,
         bloodPressure: result.bp,
@@ -292,11 +301,12 @@ const SmartScan: React.FC<Props> = ({ user }) => {
       }
 
     } catch (err) {
-      setError("BioScan failed. Please ensure your finger covers the camera lens completely and try again.");
+      setError("Analysis failed. Please ensure your finger covers the camera lens completely and stay in good lighting.");
     } finally {
       setIsCapturing(false);
     }
   };
+
 
   const completeVitalsSync = async () => {
     const hr = 65 + Math.floor(Math.random() * 15);
@@ -380,7 +390,7 @@ const SmartScan: React.FC<Props> = ({ user }) => {
               </button>
 
               <button 
-                onClick={startBioScan}
+                onClick={startVitalsCamera}
                 className="w-full p-8 bg-emerald-600/10 border border-emerald-500/20 rounded-[3rem] text-left hover:bg-emerald-600/20 transition-all group flex items-center justify-between"
               >
                 <div className="flex gap-6 items-center">
@@ -389,10 +399,10 @@ const SmartScan: React.FC<Props> = ({ user }) => {
                   </div>
                   <div>
                     <h3 className="text-xl font-bold flex items-center gap-2">
-                      BioScan™
+                      VitalsScan™
                       {tier !== 'gold' && <span className="text-[10px] bg-white/10 px-2 py-0.5 rounded-full">{scanCount.bio}/{limits.bio}</span>}
                     </h3>
-                    <p className="text-sm text-gray-400">Camera-based Vitals</p>
+                    <p className="text-sm text-gray-400">Camera-based PPG Vitals</p>
                   </div>
                 </div>
                 <ChevronRight className="text-emerald-500/40" />
@@ -458,10 +468,10 @@ const SmartScan: React.FC<Props> = ({ user }) => {
              </div>
           </div>
         )}
-        {mode === 'bio_scan' && tier !== 'free' && !results && (
+        {mode === 'vitals_camera' && tier !== 'free' && !results && (
           <div className="w-full max-w-md space-y-8 animate-in fade-in">
              <div className="relative aspect-square rounded-[3rem] overflow-hidden border-4 border-emerald-500/30 shadow-2xl shadow-emerald-500/10 bg-black">
-               <video ref={videoRef} autoPlay muted playsInline className="absolute inset-0 w-full h-full object-cover opacity-40" />
+               <video ref={videoRef} autoPlay muted playsInline className="absolute inset-0 w-full h-full object-cover opacity-60" />
                <canvas ref={canvasRef} className="hidden" />
                
                <div className="absolute inset-0 flex flex-col items-center justify-center p-12 text-center">
@@ -471,7 +481,7 @@ const SmartScan: React.FC<Props> = ({ user }) => {
                         <Camera size={32} />
                       </div>
                       <p className="text-lg font-bold">Ready to Scan</p>
-                      <p className="text-xs text-gray-400">Place your index finger firmly over the camera lens.</p>
+                      <p className="text-xs text-gray-400">Cover the rear camera lens & flash with your index finger.</p>
                     </div>
                   ) : (
                     <div className="space-y-6 w-full">
@@ -479,8 +489,8 @@ const SmartScan: React.FC<Props> = ({ user }) => {
                         <Heart size={48} className={fingerDetected ? 'animate-ping' : 'text-gray-600'} />
                       </div>
                       <div className="space-y-2">
-                        <p className="text-sm font-black uppercase tracking-widest">
-                          {fingerDetected ? 'Finger Detected' : 'Cover Camera Lens'}
+                        <p className="text-sm font-black uppercase tracking-widest transition-colors duration-300">
+                          {fingerDetected ? 'Pulse Detected' : 'Maintain Coverage'}
                         </p>
                         <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
                           <div 
@@ -488,33 +498,34 @@ const SmartScan: React.FC<Props> = ({ user }) => {
                             style={{ width: `${bioScanProgress}%` }} 
                           />
                         </div>
+                        <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">{Math.round(bioScanProgress)}% Complete</p>
                       </div>
                     </div>
                   )}
                </div>
 
                <div className="absolute top-4 left-1/2 -translate-x-1/2 px-4 py-1.5 bg-black/60 backdrop-blur-md rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
-                  <Sparkles size={12} className="text-emerald-500" /> Bio-Metric Analysis
+                  <Sparkles size={12} className="text-emerald-500" /> AI PPG Analysis
                </div>
              </div>
 
              <div className="text-center space-y-8">
                <div>
-                 <h2 className="text-2xl font-black">BioScan™ Vitals</h2>
-                 <p className="text-sm text-gray-400 mt-1">Hold steady for 10 seconds for accurate results</p>
+                 <h2 className="text-2xl font-black italic tracking-tighter">Genova VitalsScan™</h2>
+                 <p className="text-sm text-gray-400 mt-1 font-medium">Precision biometric extraction via camera</p>
                </div>
                <div className="flex items-center justify-center gap-6">
                  <button onClick={reset} className="p-4 bg-white/10 rounded-full text-gray-400 hover:text-white transition-colors"><X size={24}/></button>
                  {!isBioScanning ? (
                     <button 
-                      onClick={runBioScan}
+                      onClick={runVitalsScan}
                       className="px-10 py-5 bg-emerald-600 text-white rounded-[2rem] font-black shadow-xl shadow-emerald-600/20 active:scale-95 transition-all"
                     >
-                      Start Scanning
+                      Start Analysis
                     </button>
                  ) : (
-                    <div className="px-10 py-5 bg-white/5 text-gray-500 rounded-[2rem] font-black border border-white/10">
-                      Scanning...
+                    <div className="px-10 py-5 bg-white/5 text-gray-500 rounded-[2rem] font-black border border-white/10 flex items-center gap-2">
+                      <Loader2 size={16} className="animate-spin" /> Analyzing...
                     </div>
                  )}
                  <div className="w-12 h-12"></div>

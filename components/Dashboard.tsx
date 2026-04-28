@@ -83,11 +83,21 @@ const Dashboard: React.FC<Props> = ({ user, isDarkMode, toggleDarkMode }) => {
       }, null);
     }
 
+    let lastStepTime = 0;
     const handleMotion = (event: DeviceMotionEvent) => {
       const acc = event.accelerationIncludingGravity;
       if (acc?.x && acc?.y && acc?.z) {
         const totalAcc = Math.sqrt(acc.x**2 + acc.y**2 + acc.z**2);
-        if (totalAcc > 12) setSteps(prev => prev + 1);
+        
+        // Refined Peak Detection Algorithm
+        const threshold = 13.5; 
+        const minStepTime = 250; 
+        
+        const now = Date.now();
+        if (totalAcc > threshold && (now - lastStepTime > minStepTime)) {
+          setSteps(prev => prev + 1);
+          lastStepTime = now;
+        }
       }
     };
     window.addEventListener('devicemotion', handleMotion);
@@ -98,7 +108,7 @@ const Dashboard: React.FC<Props> = ({ user, isDarkMode, toggleDarkMode }) => {
   const stepGoal = user.stepGoal || 10000;
   const stepProgress = Math.min(100, Math.round((steps / stepGoal) * 100));
 
-  const isPremium = user.subscriptionStatus === 'premium';
+  const isPremium = user.subscriptionStatus !== 'free';
 
   return (
     <div className="p-4 md:p-10 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-700">
