@@ -30,18 +30,46 @@ const SmartScan: React.FC<Props> = ({ user }) => {
   const [isBioScanning, setIsBioScanning] = useState(false);
   const [bioScanProgress, setBioScanProgress] = useState(0);
   const [fingerDetected, setFingerDetected] = useState(false);
+  const [scanCount, setScanCount] = useState({ nutri: 0, bio: 0 });
 
   const bioScanIntervalRef = useRef<number | null>(null);
   const ppgBufferRef = useRef<number[]>([]);
 
-  const isPremium = user.subscriptionStatus === 'premium';
+  const tier = user.subscriptionStatus;
 
   useEffect(() => {
     const savedDevice = localStorage.getItem(STORAGE_KEYS.WEARABLE_DEVICE);
     if (savedDevice) {
       setDeviceConnected(true);
     }
+
+    // Initialize/Check Daily Limits
+    const today = new Date().toISOString().split('T')[0];
+    const log = localStorage.getItem(STORAGE_KEYS.NUTRI_LOG);
+    if (log) {
+      const data = JSON.parse(log);
+      if (data.date === today) {
+        setScanCount({ nutri: data.nutri || 0, bio: data.bio || 0 });
+      } else {
+        localStorage.setItem(STORAGE_KEYS.NUTRI_LOG, JSON.stringify({ date: today, nutri: 0, bio: 0 }));
+      }
+    } else {
+      localStorage.setItem(STORAGE_KEYS.NUTRI_LOG, JSON.stringify({ date: today, nutri: 0, bio: 0 }));
+    }
   }, []);
+
+  const incrementScan = (type: 'nutri' | 'bio') => {
+    const today = new Date().toISOString().split('T')[0];
+    const newCounts = { ...scanCount, [type]: scanCount[type] + 1 };
+    setScanCount(newCounts);
+    localStorage.setItem(STORAGE_KEYS.NUTRI_LOG, JSON.stringify({ date: today, ...newCounts }));
+  };
+
+  const limits = {
+    free: { nutri: 3, bio: 0, sync: false },
+    silver: { nutri: 10, bio: 1, sync: true },
+    gold: { nutri: Infinity, bio: Infinity, sync: true }
+  }[tier];
 
   useEffect(() => {
     return () => {
@@ -73,7 +101,7 @@ const SmartScan: React.FC<Props> = ({ user }) => {
   }, [mode, results]);
 
   const startNutriCamera = () => {
-    if (!isPremium) {
+    if (scanCount.nutri >= limits.nutri) {
       navigate('/premium');
       return;
     }
@@ -82,7 +110,7 @@ const SmartScan: React.FC<Props> = ({ user }) => {
   };
 
   const startBioScan = () => {
-    if (!isPremium) {
+    if (scanCount.bio >= limits.bio) {
       navigate('/premium');
       return;
     }
@@ -94,7 +122,7 @@ const SmartScan: React.FC<Props> = ({ user }) => {
   };
 
   const handleVitalsSync = () => {
-    if (!isPremium) {
+    if (!limits.sync) {
       navigate('/premium');
       return;
     }
@@ -131,6 +159,7 @@ const SmartScan: React.FC<Props> = ({ user }) => {
         
         try {
           const analysis = await ai.analyzeFood(base64, JSON.stringify(user));
+          incrementScan('nutri');
           
           if (streamRef.current) {
             streamRef.current.getTracks().forEach(track => track.stop());
@@ -227,6 +256,7 @@ const SmartScan: React.FC<Props> = ({ user }) => {
       const sampledData = ppgBufferRef.current.filter((_, i) => i % step === 0).slice(0, 100);
 
       const analysis = await ai.analyzeBiometrics(sampledData, userContext);
+      incrementScan('bio');
       
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
@@ -330,62 +360,62 @@ const SmartScan: React.FC<Props> = ({ user }) => {
               <p className="text-gray-400 font-medium px-4">Choose a scan mode to update your health profile.</p>
             </div>
             
-            <button 
-              onClick={startNutriCamera}
-              className="w-full p-8 bg-orange-600/10 border border-orange-500/20 rounded-[3rem] text-left hover:bg-orange-600/20 transition-all group flex items-center justify-between"
-            >
-              <div className="flex gap-6 items-center">
-                <div className="w-16 h-16 bg-orange-500 rounded-3xl flex items-center justify-center shadow-2xl shadow-orange-500/30 group-hover:scale-110 transition-transform">
-                  <Utensils size={32} />
+              <button 
+                onClick={startNutriCamera}
+                className="w-full p-8 bg-orange-600/10 border border-orange-500/20 rounded-[3rem] text-left hover:bg-orange-600/20 transition-all group flex items-center justify-between"
+              >
+                <div className="flex gap-6 items-center">
+                  <div className="w-16 h-16 bg-orange-500 rounded-3xl flex items-center justify-center shadow-2xl shadow-orange-500/30 group-hover:scale-110 transition-transform">
+                    <Utensils size={32} />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold flex items-center gap-2">
+                      NutriScan™ 
+                      {tier !== 'gold' && <span className="text-[10px] bg-white/10 px-2 py-0.5 rounded-full">{scanCount.nutri}/{limits.nutri}</span>}
+                    </h3>
+                    <p className="text-sm text-gray-400">Calorie & Macro Analysis</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-xl font-bold flex items-center gap-2">
-                    NutriScan™ 
-                    {!isPremium && <Crown size={14} className="text-amber-500" />}
-                  </h3>
-                  <p className="text-sm text-gray-400">Calorie & Macro Analysis</p>
-                </div>
-              </div>
-              <ChevronRight className="text-orange-500/40" />
-            </button>
+                <ChevronRight className="text-orange-500/40" />
+              </button>
 
-            <button 
-              onClick={startBioScan}
-              className="w-full p-8 bg-emerald-600/10 border border-emerald-500/20 rounded-[3rem] text-left hover:bg-emerald-600/20 transition-all group flex items-center justify-between"
-            >
-              <div className="flex gap-6 items-center">
-                <div className="w-16 h-16 bg-emerald-500 rounded-3xl flex items-center justify-center shadow-2xl shadow-emerald-500/30 group-hover:scale-110 transition-transform">
-                  <Activity size={32} />
+              <button 
+                onClick={startBioScan}
+                className="w-full p-8 bg-emerald-600/10 border border-emerald-500/20 rounded-[3rem] text-left hover:bg-emerald-600/20 transition-all group flex items-center justify-between"
+              >
+                <div className="flex gap-6 items-center">
+                  <div className="w-16 h-16 bg-emerald-500 rounded-3xl flex items-center justify-center shadow-2xl shadow-emerald-500/30 group-hover:scale-110 transition-transform">
+                    <Activity size={32} />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold flex items-center gap-2">
+                      BioScan™
+                      {tier !== 'gold' && <span className="text-[10px] bg-white/10 px-2 py-0.5 rounded-full">{scanCount.bio}/{limits.bio}</span>}
+                    </h3>
+                    <p className="text-sm text-gray-400">Camera-based Vitals</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-xl font-bold flex items-center gap-2">
-                    BioScan™
-                    {!isPremium && <Crown size={14} className="text-amber-500" />}
-                  </h3>
-                  <p className="text-sm text-gray-400">Camera-based Vitals</p>
-                </div>
-              </div>
-              <ChevronRight className="text-emerald-500/40" />
-            </button>
+                <ChevronRight className="text-emerald-500/40" />
+              </button>
 
-            <button 
-              onClick={handleVitalsSync}
-              className="w-full p-8 bg-blue-600/10 border border-blue-500/20 rounded-[3rem] text-left hover:bg-blue-600/20 transition-all group flex items-center justify-between"
-            >
-              <div className="flex gap-6 items-center">
-                <div className="w-16 h-16 bg-blue-500 rounded-3xl flex items-center justify-center shadow-2xl shadow-blue-500/30 group-hover:scale-110 transition-transform">
-                  <Heart size={32} />
+              <button 
+                onClick={handleVitalsSync}
+                className="w-full p-8 bg-blue-600/10 border border-blue-500/20 rounded-[3rem] text-left hover:bg-blue-600/20 transition-all group flex items-center justify-between"
+              >
+                <div className="flex gap-6 items-center">
+                  <div className="w-16 h-16 bg-blue-500 rounded-3xl flex items-center justify-center shadow-2xl shadow-blue-500/30 group-hover:scale-110 transition-transform">
+                    <Heart size={32} />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold flex items-center gap-2">
+                      Wellbeing Sync
+                      {tier === 'free' && <Crown size={14} className="text-amber-500" />}
+                    </h3>
+                    <p className="text-sm text-gray-400">Wearable Health Metrics</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-xl font-bold flex items-center gap-2">
-                    Wellbeing Sync
-                    {!isPremium && <Crown size={14} className="text-amber-500" />}
-                  </h3>
-                  <p className="text-sm text-gray-400">Wearable Health Metrics</p>
-                </div>
-              </div>
-              <ChevronRight className="text-blue-500/40" />
-            </button>
+                <ChevronRight className="text-blue-500/40" />
+              </button>
 
             <div className="p-6 bg-white/5 rounded-3xl border border-white/10 flex gap-4">
                <Info className="text-gray-500 shrink-0" size={20} />
@@ -396,7 +426,7 @@ const SmartScan: React.FC<Props> = ({ user }) => {
           </div>
         )}
 
-        {mode === 'nutrition_camera' && isPremium && !results && (
+        {mode === 'nutrition_camera' && tier !== 'free' && !results && (
           <div className="w-full max-w-md space-y-8 animate-in fade-in">
              <div className="relative aspect-square rounded-[3rem] overflow-hidden border-4 border-orange-500/30 shadow-2xl shadow-orange-500/10">
                <video ref={videoRef} autoPlay muted playsInline className="absolute inset-0 w-full h-full object-cover scale-x-[-1]" />
@@ -428,7 +458,7 @@ const SmartScan: React.FC<Props> = ({ user }) => {
              </div>
           </div>
         )}
-        {mode === 'bio_scan' && isPremium && !results && (
+        {mode === 'bio_scan' && tier !== 'free' && !results && (
           <div className="w-full max-w-md space-y-8 animate-in fade-in">
              <div className="relative aspect-square rounded-[3rem] overflow-hidden border-4 border-emerald-500/30 shadow-2xl shadow-emerald-500/10 bg-black">
                <video ref={videoRef} autoPlay muted playsInline className="absolute inset-0 w-full h-full object-cover opacity-40" />
@@ -493,7 +523,7 @@ const SmartScan: React.FC<Props> = ({ user }) => {
           </div>
         )}
 
-        {mode === 'vitals_sync' && isPremium && !results && (
+        {mode === 'vitals_sync' && tier !== 'free' && !results && (
           <div className="w-full max-sm:px-4 max-w-sm space-y-8 text-center animate-in fade-in">
            {!deviceConnected ? (
              <div className="space-y-8 py-10">

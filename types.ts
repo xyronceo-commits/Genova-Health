@@ -20,7 +20,7 @@ export interface UserProfile {
   emergencyContactName: string;
   emergencyContactPhone: string;
   stepGoal: number;
-  subscriptionStatus: 'free' | 'premium';
+  subscriptionStatus: 'free' | 'silver' | 'gold';
 }
 
 export interface HealthMetrics {

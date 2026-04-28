@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Send, ArrowLeft, Bot, Mic, Speaker, Stethoscope, Utensils, Activity, Brain, ClipboardList, Pill, Baby, MicOff, Crown, Globe, ExternalLink, Volume2, Square, Loader2 } from 'lucide-react';
+import { Send, ArrowLeft, Bot, Mic, Speaker, Stethoscope, Utensils, Activity, Brain, ClipboardList, Pill, Baby, MicOff, Crown, Globe, ExternalLink, Volume2, Square, Loader2, Shield } from 'lucide-react';
 import { UserProfile, Message, AssistantType, HealthMetrics } from '../types';
 import { ai } from '../services/ai';
 import { SYSTEM_PROMPTS, STORAGE_KEYS } from '../constants';
@@ -30,13 +30,25 @@ const Assistant: React.FC<Props> = ({ user }) => {
   const sessionRef = useRef<any>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
-  const isPremium = user.subscriptionStatus === 'premium';
+  
+  const canAccess = () => {
+    if (user.subscriptionStatus === 'gold') return true;
+    
+    const freeAssistants = ['nurse'];
+    const silverAssistants = ['nurse', 'fitness', 'nutritionist', 'prescription'];
+    
+    if (user.subscriptionStatus === 'silver') {
+      return silverAssistants.includes(type || 'nurse');
+    }
+    
+    return freeAssistants.includes(type || 'nurse');
+  };
 
   useEffect(() => {
-    if (type === 'family' && !isPremium) {
+    if (!canAccess()) {
       navigate('/premium');
     }
-  }, [type, isPremium, navigate]);
+  }, [type, user.subscriptionStatus, navigate]);
 
   const assistantConfig = {
     nurse: { 
@@ -302,7 +314,8 @@ const Assistant: React.FC<Props> = ({ user }) => {
             <div>
               <h1 className="font-bold text-lg flex items-center gap-2">
                 {isLiveMode ? 'Live Triage' : assistantConfig.title}
-                {isPremium && <Crown size={14} className="text-amber-300" />}
+                {user.subscriptionStatus === 'gold' && <Crown size={14} className="text-amber-300 shadow-sm" />}
+                {user.subscriptionStatus === 'silver' && <Shield size={14} className="text-blue-200" />}
               </h1>
               <div className="flex items-center gap-1">
                 <span className={`w-2 h-2 rounded-full ${isLiveActive || isListening ? 'bg-red-400 animate-ping' : 'bg-green-400 animate-pulse'}`}></span>
