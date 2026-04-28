@@ -67,10 +67,10 @@ const SmartScan: React.FC<Props> = ({ user }) => {
   };
 
   const limits = {
-    free: { nutri: 3, bio: 0, sync: false },
-    silver: { nutri: 10, bio: 1, sync: true },
+    free: { nutri: 5, bio: 1, sync: false },
+    silver: { nutri: 10, bio: 5, sync: true },
     gold: { nutri: Infinity, bio: Infinity, sync: true }
-  }[tier] || { nutri: 3, bio: 0, sync: false };
+  }[tier] || { nutri: 5, bio: 1, sync: false };
 
   useEffect(() => {
     return () => {
@@ -161,7 +161,7 @@ const SmartScan: React.FC<Props> = ({ user }) => {
   const captureAndAnalyze = async () => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    if (video && canvas) {
+    if (video && canvas && video.videoWidth > 0) {
       setIsCapturing(true);
       const ctx = canvas.getContext('2d');
       if (ctx) {
@@ -202,7 +202,7 @@ const SmartScan: React.FC<Props> = ({ user }) => {
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     if (!ctx) return;
 
-    const scanDuration = 30000; // Increased to 30 seconds for better metrics
+    const scanDuration = 60000; // 60 seconds as requested
     const startTime = Date.now();
 
     const processFrame = () => {
@@ -234,8 +234,8 @@ const SmartScan: React.FC<Props> = ({ user }) => {
       const avgG = g / (data.length / 4);
       const avgB = b / (data.length / 4);
 
-      // Pulse detection: High red, Low others (when covered by finger with flash)
-      const isFinger = avgR > 180 && avgG < 150;
+      // Pulse detection: Relative check instead of absolute to handle different flash brightness
+      const isFinger = avgR > (avgG * 1.5) && avgR > 120;
       setFingerDetected(isFinger);
 
       if (isFinger) {
@@ -254,8 +254,8 @@ const SmartScan: React.FC<Props> = ({ user }) => {
       cancelAnimationFrame(bioScanIntervalRef.current);
     }
 
-    if (ppgBufferRef.current.length < 150) {
-      setError("Insufficient data. Please keep your finger steady on the camera lens for the full 30 seconds.");
+    if (ppgBufferRef.current.length < 50) {
+      setError("Limited pulse data detected. Please ensure your finger covers the camera lens and flash completely.");
       return;
     }
 
@@ -512,7 +512,7 @@ const SmartScan: React.FC<Props> = ({ user }) => {
              <div className="text-center space-y-8">
                <div>
                  <h2 className="text-2xl font-black italic tracking-tighter">Genova VitalsScan™</h2>
-                 <p className="text-sm text-gray-400 mt-1 font-medium">Precision biometric extraction via camera</p>
+                 <p className="text-sm text-gray-400 mt-1 font-medium">Hold steady for 60 seconds for precision results</p>
                </div>
                <div className="flex items-center justify-center gap-6">
                  <button onClick={reset} className="p-4 bg-white/10 rounded-full text-gray-400 hover:text-white transition-colors"><X size={24}/></button>

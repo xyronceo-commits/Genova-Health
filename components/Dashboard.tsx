@@ -90,7 +90,7 @@ const Dashboard: React.FC<Props> = ({ user, isDarkMode, toggleDarkMode }) => {
         const totalAcc = Math.sqrt(acc.x**2 + acc.y**2 + acc.z**2);
         
         // Refined Peak Detection Algorithm
-        const threshold = 13.5; 
+        const threshold = 12.8; 
         const minStepTime = 250; 
         
         const now = Date.now();
