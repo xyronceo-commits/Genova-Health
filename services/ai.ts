@@ -58,8 +58,15 @@ export class AIService {
       const response = await openai.chat.completions.create({
         model: "gpt-4o-mini",
         messages: [
-          { role: "system", content: "You are a health emergency assistant. Return results in JSON format." },
-          { role: "user", content: `Find 3 real, functional emergency hospitals or clinics nearest to coordinates (${lat}, ${lng}) in Nigeria. Return a list of names and addresses. Format: { "hospitals": [{ "name": "...", "address": "...", "distance": "..." }] }` }
+          { role: "system", content: "You are a health emergency assistant locating facilities in Nigeria. Return ONLY JSON." },
+          { role: "user", content: `Identify 3 real, functional emergency hospitals or clinics nearest to coordinates (${lat}, ${lng}) in Nigeria. 
+          Use your internal knowledge of Nigerian healthcare geography (e.g. Lagos, Abuja, Port Harcourt distributions).
+          Return a JSON object in this exact format:
+          { 
+            "hospitals": [
+              { "name": "Hospital Name", "address": "Full Address", "distance": "estimated distance (e.g. 2.5km)", "specialty": "Emergency/General" }
+            ] 
+          }` }
         ],
         response_format: { type: "json_object" }
       });
@@ -67,7 +74,14 @@ export class AIService {
       return JSON.parse(response.choices[0]?.message?.content || "{\"hospitals\":[]}");
     } catch (error) {
       console.error("OpenAI Search Error:", error);
-      throw error;
+      // Fallback data for Nigeria
+      return {
+        hospitals: [
+          { name: "Reddington Hospital", address: "Victoria Island, Lagos", distance: "Dynamic search failed", specialty: "Emergency" },
+          { name: "Lagoon Hospital", address: "Ikoyi, Lagos", distance: "Dynamic search failed", specialty: "General" },
+          { name: "Nisa Premier Hospital", address: "Jabi, Abuja", distance: "Dynamic search failed", specialty: "Multi-specialty" }
+        ]
+      };
     }
   }
 
@@ -78,11 +92,22 @@ export class AIService {
       const response = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
         messages: [
-          { role: "system", content: "You are Genova NutriScan AI. Identify food items and estimate their nutritional value. Provide a health tip relevant to the user's genotype, blood group, and health goals. If it is a Nigerian meal, provide localized insights. Return JSON." },
+          { role: "system", content: "You are Genova NutriScan AI. Return ONLY JSON." },
           {
             role: "user",
             content: [
-              { type: "text", text: `Analyze this food image for a user with the following health profile: ${userContext}. Provide nutritional estimates and personalized advice.` },
+              { type: "text", text: `Identify the food in this image and provide nutritional data for a user with profile: ${userContext}. 
+              Provide estimates for calories, protein, carbs, and fat.
+              If it's a Nigerian dish (like Jollof, Amala, Pounded Yam), identify it correctly and provide localized health tips.
+              Return a JSON object in this exact format:
+              {
+                "foodName": "Dish Name",
+                "calories": 450,
+                "protein": "20g",
+                "carbs": "55g",
+                "fat": "15g",
+                "insight": "AI-generated personalized health advice based on user profile and meal."
+              }` },
               {
                 type: "image_url",
                 image_url: {
@@ -109,14 +134,23 @@ export class AIService {
       const response = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
         messages: [
-          { role: "system", content: "You are Genova BioScan AI. You analyze PPG signals from smartphone cameras to estimate heart rate and blood pressure. You are highly accurate in signal processing. Provide localized Nigerian health advice. Return JSON." },
-          { role: "user", content: `Analyze this PPG (Photoplethysmogram) signal data collected from a smartphone camera. 
+          { role: "system", content: "You are Genova BioScan AI focused on PPG signal analysis. Return ONLY JSON." },
+          { role: "user", content: `Analyze this PPG (Photoplethysmogram) signal data. 
               User Profile: ${userContext}. 
-              Signal Data (average red channel values over 10 seconds): ${ppgSignal.join(', ')}.
+              Signal Data: ${ppgSignal.join(', ')}.
               
-              Calculate the Heart Rate (BPM) based on the peaks in the signal. 
-              Estimate Blood Pressure (Systolic/Diastolic) using the user's profile and signal characteristics (e.g., pulse wave analysis).
-              Provide a health insight relevant to the user's Nigerian context and genotype.` 
+              1. Count peaks to estimate Heart Rate (BPM).
+              2. Estimate Blood Pressure (e.g. 120/80) based on signal and profile.
+              3. Estimate Stress Level (Low/Medium/High).
+              4. Provide a localized Nigerian health insight.
+              
+              Return a JSON object in this exact format:
+              {
+                "heartRate": 72,
+                "bloodPressure": "120/80",
+                "stressLevel": "Low",
+                "insight": "Personalized health advice."
+              }` 
           }
         ],
         response_format: { type: "json_object" }

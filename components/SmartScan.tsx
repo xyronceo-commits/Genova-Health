@@ -192,8 +192,9 @@ const SmartScan: React.FC<Props> = ({ user }) => {
       const avgG = g / (data.length / 4);
       const avgB = b / (data.length / 4);
 
-      // Simple finger detection: high red, low blue/green
-      const isFinger = avgR > 150 && avgG < 100 && avgB < 100;
+      // Simple finger detection: high red, relatively low blue/green
+      // Relaxed a bit: red should be significantly higher than others
+      const isFinger = avgR > 120 && avgR > (avgG + 20) && avgR > (avgB + 20);
       setFingerDetected(isFinger);
 
       if (isFinger) {

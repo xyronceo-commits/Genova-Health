@@ -69,6 +69,19 @@ const Dashboard: React.FC<Props> = ({ user, isDarkMode, toggleDarkMode }) => {
     };
 
     fetchHistory();
+    
+    // Auto-detect location on mount if possible
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition((pos) => {
+        const { latitude, longitude } = pos.coords;
+        setCoords({ lat: latitude, lng: longitude });
+        setLocation(`${latitude.toFixed(2)}°N, ${longitude.toFixed(2)}°E`);
+        // Silently try to find hospitals
+        ai.findHospitals(latitude, longitude).then(result => {
+          setNearbyHospitals(result.hospitals || []);
+        }).catch(null);
+      }, null);
+    }
 
     const handleMotion = (event: DeviceMotionEvent) => {
       const acc = event.accelerationIncludingGravity;
