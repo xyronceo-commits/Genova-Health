@@ -3,7 +3,8 @@ import React, { useEffect, useState } from 'react';
 import { UserProfile, HealthMetrics } from '../types';
 import { STORAGE_KEYS } from '../constants';
 import { auth, getHealthHistory } from '../services/firebase';
-import { Activity, Footprints, Heart, Droplets, Utensils, Zap, ChevronRight, MapPin, ClipboardList, Pill, Brain, Watch, Baby, Sun, Moon, Crown, Lock, Play } from 'lucide-react';
+import { ai } from '../services/ai';
+import { Activity, Footprints, Heart, Droplets, Utensils, Zap, ChevronRight, MapPin, ClipboardList, Pill, Brain, Watch, Baby, Sun, Moon, Crown, Lock, Play, Loader2, Navigation } from 'lucide-react';
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { Link, useNavigate } from 'react-router-dom';
 
@@ -18,6 +19,35 @@ const Dashboard: React.FC<Props> = ({ user, isDarkMode, toggleDarkMode }) => {
   const [history, setHistory] = useState<HealthMetrics[]>([]);
   const [steps, setSteps] = useState(0);
   const [location, setLocation] = useState('Lagos, Nigeria');
+  const [coords, setCoords] = useState<{lat: number, lng: number} | null>(null);
+  const [nearbyHospitals, setNearbyHospitals] = useState<any[]>([]);
+  const [isFindingHospitals, setIsFindingHospitals] = useState(false);
+
+  const findHospitals = async () => {
+    if (!navigator.geolocation) {
+      alert("Geolocation is not supported by your browser");
+      return;
+    }
+
+    setIsFindingHospitals(true);
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+      const { latitude, longitude } = pos.coords;
+      setCoords({ lat: latitude, lng: longitude });
+      setLocation(`${latitude.toFixed(2)}°N, ${longitude.toFixed(2)}°E`);
+      
+      try {
+        const result = await ai.findHospitals(latitude, longitude);
+        setNearbyHospitals(result.hospitals || []);
+      } catch (err) {
+        console.error("Failed to find hospitals:", err);
+      } finally {
+        setIsFindingHospitals(false);
+      }
+    }, (err) => {
+      setIsFindingHospitals(false);
+      alert("Please enable location access to find nearby hospitals.");
+    });
+  };
 
   useEffect(() => {
     const fetchHistory = async () => {
@@ -29,7 +59,6 @@ const Dashboard: React.FC<Props> = ({ user, isDarkMode, toggleDarkMode }) => {
           }
         } catch (err) {
           console.error("Error fetching history:", err);
-          // Fallback to local storage
           const storedHistory = localStorage.getItem(STORAGE_KEYS.HEALTH_HISTORY);
           if (storedHistory) setHistory(JSON.parse(storedHistory));
         }
@@ -40,12 +69,6 @@ const Dashboard: React.FC<Props> = ({ user, isDarkMode, toggleDarkMode }) => {
     };
 
     fetchHistory();
-
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition((pos) => {
-        setLocation(`${pos.coords.latitude.toFixed(2)}°N, ${pos.coords.longitude.toFixed(2)}°E`);
-      });
-    }
 
     const handleMotion = (event: DeviceMotionEvent) => {
       const acc = event.accelerationIncludingGravity;
@@ -69,16 +92,10 @@ const Dashboard: React.FC<Props> = ({ user, isDarkMode, toggleDarkMode }) => {
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight flex items-center gap-3">
-            Welcome, {user.fullName.split(' ')[0]} 👋
+            Welcome, {user.fullName?.split(' ')[0] || 'User'} 👋
             {isPremium && <Crown className="text-amber-500" size={24} />}
           </h1>
           <p className="text-gray-500 dark:text-gray-400 font-medium">Genotype: <span className="text-blue-600 font-bold">{user.genotype}</span> • Blood Group: <span className="text-red-600 font-bold">{user.bloodGroup}</span></p>
-          <button 
-            onClick={() => navigate('/showcase')}
-            className="mt-4 flex items-center gap-2 text-sm font-bold text-blue-600 hover:text-blue-700 transition-colors bg-blue-50 dark:bg-blue-900/20 px-4 py-2 rounded-full border border-blue-100 dark:border-blue-800"
-          >
-            <Play size={14} className="fill-current" /> Watch Intro Showreel
-          </button>
         </div>
         <div className="flex items-center gap-3">
           <button 
@@ -150,6 +167,60 @@ const Dashboard: React.FC<Props> = ({ user, isDarkMode, toggleDarkMode }) => {
         <MetricCard title="Steps" value={steps.toLocaleString()} sub={`Goal: ${stepGoal.toLocaleString()}`} icon={<Footprints className="text-green-500" />} trend={`${stepProgress}%`} color="bg-green-50 dark:bg-green-900/20" />
         <MetricCard title="Stress Level" value={lastMetric.stressLevel} sub="Based on scan" icon={<Zap className="text-yellow-500" />} trend="Normal" color="bg-yellow-50 dark:bg-yellow-900/20" />
         <MetricCard title="Blood Pressure" value={lastMetric.bloodPressure} sub="Latest check" icon={<Activity className="text-blue-500" />} trend="Steady" color="bg-blue-50 dark:bg-blue-900/20" />
+      </div>
+
+      {/* Emergency Care Finder */}
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-sm border border-red-100 dark:border-red-900/20 transition-colors">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-red-50 dark:bg-red-900/20 text-red-600 rounded-2xl">
+              <Navigation size={24} />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold dark:text-white">Emergency Center Locator</h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Quickly locate the nearest medical facilities.</p>
+            </div>
+          </div>
+          <button
+            onClick={findHospitals}
+            disabled={isFindingHospitals}
+            className="flex items-center gap-2 bg-red-600 text-white px-6 py-2 rounded-xl font-bold hover:bg-red-700 transition-all active:scale-[0.98] disabled:opacity-50"
+          >
+            {isFindingHospitals ? <Loader2 size={16} className="animate-spin" /> : <MapPin size={16} />}
+            {isFindingHospitals ? "Finding..." : "Find Nearest"}
+          </button>
+        </div>
+
+        {nearbyHospitals.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 animate-in slide-in-from-bottom-4 duration-500">
+            {nearbyHospitals.map((hospital, i) => (
+              <a 
+                key={i}
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${hospital.name} ${hospital.address}`)}`}
+                target="_blank"
+                rel="no-referrer"
+                className="group p-4 bg-gray-50 dark:bg-gray-700/50 rounded-2xl border border-gray-100 dark:border-gray-700 hover:border-red-200 dark:hover:border-red-800 transition-all"
+              >
+                <div className="flex items-start justify-between mb-2">
+                  <h3 className="font-bold text-gray-900 dark:text-white group-hover:text-red-600 transition-colors">{hospital.name}</h3>
+                  <ChevronRight size={14} className="text-gray-400 group-hover:translate-x-1 transition-transform" />
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 mb-2">{hospital.address}</p>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-red-600/70 bg-red-50 dark:bg-red-900/20 px-2 py-0.5 rounded">Emergency</span>
+                  {hospital.specialty && <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded">{hospital.specialty}</span>}
+                </div>
+              </a>
+            ))}
+          </div>
+        ) : (
+          <div className="py-12 flex flex-col items-center justify-center text-center bg-gray-50 dark:bg-gray-900/20 rounded-2xl border border-dashed border-gray-200 dark:border-gray-700">
+            <div className="w-12 h-12 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center text-gray-400 mb-3">
+              <Navigation size={20} />
+            </div>
+            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Click "Find Nearest" to scan your current area for hospitals.</p>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

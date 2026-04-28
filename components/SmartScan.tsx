@@ -4,7 +4,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Camera, Zap, ShieldCheck, X, AlertCircle, Heart, Info, Activity, Utensils, Watch, ChevronRight, Loader2, Sparkles, RefreshCcw, PieChart, Crown, CameraOff } from 'lucide-react';
 import { UserProfile, HealthMetrics } from '../types';
 import { STORAGE_KEYS } from '../constants';
-import { gemini } from '../services/gemini';
+import { ai } from '../services/ai';
 import { auth, addHealthMetric } from '../services/firebase';
 
 type ScanMode = 'choosing' | 'vitals_sync' | 'nutrition_camera' | 'bio_scan';
@@ -130,7 +130,7 @@ const SmartScan: React.FC<Props> = ({ user }) => {
         const base64 = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
         
         try {
-          const analysis = await gemini.analyzeFood(base64, JSON.stringify(user));
+          const analysis = await ai.analyzeFood(base64, JSON.stringify(user));
           
           if (streamRef.current) {
             streamRef.current.getTracks().forEach(track => track.stop());
@@ -225,7 +225,7 @@ const SmartScan: React.FC<Props> = ({ user }) => {
       const step = Math.max(1, Math.floor(ppgBufferRef.current.length / 100));
       const sampledData = ppgBufferRef.current.filter((_, i) => i % step === 0).slice(0, 100);
 
-      const analysis = await gemini.analyzeBiometrics(sampledData, userContext);
+      const analysis = await ai.analyzeBiometrics(sampledData, userContext);
       
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());

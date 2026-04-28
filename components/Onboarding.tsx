@@ -32,10 +32,6 @@ const Onboarding: React.FC<Props> = ({ onComplete }) => {
 
   const next = () => setStep(s => s + 1);
   const back = () => {
-    if (step === 6) {
-       // Stop back from reaching account step if already there? 
-       // No, let them go back to edit profile.
-    }
     setStep(s => s - 1);
   }
 

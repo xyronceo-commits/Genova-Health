@@ -1,16 +1,17 @@
 
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, ScanLine, MessageSquare, ShieldAlert, User, Moon, Sun, Watch, Crown } from 'lucide-react';
+import { LayoutDashboard, ScanLine, MessageSquare, ShieldAlert, User, Moon, Sun, Watch, Crown, LogOut } from 'lucide-react';
 import { UserProfile } from '../types';
 
 interface Props {
   isDarkMode: boolean;
   toggleDarkMode: () => void;
   user: UserProfile;
+  onLogout: () => void;
 }
 
-const Navigation: React.FC<Props> = ({ isDarkMode, toggleDarkMode, user }) => {
+const Navigation: React.FC<Props> = ({ isDarkMode, toggleDarkMode, user, onLogout }) => {
   const navItems = [
     { to: '/', icon: LayoutDashboard, label: 'Home' },
     { to: '/scan', icon: ScanLine, label: 'Scan' },
@@ -111,6 +112,17 @@ const Navigation: React.FC<Props> = ({ isDarkMode, toggleDarkMode, user }) => {
             <ShieldAlert size={24} />
           </NavLink>
         </div>
+        <button 
+          onClick={() => {
+            if (window.confirm("Are you sure you want to log out?")) {
+              onLogout();
+            }
+          }}
+          className="p-3 mb-4 rounded-xl text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
+          title="Log Out"
+        >
+          <LogOut size={24} />
+        </button>
         <button 
           onClick={toggleDarkMode}
           className="p-3 mb-4 rounded-xl text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all"

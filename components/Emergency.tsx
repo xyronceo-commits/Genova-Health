@@ -4,7 +4,7 @@ import { Phone, MapPin, ShieldAlert, Heart, ChevronRight, AlertTriangle, Navigat
 import { useNavigate } from 'react-router-dom';
 import { UserProfile } from '../types';
 import { STORAGE_KEYS } from '../constants';
-import { gemini } from '../services/gemini';
+import { ai } from '../services/ai';
 
 interface Props {
   user: UserProfile;
@@ -22,16 +22,11 @@ const Emergency: React.FC<Props> = ({ user }) => {
       navigator.geolocation.getCurrentPosition(
         async (pos) => {
           try {
-            const result = await gemini.findHospitals(pos.coords.latitude, pos.coords.longitude);
-            // Parse grounding chunks into a cleaner list
-            const realHospitals = result.chunks
-              .filter((c: any) => c.maps)
-              .map((c: any) => ({
-                name: c.maps.title,
-                uri: c.maps.uri,
-                address: "Click for address/directions",
-                distance: "Nearby"
-              }));
+            const result = await ai.findHospitals(pos.coords.latitude, pos.coords.longitude);
+            const realHospitals = (result.hospitals || []).map((h: any) => ({
+              ...h,
+              uri: `https://www.google.com/maps/search/${encodeURIComponent(h.name + ' ' + h.address)}`
+            }));
             
             setHospitals(realHospitals.length > 0 ? realHospitals : [
               { name: 'Reddington Hospital', address: 'Victoria Island, Lagos', distance: '1.2km' },

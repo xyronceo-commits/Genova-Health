@@ -7,12 +7,12 @@ import { useNavigate } from 'react-router-dom';
 interface Props {
   user: UserProfile;
   onUpdate: (updated: UserProfile) => void;
-  onDelete: () => void;
+  onLogout: () => void;
   isDarkMode: boolean;
   toggleDarkMode: () => void;
 }
 
-const Profile: React.FC<Props> = ({ user, onUpdate, onDelete, isDarkMode, toggleDarkMode }) => {
+const Profile: React.FC<Props> = ({ user, onUpdate, onLogout, isDarkMode, toggleDarkMode }) => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState<UserProfile>(user);
   const [saved, setSaved] = useState(false);
@@ -26,7 +26,7 @@ const Profile: React.FC<Props> = ({ user, onUpdate, onDelete, isDarkMode, toggle
 
   const confirmLogout = () => {
     if (window.confirm("Are you sure you want to log out?")) {
-      onDelete();
+      onLogout();
     }
   };
 

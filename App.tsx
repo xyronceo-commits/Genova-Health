@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { UserProfile } from './types';
 import { STORAGE_KEYS } from './constants';
-import { auth, getUserProfile, logout } from './services/firebase';
+import { auth, getUserProfile, logout, saveUserProfile, testConnection } from './services/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import Dashboard from './components/Dashboard';
 import Onboarding from './components/Onboarding';
@@ -14,7 +14,6 @@ import Profile from './components/Profile';
 import Wearables from './components/Wearables';
 import Navigation from './components/Navigation';
 import Premium from './components/Premium';
-import Showcase from './components/Showcase';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -25,20 +24,24 @@ const App: React.FC = () => {
   });
 
   useEffect(() => {
+    testConnection();
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        const profile = await getUserProfile(firebaseUser.uid);
-        if (profile) {
-          setUser(profile as UserProfile);
+      try {
+        if (firebaseUser) {
+          const profile = await getUserProfile(firebaseUser.uid);
+          if (profile) {
+            setUser(profile as UserProfile);
+          } else {
+            setUser(null);
+          }
         } else {
-          // Logged in but no profile - maybe mid-onboarding? 
-          // We'll let them continue onboarding if no user state is set
           setUser(null);
         }
-      } else {
-        setUser(null);
+      } catch (err) {
+        console.error("Auth process error:", err);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     return () => unsubscribe();
@@ -58,15 +61,14 @@ const App: React.FC = () => {
     setUser(profile);
   };
 
-  const handleUpdateUser = (updated: UserProfile) => {
+  const handleUpdateUser = async (updated: UserProfile) => {
     setUser(updated);
     if (auth.currentUser) {
-      // Background save to firestore
-      import('./services/firebase').then(m => m.saveUserProfile(auth.currentUser!.uid, updated));
+      saveUserProfile(auth.currentUser.uid, updated);
     }
   };
 
-  const handleDeleteAccount = () => {
+  const handleLogout = () => {
     logout();
     setUser(null);
   };
@@ -93,13 +95,12 @@ const App: React.FC = () => {
               <Route path="/emergency" element={<Emergency user={user} />} />
               <Route path="/wearables" element={<Wearables user={user} />} />
               <Route path="/premium" element={<Premium user={user} onUpdate={handleUpdateUser} />} />
-              <Route path="/showcase" element={<Showcase />} />
-              <Route path="/profile" element={<Profile user={user} onUpdate={handleUpdateUser} onDelete={handleDeleteAccount} isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} />} />
+              <Route path="/profile" element={<Profile user={user} onUpdate={handleUpdateUser} onLogout={handleLogout} isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} />} />
               <Route path="*" element={<Navigate to="/" />} />
             </>
           )}
         </Routes>
-        {user && <Navigation isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} user={user} />}
+        {user && <Navigation isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} user={user} onLogout={handleLogout} />}
       </div>
     </Router>
   );

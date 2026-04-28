@@ -128,19 +128,23 @@ const Wearables: React.FC<Props> = ({ user }) => {
       </header>
 
       {!isPremium && (
-        <div className="bg-gradient-to-br from-amber-500 to-amber-600 p-8 rounded-[2.5rem] text-white shadow-2xl shadow-amber-500/20 relative overflow-hidden group">
+        <div className="bg-gradient-to-br from-amber-500 to-amber-600 p-8 rounded-[2.5rem] text-white shadow-2xl shadow-amber-500/20 relative overflow-hidden group mb-8">
+          <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
           <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="flex items-start gap-5">
-              <div className="p-4 bg-white/20 rounded-3xl backdrop-blur-md shadow-xl">
-                <Crown size={32} />
+              <div className="p-4 bg-white/20 rounded-3xl backdrop-blur-md shadow-xl border border-white/30">
+                <Crown size={32} className="text-amber-100" />
               </div>
               <div>
-                <h3 className="text-2xl font-black">Genova Gold Required</h3>
-                <p className="text-white/80 font-medium max-w-md">Wearable synchronization requires a premium subscription. Connect Apple Watch, Fitbit, or Garmin for 24/7 AI health monitoring.</p>
+                <h3 className="text-2xl font-black tracking-tight">Unlock Genova Wearables</h3>
+                <p className="text-amber-50/80 font-medium max-w-md">Connect your Apple Watch, Fitbit, or Garmin for 24/7 AI-powered health monitoring and automatic symptom cross-referencing.</p>
               </div>
             </div>
-            <button onClick={() => navigate('/premium')} className="bg-white text-amber-600 px-8 py-4 rounded-[2rem] font-black text-lg hover:scale-105 active:scale-95 transition-all shadow-xl">
-              Unlock Now
+            <button 
+              onClick={() => navigate('/premium')} 
+              className="bg-white text-amber-600 px-8 py-4 rounded-[2rem] font-black text-lg hover:scale-105 active:scale-95 transition-all shadow-xl flex items-center gap-2"
+            >
+              Get Genova Gold <ChevronLeft className="rotate-180" size={20} />
             </button>
           </div>
           <Crown className="absolute -right-12 -bottom-12 w-64 h-64 text-white/10 rotate-12" />
@@ -150,30 +154,39 @@ const Wearables: React.FC<Props> = ({ user }) => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Main Interaction Area */}
         <div className="lg:col-span-7 space-y-6">
-          <div className={`bg-white dark:bg-gray-800 p-8 md:p-12 rounded-[3rem] shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col items-center justify-center text-center space-y-8 transition-all ${!isPremium ? 'opacity-40 grayscale pointer-events-none' : ''}`}>
+          <div className={`bg-white dark:bg-gray-800 p-8 md:p-12 rounded-[3rem] shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col items-center justify-center text-center space-y-8 transition-all relative overflow-hidden ${!isPremium ? 'opacity-40 grayscale pointer-events-none' : ''}`}>
             {!device ? (
               <>
                 <div className="relative">
                   {/* Radar/Scan Animation */}
                   {isScanning && (
-                    <div className="absolute inset-0 -m-8">
-                       <div className="absolute inset-0 border-2 border-blue-500/20 rounded-full animate-[ping_2s_infinite]"></div>
-                       <div className="absolute inset-0 border-2 border-blue-400/10 rounded-full animate-[ping_3s_infinite_1s]"></div>
+                    <div className="absolute inset-0 -m-16">
+                       <div className="absolute inset-0 border-2 border-blue-500/30 rounded-full animate-[ping_3s_infinite]"></div>
+                       <div className="absolute inset-0 border-2 border-blue-400/20 rounded-full animate-[ping_4s_infinite_1s]"></div>
+                       <div className="absolute inset-0 border-2 border-blue-300/10 rounded-full animate-[ping_5s_infinite_2s]"></div>
+                       <div className="absolute inset-0 bg-blue-500/5 rounded-full animate-pulse"></div>
                     </div>
                   )}
                   
-                  <div className={`w-32 h-32 rounded-[2.5rem] flex items-center justify-center relative z-10 transition-all duration-700 ${isScanning ? 'bg-blue-600 text-white shadow-2xl shadow-blue-500/40 rotate-12' : 'bg-gray-50 dark:bg-gray-900 text-gray-300'}`}>
-                    {isScanning ? <Radio size={64} className="animate-pulse" /> : <Bluetooth size={64} />}
+                  <div className={`w-32 h-32 rounded-[2.5rem] flex items-center justify-center relative z-10 transition-all duration-700 ${isScanning ? 'bg-blue-600 text-white shadow-[0_0_50px_rgba(37,99,235,0.4)] scale-110' : 'bg-gray-50 dark:bg-gray-900 text-gray-300'}`}>
+                    {isScanning ? (
+                      <div className="relative">
+                        <Radio size={64} className="animate-pulse" />
+                        <Wifi size={24} className="absolute -top-2 -right-2 text-blue-200 animate-bounce" />
+                      </div>
+                    ) : <Bluetooth size={64} />}
                   </div>
                 </div>
 
-                <div className="space-y-3">
-                  <h2 className="text-2xl font-black text-gray-900 dark:text-white">
-                    {isScanning ? 'Scanning for Devices' : 'Find Your Device'}
+                <div className="space-y-3 z-10">
+                  <h2 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">
+                    {isScanning ? 'Searching...' : 'Connect Wearable'}
                   </h2>
-                  <p className="text-gray-500 dark:text-gray-400 font-medium max-w-xs mx-auto">
-                    {isScanning ? scanStatus : 'Make sure your wearable is nearby and Bluetooth is turned on.'}
-                  </p>
+                  <div className="min-h-[1.5rem]">
+                    <p className={`text-gray-500 dark:text-gray-400 font-medium max-w-xs mx-auto transition-all ${isScanning ? 'text-blue-600 dark:text-blue-400 font-bold' : ''}`}>
+                      {isScanning ? scanStatus : 'Genova AI works best when it can read your live biometric heart data.'}
+                    </p>
+                  </div>
                 </div>
 
                 {error && (
@@ -206,21 +219,22 @@ const Wearables: React.FC<Props> = ({ user }) => {
               <div className="w-full space-y-10 animate-in zoom-in duration-300">
                 <div className="flex flex-col items-center gap-6">
                   <div className="relative group">
-                    <div className="absolute inset-0 bg-green-500/20 blur-2xl rounded-full scale-150 opacity-50"></div>
-                    <div className="w-32 h-32 bg-green-500 text-white rounded-[2.5rem] flex items-center justify-center relative z-10 shadow-2xl transition-transform group-hover:scale-105 duration-500">
-                      <Watch size={64} />
+                    <div className="absolute inset-0 bg-green-500/30 blur-3xl rounded-full scale-150 opacity-50 animate-pulse"></div>
+                    <div className="w-40 h-40 bg-gradient-to-br from-green-500 to-emerald-600 text-white rounded-[3rem] flex items-center justify-center relative z-10 shadow-2xl transition-transform group-hover:scale-105 duration-500 border-4 border-white/20">
+                      <Watch size={80} />
                     </div>
-                    <div className="absolute -bottom-2 -right-2 bg-white dark:bg-gray-800 p-2 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 z-20">
-                      <CheckCircle2 className="text-green-500" size={28} />
+                    <div className="absolute -bottom-2 -right-2 bg-white dark:bg-gray-800 p-3 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 z-20">
+                      <CheckCircle2 className="text-green-500" size={32} />
                     </div>
                   </div>
                   
-                  <div className="text-center space-y-1">
-                    <h2 className="text-3xl font-black text-gray-900 dark:text-white tracking-tighter">{device.name}</h2>
-                    <div className="inline-flex items-center gap-2 px-3 py-1 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 rounded-full">
-                      <Wifi size={14} className="animate-pulse" />
-                      <span className="text-[10px] font-black uppercase tracking-widest">Stable Connection</span>
+                  <div className="text-center space-y-2">
+                    <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full border border-green-200/50 dark:border-green-800/50 shadow-sm">
+                      <span className="w-2 h-2 bg-green-500 rounded-full animate-ping"></span>
+                      <span className="text-xs font-black uppercase tracking-widest">Live Integration</span>
                     </div>
+                    <h2 className="text-4xl font-black text-gray-900 dark:text-white tracking-tighter">{device.name}</h2>
+                    <p className="text-gray-500 dark:text-gray-400 font-bold text-sm tracking-tight">Connected via Bluetooth Low Energy</p>
                   </div>
                 </div>
 

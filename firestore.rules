@@ -1,33 +1,64 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Default deny
+    // 0. Global Safety Net
     match /{document=**} {
       allow read, write: if false;
     }
 
-    // Auth helpers
+    // Phase 3: Primitives
     function isSignedIn() {
       return request.auth != null;
     }
-    
+
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    // User Profile Rules
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Phase 4: Entity Validations
+    function isValidUserProfile(data) {
+      return data.fullName is string && data.fullName.size() <= 200 &&
+             data.bloodGroup is string && data.bloodGroup.size() <= 10 &&
+             data.genotype is string && data.genotype.size() <= 10 &&
+             (data.get('subscriptionStatus', 'free') in ['free', 'premium']) &&
+             (data.get('updatedAt', '') is string);
+    }
+
+    function isValidHealthMetric(data) {
+      return data.heartRate is number &&
+             (data.get('bloodPressure', '') is string) &&
+             (data.get('stressLevel', 'Low') in ['Low', 'Medium', 'High']) &&
+             data.timestamp is string;
+    }
+
+    // Collection Rules
     match /users/{userId} {
       allow get: if isOwner(userId);
-      allow create: if isOwner(userId) && (
-        request.resource.data.keys().hasAll(['fullName', 'age', 'gender', 'bloodGroup', 'genotype'])
-      );
-      allow update: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUserProfile(incoming());
+      allow update: if isOwner(userId) && isValidUserProfile(incoming()) && 
+                    incoming().diff(existing()).affectedKeys().hasOnly(['fullName', 'age', 'gender', 'bloodGroup', 'genotype', 'height', 'weight', 'allergies', 'emergencyContactName', 'emergencyContactPhone', 'stepGoal', 'subscriptionStatus', 'updatedAt']);
       
-      // Health History Subcollection
       match /history/{metricId} {
-        allow list, get: if isOwner(userId);
-        allow create: if isOwner(userId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidHealthMetric(incoming());
       }
+    }
+    
+    // Support Test connection Doc
+    match /test/connection {
+      allow get: if true; 
     }
   }
 }

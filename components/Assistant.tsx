@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Send, ArrowLeft, Bot, Mic, Speaker, Stethoscope, Utensils, Activity, Brain, ClipboardList, Pill, Baby, MicOff, Crown, Globe, ExternalLink, Volume2, Square, Loader2 } from 'lucide-react';
 import { UserProfile, Message, AssistantType, HealthMetrics } from '../types';
-import { gemini } from '../services/gemini';
+import { ai } from '../services/ai';
 import { SYSTEM_PROMPTS, STORAGE_KEYS } from '../constants';
 
 interface Props {
@@ -106,7 +106,7 @@ const Assistant: React.FC<Props> = ({ user }) => {
 
   useEffect(() => {
     const welcomeMessages: Record<string, string> = {
-      nurse: `Hi ${user.fullName.split(' ')[0]}, I'm Nurse Genova. How are you feeling today?`,
+      nurse: `Hi ${user.fullName?.split(' ')[0] || 'there'}, I'm Nurse Genova. How are you feeling today?`,
       nutritionist: `Hello! I can help you create a meal plan tailored for ${user.genotype} genotype. What's on the menu?`,
       fitness: `Ready to get active? I can suggest exercises for your weight (${user.weight}kg) and goals.`,
       mental: `Take a deep breath. I'm here to support your mental wellness. How's your mood?`,
@@ -141,8 +141,8 @@ const Assistant: React.FC<Props> = ({ user }) => {
     const biometricContext = lastMetric ? `\nLATEST BIOMETRICS: HR=${lastMetric.heartRate} BPM, BP=${lastMetric.bloodPressure}.` : '';
 
     try {
-      const stream = gemini.getResponseStream(
-        'gemini-3-flash-preview',
+      const stream = ai.getResponseStream(
+        'gpt-4o-mini',
         assistantConfig.prompt + `\n\nUSER MEDICAL PROFILE:\nName: ${user.fullName}\nAge: ${user.age}\nGender: ${user.gender}\nGenotype: ${user.genotype}\nBlood Group: ${user.bloodGroup}\nAllergies: ${user.allergies.join(', ') || 'None'}\nWeight: ${user.weight}kg\nHeight: ${user.height}cm\nEMERGENCY CONTACT: ${user.emergencyContactName} (${user.emergencyContactPhone})` + biometricContext,
         messages,
         messageText,
@@ -223,7 +223,7 @@ const Assistant: React.FC<Props> = ({ user }) => {
         return { data: encode(new Uint8Array(int16.buffer)), mimeType: 'audio/pcm;rate=16000' };
       };
 
-      const sessionPromise = gemini.connectLive({
+      const sessionPromise = ai.connectLive({
         onopen: () => {
           setIsLiveActive(true);
           const source = inCtx.createMediaStreamSource(stream);
