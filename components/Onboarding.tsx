@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import * as React from 'react';
 import { UserProfile, BloodGroup, Genotype } from '../types';
 import { User, ShieldCheck, ArrowRight, Dna, Sparkles, Activity, Heart, ArrowLeft, Target, Shield, Camera, Mic, MapPin, Bluetooth, Bot, Utensils, Phone, Mail, Globe, Apple, Lock, Loader2 } from 'lucide-react';
 import { signInWithGoogle, auth, saveUserProfile, getUserProfile } from '../services/firebase';
@@ -9,9 +9,30 @@ interface Props {
   onComplete: (profile: UserProfile) => void;
 }
 
-const Onboarding: React.FC<Props> = ({ onComplete }) => {
-  const [step, setStep] = useState(1);
-  const [profile, setProfile] = useState<Partial<UserProfile>>({
+const InputGroup: React.FC<{label: string, children: React.ReactNode}> = ({ label, children }) => (
+  <div className="space-y-2">
+    <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] ml-2">
+      {label}
+    </label>
+    {children}
+  </div>
+);
+
+const PermissionRow: React.FC<{icon: React.ReactNode, title: string, desc: string}> = ({ icon, title, desc }) => (
+  <div className="flex items-center gap-5 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-800">
+    <div className="w-10 h-10 bg-white dark:bg-gray-700 text-blue-600 rounded-xl flex items-center justify-center shadow-sm">
+      {icon}
+    </div>
+    <div>
+      <h4 className="font-bold text-sm text-gray-900 dark:text-white leading-tight">{title}</h4>
+      <p className="text-[10px] text-gray-500 dark:text-gray-400 font-medium">{desc}</p>
+    </div>
+  </div>
+);
+
+const Onboarding = ({ onComplete }: Props) => {
+  const [step, setStep] = React.useState(1);
+  const [profile, setProfile] = React.useState<Partial<UserProfile>>({
     fullName: '',
     age: 25,
     gender: 'male',
@@ -24,11 +45,11 @@ const Onboarding: React.FC<Props> = ({ onComplete }) => {
     emergencyContactPhone: '',
     stepGoal: 10000 
   });
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [isLogin, setIsLogin] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [email, setEmail] = React.useState('');
+  const [password, setPassword] = React.useState('');
+  const [isLogin, setIsLogin] = React.useState(false);
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
 
   const next = () => setStep(s => s + 1);
   const back = () => {
@@ -122,7 +143,10 @@ const Onboarding: React.FC<Props> = ({ onComplete }) => {
                 <div className="pt-8 space-y-4">
                   <button 
                     type="button" 
-                    onClick={next}
+                    onClick={() => {
+                      setIsLogin(false);
+                      next();
+                    }}
                     className="w-full bg-blue-600 text-white py-6 rounded-3xl font-black text-xl flex items-center justify-center gap-3 active:scale-[0.98] transition-all shadow-2xl shadow-blue-500/30 group"
                   >
                     Get Started
@@ -130,7 +154,10 @@ const Onboarding: React.FC<Props> = ({ onComplete }) => {
                   </button>
                   <button 
                     type="button"
-                    onClick={() => setStep(6)}
+                    onClick={() => {
+                      setIsLogin(true);
+                      setStep(6);
+                    }}
                     className="w-full text-blue-600 dark:text-blue-400 font-bold py-2 hover:underline transition-all"
                   >
                     Already have an account? Login
@@ -388,9 +415,11 @@ const Onboarding: React.FC<Props> = ({ onComplete }) => {
 
                 <div className="text-center space-y-3">
                   <h2 className="text-4xl font-black text-gray-900 dark:text-white tracking-tighter leading-none">
-                    Save your data.
+                    {isLogin ? 'Welcome back.' : 'Save your data.'}
                   </h2>
-                  <p className="text-gray-500 dark:text-gray-400 font-medium">Create an account to sync your health profile across devices.</p>
+                  <p className="text-gray-500 dark:text-gray-400 font-medium">
+                    {isLogin ? 'Sign in to access your health profile.' : 'Create an account to sync your health profile across devices.'}
+                  </p>
                 </div>
 
                 <div className="space-y-4">
@@ -478,26 +507,5 @@ const Onboarding: React.FC<Props> = ({ onComplete }) => {
     </div>
   );
 };
-
-const InputGroup: React.FC<{label: string, children: React.ReactNode}> = ({ label, children }) => (
-  <div className="space-y-2">
-    <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] ml-2">
-      {label}
-    </label>
-    {children}
-  </div>
-);
-
-const PermissionRow: React.FC<{icon: React.ReactNode, title: string, desc: string}> = ({ icon, title, desc }) => (
-  <div className="flex items-center gap-5 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-800">
-    <div className="w-10 h-10 bg-white dark:bg-gray-700 text-blue-600 rounded-xl flex items-center justify-center shadow-sm">
-      {icon}
-    </div>
-    <div>
-      <h4 className="font-bold text-sm text-gray-900 dark:text-white leading-tight">{title}</h4>
-      <p className="text-[10px] text-gray-500 dark:text-gray-400 font-medium">{desc}</p>
-    </div>
-  </div>
-);
 
 export default Onboarding;

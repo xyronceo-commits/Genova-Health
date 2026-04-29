@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import * as React from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { UserProfile } from './types';
 import { STORAGE_KEYS } from './constants';
@@ -15,15 +15,15 @@ import Wearables from './components/Wearables';
 import Navigation from './components/Navigation';
 import Premium from './components/Premium';
 
-const App: React.FC = () => {
-  const [user, setUser] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [isDarkMode, setIsDarkMode] = useState(() => {
+const App = () => {
+  const [user, setUser] = React.useState<UserProfile | null>(null);
+  const [loading, setLoading] = React.useState(true);
+  const [isDarkMode, setIsDarkMode] = React.useState(() => {
     const saved = localStorage.getItem('genova_theme');
     return saved === 'dark';
   });
 
-  useEffect(() => {
+  React.useEffect(() => {
     testConnection();
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       try {
@@ -47,7 +47,7 @@ const App: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
       localStorage.setItem('genova_theme', 'dark');
