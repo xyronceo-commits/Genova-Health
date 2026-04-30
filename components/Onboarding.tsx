@@ -53,7 +53,11 @@ const Onboarding = ({ onComplete }: Props) => {
 
   const next = () => setStep(s => s + 1);
   const back = () => {
-    setStep(s => s - 1);
+    if (step === 6 && isLogin) {
+      setStep(1);
+    } else {
+      setStep(s => s - 1);
+    }
   }
 
   const handleAuthSuccess = async (uid: string) => {

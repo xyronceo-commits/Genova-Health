@@ -37,7 +37,11 @@ const Dashboard: React.FC<Props> = ({ user, isDarkMode, toggleDarkMode }) => {
       
       try {
         const result = await ai.findHospitals(latitude, longitude);
-        setNearbyHospitals(result.hospitals || []);
+        const mappedHospitals = (result.hospitals || []).map((h: any) => ({
+          ...h,
+          uri: h.uri || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${h.name} ${h.address || ''}`)}`
+        }));
+        setNearbyHospitals(mappedHospitals);
       } catch (err) {
         console.error("Failed to find hospitals:", err);
       } finally {
@@ -84,17 +88,25 @@ const Dashboard: React.FC<Props> = ({ user, isDarkMode, toggleDarkMode }) => {
     }
 
     let lastStepTime = 0;
+    let lastAcc = 0;
+    const alpha = 0.8; // Low-pass filter coefficient
+    let filteredAcc = 0;
+
     const handleMotion = (event: DeviceMotionEvent) => {
       const acc = event.accelerationIncludingGravity;
       if (acc?.x && acc?.y && acc?.z) {
         const totalAcc = Math.sqrt(acc.x**2 + acc.y**2 + acc.z**2);
         
-        // Refined Peak Detection Algorithm
-        const threshold = 12.8; 
-        const minStepTime = 250; 
+        // Low-pass filter to smooth signal
+        filteredAcc = alpha * lastAcc + (1 - alpha) * totalAcc;
+        lastAcc = filteredAcc;
+
+        // Refined Peak Detection
+        const threshold = 13.2; // Slightly higher to avoid noise
+        const minStepTime = 300; // Average walking pace limit
         
         const now = Date.now();
-        if (totalAcc > threshold && (now - lastStepTime > minStepTime)) {
+        if (filteredAcc > threshold && (now - lastStepTime > minStepTime)) {
           setSteps(prev => prev + 1);
           lastStepTime = now;
         }
@@ -219,7 +231,7 @@ const Dashboard: React.FC<Props> = ({ user, isDarkMode, toggleDarkMode }) => {
             {nearbyHospitals.map((hospital, i) => (
               <a 
                 key={i}
-                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${hospital.name} ${hospital.address}`)}`}
+                href={hospital.uri || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${hospital.name} ${hospital.address || ''}`)}`}
                 target="_blank"
                 rel="no-referrer"
                 className="group p-4 bg-gray-50 dark:bg-gray-700/50 rounded-2xl border border-gray-100 dark:border-gray-700 hover:border-red-200 dark:hover:border-red-800 transition-all"

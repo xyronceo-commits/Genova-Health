@@ -25,10 +25,10 @@ const Emergency: React.FC<Props> = ({ user }) => {
             const result = await ai.findHospitals(pos.coords.latitude, pos.coords.longitude);
             const realHospitals = (result.hospitals || []).map((h: any) => ({
               ...h,
-              uri: `https://www.google.com/maps/search/${encodeURIComponent(h.name + ' ' + h.address)}`
+              uri: h.uri || `https://www.google.com/maps/search/${encodeURIComponent(h.name + (h.address ? ' ' + h.address : ''))}`
             }));
             
-            setHospitals(realHospitals.length > 0 ? realHospitals : [
+            setHospitals(realHospitals.length > 0 ? realHospitals.slice(0, 5) : [
               { name: 'Reddington Hospital', address: 'Victoria Island, Lagos', distance: '1.2km' },
               { name: 'Lagoon Hospital', address: 'Ikoyi, Lagos', distance: '2.5km' },
             ]);
@@ -43,14 +43,20 @@ const Emergency: React.FC<Props> = ({ user }) => {
             setLoadingHospitals(false);
           }
         },
-        () => {
+        (err) => {
+          console.error("Geolocation error:", err);
           setLoadingHospitals(false);
+          setError("Location access denied. Displaying emergency contacts.");
           setHospitals([
             { name: 'Reddington Hospital', address: 'Victoria Island, Lagos', distance: '1.2km' },
             { name: 'Lagoon Hospital', address: 'Ikoyi, Lagos', distance: '2.5km' },
           ]);
-        }
+        },
+        { timeout: 10000, enableHighAccuracy: true }
       );
+    } else {
+      setLoadingHospitals(false);
+      setError("Geolocation not supported by your device.");
     }
   }, []);
 
