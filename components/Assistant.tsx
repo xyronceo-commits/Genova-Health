@@ -154,7 +154,7 @@ const Assistant: React.FC<Props> = ({ user }) => {
 
     try {
       const stream = ai.getResponseStream(
-        'gpt-4o-mini',
+        'gemini-3.5-flash',
         assistantConfig.prompt + `\n\nUSER MEDICAL PROFILE:\nName: ${user.fullName}\nAge: ${user.age}\nGender: ${user.gender}\nGenotype: ${user.genotype}\nBlood Group: ${user.bloodGroup}\nAllergies: ${user.allergies.join(', ') || 'None'}\nWeight: ${user.weight}kg\nHeight: ${user.height}cm\nEMERGENCY CONTACT: ${user.emergencyContactName} (${user.emergencyContactPhone})` + biometricContext,
         messages,
         messageText,

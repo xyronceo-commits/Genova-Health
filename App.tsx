@@ -31,14 +31,31 @@ const App = () => {
           const profile = await getUserProfile(firebaseUser.uid);
           if (profile) {
             setUser(profile as UserProfile);
+            localStorage.setItem(STORAGE_KEYS.USER_PROFILE, JSON.stringify(profile));
+          } else {
+            const local = localStorage.getItem(STORAGE_KEYS.USER_PROFILE);
+            if (local) {
+              setUser(JSON.parse(local));
+            } else {
+              setUser(null);
+            }
+          }
+        } else {
+          const local = localStorage.getItem(STORAGE_KEYS.USER_PROFILE);
+          if (local) {
+            setUser(JSON.parse(local));
           } else {
             setUser(null);
           }
-        } else {
-          setUser(null);
         }
       } catch (err) {
         console.error("Auth process error:", err);
+        const local = localStorage.getItem(STORAGE_KEYS.USER_PROFILE);
+        if (local) {
+          setUser(JSON.parse(local));
+        } else {
+          setUser(null);
+        }
       } finally {
         setLoading(false);
       }
@@ -58,18 +75,25 @@ const App = () => {
   }, [isDarkMode]);
 
   const handleOnboardingComplete = (profile: UserProfile) => {
+    localStorage.setItem(STORAGE_KEYS.USER_PROFILE, JSON.stringify(profile));
     setUser(profile);
   };
 
   const handleUpdateUser = async (updated: UserProfile) => {
     setUser(updated);
+    localStorage.setItem(STORAGE_KEYS.USER_PROFILE, JSON.stringify(updated));
     if (auth.currentUser) {
-      saveUserProfile(auth.currentUser.uid, updated);
+      try {
+        await saveUserProfile(auth.currentUser.uid, updated);
+      } catch (err) {
+        console.error("Failed to sync updated profile to Cloud Firestore:", err);
+      }
     }
   };
 
   const handleLogout = () => {
-    logout();
+    logout().catch(err => console.error("Sign-out error:", err));
+    localStorage.removeItem(STORAGE_KEYS.USER_PROFILE);
     setUser(null);
   };
 

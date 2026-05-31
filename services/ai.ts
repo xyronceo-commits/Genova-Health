@@ -12,11 +12,18 @@ export class AIService {
   }
 
   private getGemini() {
-    return new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY as string });
+    return new GoogleGenAI({
+      apiKey: (process.env.GEMINI_API_KEY as string) || "dummy_key",
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        }
+      }
+    });
   }
 
   async *getResponseStream(
-    model: string = 'gemini-3-flash-preview',
+    model: string = 'gemini-3.5-flash',
     systemInstruction: string,
     history: Message[],
     userMessage: string,
@@ -83,7 +90,7 @@ export class AIService {
     const gemini = this.getGemini();
     try {
       const response = await gemini.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: "gemini-3.5-flash",
         contents: "Find 3 nearest emergency hospitals or clinics with real details.",
         config: {
           tools: [{ googleMaps: {} }],
@@ -118,7 +125,7 @@ export class AIService {
       // If grounding didn't yield results, use LLM reasoning as second path
       if (hospitals.length === 0) {
         const llmResponse = await gemini.models.generateContent({
-          model: "gemini-3-flash-preview",
+          model: "gemini-3.5-flash",
           contents: `Return a JSON list of 3 nearest real hospitals to coords (${lat}, ${lng}) in Nigeria. Use your internal map data. JSON ONLY. Format: { "hospitals": [{ "name": "...", "address": "...", "distance": "..." }] }`,
           config: {
             responseMimeType: "application/json"
@@ -146,7 +153,7 @@ export class AIService {
     
     try {
       const response = await gemini.models.generateContent({
-        model: 'gemini-3-flash-preview',
+        model: 'gemini-3.5-flash',
         contents: [
           {
             parts: [
@@ -213,7 +220,7 @@ export class AIService {
     const gemini = this.getGemini();
     try {
       const response = await gemini.models.generateContent({
-        model: 'gemini-3-flash-preview',
+        model: 'gemini-3.5-flash',
         contents: `Analyze this PPG (Photoplethysmogram) signal data. 
               User Profile: ${userContext}. 
               Signal Data: ${ppgSignal.slice(0, 50).join(', ')}.

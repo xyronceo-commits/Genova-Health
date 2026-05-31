@@ -479,7 +479,23 @@ const Onboarding = ({ onComplete }: Props) => {
                       </div>
                     </div>
 
-                    {error && <p className="text-red-500 text-xs font-bold px-2">{error}</p>}
+                    {error && (
+                      error.includes('auth/network-request-failed') ? (
+                        <div className="p-4 bg-red-500/10 dark:bg-red-500/5 border border-red-500/20 rounded-2xl text-left space-y-3 animate-in fade-in duration-300">
+                          <p className="text-red-600 dark:text-red-400 text-xs font-black uppercase tracking-wider">Authentication Connection Blocked</p>
+                          <p className="text-[11px] text-gray-500 dark:text-gray-400 font-medium leading-relaxed">
+                            Google Sign-In has been blocked. This typically occurs because browser privacy policies or extensions block cross-origin popup auth handlers:
+                          </p>
+                          <div className="space-y-1.5 text-[10px] text-gray-500 dark:text-gray-400 font-medium pl-3 list-disc">
+                            <div>• **Option 1 (Instant):** Click <strong>"Continue Offline as Guest"</strong> below to run the app fully client-side.</div>
+                            <div>• **Option 2:** Click the <strong>"Open App in a New Tab"</strong> button in your AI Studio toolbar to bypass iframe security blocks.</div>
+                            <div>• **Option 3:** If you are the owner, add your current domain to the **Authorized Domains** list in the Firebase Console.</div>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-red-500 text-xs font-bold px-2">{error}</p>
+                      )
+                    )}
 
                     <button 
                       type="submit"
@@ -489,6 +505,30 @@ const Onboarding = ({ onComplete }: Props) => {
                       {loading ? <Loader2 className="animate-spin" size={24} /> : (isLogin ? 'Sign In' : 'Create Account')}
                     </button>
                   </form>
+
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      const guestProfile: UserProfile = {
+                        fullName: profile.fullName || 'Guest User',
+                        age: profile.age || 25,
+                        gender: profile.gender || 'male',
+                        bloodGroup: profile.bloodGroup || BloodGroup.O_POS,
+                        genotype: profile.genotype || Genotype.AA,
+                        height: profile.height || 170,
+                        weight: profile.weight || 70,
+                        allergies: profile.allergies || [],
+                        emergencyContactName: profile.emergencyContactName || 'Kin Contact',
+                        emergencyContactPhone: profile.emergencyContactPhone || '+234 800 000 0000',
+                        stepGoal: profile.stepGoal || 10000,
+                        subscriptionStatus: 'free'
+                      };
+                      onComplete(guestProfile);
+                    }}
+                    className="w-full bg-blue-500/10 dark:bg-blue-500/5 text-blue-600 dark:text-blue-400 py-5 rounded-2xl font-black text-sm hover:bg-blue-500/20 transition-all border border-blue-500/20 shadow-sm"
+                  >
+                    Continue Offline as Guest
+                  </button>
 
                   <button 
                     type="button"
