@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, ScanLine, MessageSquare, ShieldAlert, User, Moon, Sun, Watch, Crown, LogOut } from 'lucide-react';
+import { LayoutDashboard, ScanLine, MessageSquare, ShieldAlert, User, Moon, Sun, Watch, Crown, LogOut, Info } from 'lucide-react';
 import { UserProfile } from '../types';
 
 interface Props {
@@ -123,6 +123,17 @@ const Navigation: React.FC<Props> = ({ isDarkMode, toggleDarkMode, user, onLogou
         >
           <LogOut size={24} />
         </button>
+        <NavLink 
+          to="/about"
+          className={({ isActive }) => 
+            `p-3 mb-4 rounded-xl transition-all ${
+              isActive ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600' : 'text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-600 dark:hover:text-gray-350'
+            }`
+          }
+          title="About & Privacy"
+        >
+          <Info size={24} />
+        </NavLink>
         <button 
           onClick={toggleDarkMode}
           className="p-3 mb-4 rounded-xl text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all"

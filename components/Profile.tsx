@@ -175,6 +175,28 @@ const Profile: React.FC<Props> = ({ user, onUpdate, onLogout, isDarkMode, toggle
           </div>
         </section>
 
+        {/* App Info & Privacy */}
+        <section className="bg-white dark:bg-gray-800 p-6 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm space-y-4 transition-colors">
+          <div className="flex items-center gap-3">
+            <Info className="text-blue-600" size={20}/>
+            <h2 className="font-bold text-gray-900 dark:text-white">Application Settings</h2>
+          </div>
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-2xl border border-gray-100 dark:border-gray-700">
+            <div className="text-left space-y-1">
+              <h4 className="font-bold text-gray-900 dark:text-white text-sm">Genova Health Suite</h4>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Learn about our app parameters, offline state logic, and security systems.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => navigate('/about')}
+              className="w-full md:w-auto px-5 py-2.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 font-black rounded-xl text-xs transition-all flex items-center justify-center gap-1.5"
+            >
+              <Info size={14} />
+              Privacy & About
+            </button>
+          </div>
+        </section>
+
         <button 
           type="submit"
           className="w-full bg-blue-600 text-white py-4 rounded-2xl font-black text-lg flex items-center justify-center gap-2 hover:bg-blue-700 transition-all active:scale-[0.98] shadow-lg shadow-blue-200 dark:shadow-none"

@@ -1,16 +1,9 @@
 
-import OpenAI from "openai";
 import { GoogleGenAI } from "@google/genai";
+import Groq from "groq-sdk";
 import { Message } from "../types";
 
 export class AIService {
-  private getOpenAI() {
-    return new OpenAI({
-      apiKey: (process.env.OPENAI_API_KEY as string) || "dummy_key",
-      dangerouslyAllowBrowser: true 
-    });
-  }
-
   private getGemini() {
     return new GoogleGenAI({
       apiKey: (process.env.GEMINI_API_KEY as string) || "dummy_key",
@@ -22,18 +15,103 @@ export class AIService {
     });
   }
 
+  private getGroqClient() {
+    const key = (process.env.GROQ_API_KEY as string) || (import.meta as any).env?.VITE_GROQ_API_KEY;
+    if (!key || key === "dummy_key") return null;
+    return new Groq({ apiKey: key, dangerouslyAllowBrowser: true });
+  }
+
   async *getResponseStream(
-    model: string = 'gemini-3.5-flash',
+    model: string = 'llama-3.3-70b-versatile',
     systemInstruction: string,
     history: Message[],
     userMessage: string,
     useSearch: boolean = false
   ) {
+    // 1. First choice: Secure Backend Express Proxy Event-Stream
+    try {
+      const response = await fetch("/api/chat/stream", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          systemInstruction,
+          history,
+          userMessage,
+          model
+        })
+      });
+
+      if (response.ok && response.body) {
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+
+          for (const line of lines) {
+            const cleanLine = line.trim();
+            if (!cleanLine || !cleanLine.startsWith("data: ")) continue;
+            const dataStr = cleanLine.substring(6);
+            if (dataStr === "[DONE]") continue;
+
+            try {
+              const data = JSON.parse(dataStr);
+              if (data.text) {
+                yield { text: data.text, groundingMetadata: null };
+              }
+            } catch (e) {
+              // Ignore parser errors for stream fragments
+            }
+          }
+        }
+        return; // Stream processed successfully
+      }
+    } catch (err) {
+      console.warn("Backend streaming route failed, falling back to client-side direct Groq/Gemini calls:", err);
+    }
+
+    // 2. Second choice: Direct client-side SDK integration with Groq
+    const groqClient = this.getGroqClient();
+    if (groqClient) {
+      try {
+        const completion = await groqClient.chat.completions.create({
+          messages: [
+            { role: "system" as const, content: systemInstruction },
+            ...history.map(h => ({
+              role: (h.role === 'model' ? 'assistant' : 'user') as 'assistant' | 'user',
+              content: h.text
+            })),
+            { role: "user" as const, content: userMessage }
+          ],
+          model: model || "llama-3.3-70b-versatile",
+          stream: true,
+        });
+
+        for await (const chunk of completion) {
+          const text = chunk.choices[0]?.delta?.content || "";
+          if (text) {
+            yield { text, groundingMetadata: null };
+          }
+        }
+        return;
+      } catch (groqErr) {
+        console.error("Client side direct Groq failed:", groqErr);
+      }
+    }
+
+    // 3. Third choice: Fallback to Google Gemini
     const gemini = this.getGemini();
-    
     try {
       const response = await gemini.models.generateContentStream({
-        model,
+        model: 'gemini-3.5-flash',
         contents: [
           ...history.map(h => ({
             role: h.role === 'model' ? 'model' : 'user',
@@ -56,33 +134,11 @@ export class AIService {
         }
       }
     } catch (error) {
-      console.error("Gemini Error:", error);
-      // Fallback to OpenAI if Gemini fails or is not available
-      const openai = this.getOpenAI();
-      const messages: any[] = [
-        { role: "system", content: systemInstruction },
-        ...history.map(h => ({
-          role: h.role === 'model' ? 'assistant' : 'user',
-          content: h.text
-        })),
-        { role: "user", content: userMessage }
-      ];
-
-      const stream = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages,
-        stream: true,
-      });
-
-      for await (const chunk of stream) {
-        const text = chunk.choices[0]?.delta?.content || "";
-        if (text) {
-          yield {
-            text,
-            groundingMetadata: null
-          };
-        }
-      }
+      console.error("Gemini stream failed, all streaming pathways exhausted:", error);
+      yield {
+        text: "I apologize, but I am currently unable to process your request as all AI connection pathways (Groq & Gemini) are temporarily unavailable. Please check your network connection.",
+        groundingMetadata: null
+      };
     }
   }
 
@@ -122,7 +178,6 @@ export class AIService {
         });
       }
 
-      // If grounding didn't yield results, use LLM reasoning as second path
       if (hospitals.length === 0) {
         const llmResponse = await gemini.models.generateContent({
           model: "gemini-3.5-flash",
@@ -138,7 +193,6 @@ export class AIService {
       return { hospitals };
     } catch (error) {
       console.error("Hospital Search Error:", error);
-      // Fallback
       return {
         hospitals: [
           { name: "Reddington Hospital", address: "Victoria Island, Lagos", distance: "Fallback (enable GPS)", specialty: "Emergency" },
@@ -149,8 +203,65 @@ export class AIService {
   }
 
   async analyzeFood(base64Image: string, userContext: string): Promise<any> {
+    // 1. First Choice: Secure Backend Express Proxy Route
+    try {
+      const response = await fetch("/api/analyze-food", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ base64Image, userContext })
+      });
+      if (response.ok) {
+        return await response.json();
+      }
+    } catch (err) {
+      console.warn("Backend Food Analysis Route Unavailable, falling back client-side:", err);
+    }
+
+    // 2. Second Choice: Direct groq client (Vision Llama Vision)
+    const groqClient = this.getGroqClient();
+    if (groqClient) {
+      try {
+        const completion = await groqClient.chat.completions.create({
+          model: "llama-3.2-11b-vision-preview",
+          messages: [
+            {
+              role: "user" as const,
+              content: [
+                {
+                  type: "text" as const,
+                  text: `Identify the food in this image and provide nutritional data for a user with profile: ${userContext}. 
+                  Provide estimates for calories, protein, carbs, and fat.
+                  Return a JSON object in this exact format:
+                  {
+                    "foodName": "Dish Name",
+                    "calories": 450,
+                    "protein": "20g",
+                    "carbs": "55g",
+                    "fat": "15g",
+                    "insight": "Health advice."
+                  }`
+                },
+                {
+                  type: "image_url" as const,
+                  image_url: {
+                    url: `data:image/jpeg;base64,${base64Image}`
+                  }
+                }
+              ]
+            }
+          ],
+          response_format: { type: "json_object" }
+        });
+        return JSON.parse(completion.choices[0]?.message?.content || "{}");
+      } catch (groqErr) {
+        console.error("Client-side direct Groq Food analysis failed:", groqErr);
+      }
+    }
+
+    // 3. Fallback: Gemini Vision
     const gemini = this.getGemini();
-    
     try {
       const response = await gemini.models.generateContent({
         model: 'gemini-3.5-flash',
@@ -184,39 +295,65 @@ export class AIService {
       
       return JSON.parse(response.text || "{}");
     } catch (error) {
-      console.error("Food Analysis Error (Gemini):", error);
-      // Fallback to OpenAI
-      const openai = this.getOpenAI();
+      console.error("Gemini and Groq Food Analysis both failed:", error);
+      return {
+        foodName: "Custom Scanned Meal",
+        calories: 380,
+        protein: "14g",
+        carbs: "45g",
+        fat: "12g",
+        insight: "Analysis is running in offline/unauthorized API state. This is an estimated average profile for scanned home cooking."
+      };
+    }
+  }
+
+  async analyzeBiometrics(ppgSignal: number[], userContext: string): Promise<any> {
+    // 1. First Choice: Secure Backend Express Proxy Route
+    try {
+      const response = await fetch("/api/analyze-biometrics", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ ppgSignal, userContext })
+      });
+      if (response.ok) {
+        return await response.json();
+      }
+    } catch (err) {
+      console.warn("Backend Biometrics Analysis Route Unavailable, falling back client-side:", err);
+    }
+
+    // 2. Second Choice: Direct Groq client (Llama 70B)
+    const groqClient = this.getGroqClient();
+    if (groqClient) {
       try {
-        const response = await openai.chat.completions.create({
-          model: 'gpt-4o-mini',
+        const response = await groqClient.chat.completions.create({
+          model: "llama-3.3-70b-versatile",
           messages: [
-            { role: "system", content: "You are Genova NutriScan AI. Return ONLY JSON." },
             {
-              role: "user",
-              content: [
-                { type: "text", text: `Identify food for user: ${userContext}. JSON format: {foodName, calories, protein, carbs, fat, insight}` },
-                { type: "image_url", image_url: { url: `data:image/jpeg;base64,${base64Image}` } }
-              ]
+              role: "user" as const,
+              content: `Analyze this PPG (Photoplethysmogram) signal data. 
+                  User Profile: ${userContext}. 
+                  Signal Data: ${ppgSignal.slice(0, 50).join(', ')}.
+                  Return a JSON format:
+                  {
+                    "heartRate": 72,
+                    "bloodPressure": "120/80",
+                    "stressLevel": "Normal",
+                    "insight": "Your vitals appear stable."
+                  }`
             }
           ],
           response_format: { type: "json_object" }
         });
         return JSON.parse(response.choices[0]?.message?.content || "{}");
-      } catch (oErr) {
-        return {
-          foodName: "Healthy Meal (Preview)",
-          calories: 420,
-          protein: "18g",
-          carbs: "50g",
-          fat: "14g",
-          insight: "Looks like a great meal! Keep up the balanced diet."
-        };
+      } catch (groqErr) {
+        console.error("Client side direct Groq biometric analytics failed:", groqErr);
       }
     }
-  }
 
-  async analyzeBiometrics(ppgSignal: number[], userContext: string): Promise<any> {
+    // 3. Fallback: Google Gemini
     const gemini = this.getGemini();
     try {
       const response = await gemini.models.generateContent({
@@ -242,9 +379,8 @@ export class AIService {
     }
   }
 
-  // Placeholder for Live API as OpenAI doesn't have a simple 1:1 client-side SDK for this like Gemini
   async connectLive(callbacks: any, systemInstruction: string): Promise<any> {
-    console.warn("Live API is currently not supported with OpenAI implementation. This feature is disabled.");
+    console.warn("Live API is currently not supported. This feature is disabled.");
     return {
       sendRealtimeInput: () => {},
       close: () => {}
@@ -253,3 +389,4 @@ export class AIService {
 }
 
 export const ai = new AIService();
+

@@ -14,6 +14,7 @@ import Profile from './components/Profile';
 import Wearables from './components/Wearables';
 import Navigation from './components/Navigation';
 import Premium from './components/Premium';
+import About from './components/About';
 
 const App = () => {
   const [user, setUser] = React.useState<UserProfile | null>(null);
@@ -120,6 +121,7 @@ const App = () => {
               <Route path="/wearables" element={<Wearables user={user} />} />
               <Route path="/premium" element={<Premium user={user} onUpdate={handleUpdateUser} />} />
               <Route path="/profile" element={<Profile user={user} onUpdate={handleUpdateUser} onLogout={handleLogout} isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} />} />
+              <Route path="/about" element={<About />} />
               <Route path="*" element={<Navigate to="/" />} />
             </>
           )}
