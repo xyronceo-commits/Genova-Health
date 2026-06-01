@@ -28,6 +28,10 @@ export class AIService {
     userMessage: string,
     useSearch: boolean = false
   ) {
+    const mappedModel = (!model || model.startsWith("gemini") || model.startsWith("gpt") || model.startsWith("claude"))
+      ? "llama-3.3-70b-versatile"
+      : model;
+
     // 1. First choice: Secure Backend Express Proxy Event-Stream
     try {
       const response = await fetch("/api/chat/stream", {
@@ -39,7 +43,7 @@ export class AIService {
           systemInstruction,
           history,
           userMessage,
-          model
+          model: mappedModel
         })
       });
 
@@ -91,7 +95,7 @@ export class AIService {
             })),
             { role: "user" as const, content: userMessage }
           ],
-          model: model || "llama-3.3-70b-versatile",
+          model: mappedModel,
           stream: true,
         });
 

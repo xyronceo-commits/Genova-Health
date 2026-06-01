@@ -38,6 +38,10 @@ async function startServer() {
 
     try {
       const groqClient = getGroqClient();
+      const mappedModel = (!model || model.startsWith("gemini") || model.startsWith("gpt") || model.startsWith("claude"))
+        ? "llama-3.3-70b-versatile"
+        : model;
+
       const messages: any[] = [
         { role: "system", content: systemInstruction },
         ...history.map((h: any) => ({
@@ -49,7 +53,7 @@ async function startServer() {
 
       const completion = await groqClient.chat.completions.create({
         messages,
-        model: model || "llama-3.3-70b-versatile",
+        model: mappedModel,
         stream: true,
       });
 
