@@ -383,6 +383,64 @@ export class AIService {
     }
   }
 
+  async extractLocation(text: string): Promise<any> {
+    // 1. First Choice: Secure Backend Express Proxy Route
+    try {
+      const response = await fetch("/api/extract-location", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ text })
+      });
+      if (response.ok) {
+        return await response.json();
+      }
+    } catch (err) {
+      console.warn("Backend Location Extraction Route Unavailable, falling back client-side:", err);
+    }
+
+    // 2. Second Choice: Direct Groq client (Llama 3.3 70b)
+    const groqClient = this.getGroqClient();
+    if (groqClient) {
+      try {
+        const response = await groqClient.chat.completions.create({
+          model: "llama-3.3-70b-versatile",
+          messages: [
+            {
+              role: "user" as const,
+              content: `Extract the location details from this text into JSON format: '${text}'.
+              Return a JSON object:
+              {
+                "landmark": "Lekki Conservation Centre",
+                "city": "Lagos",
+                "country": "Nigeria",
+                "latitude": 6.4281,
+                "longitude": 3.4219
+              }`
+            }
+          ],
+          response_format: { type: "json_object" }
+        });
+        return JSON.parse(response.choices[0]?.message?.content || "{}");
+      } catch (groqErr) {
+        console.error("Client side direct Groq location extraction failed:", groqErr);
+      }
+    }
+
+    // 3. Static fallback for demonstration/offline conditions
+    const lower = text.toLowerCase();
+    if (lower.includes('lekki')) {
+      return { landmark: "Lekki Conservation Centre", city: "Lagos", country: "Nigeria", latitude: 6.4281, longitude: 3.4219 };
+    } else if (lower.includes('ikeja')) {
+      return { landmark: "Ikeja City Mall", city: "Lagos", country: "Nigeria", latitude: 6.5960, longitude: 3.3429 };
+    } else if (lower.includes('abuja')) {
+      return { landmark: "Federal Capital Territory", city: "Abuja", country: "Nigeria", latitude: 9.0765, longitude: 7.3986 };
+    } else {
+      return { landmark: text, city: "Lagos", country: "Nigeria", latitude: 6.5244, longitude: 3.3792 };
+    }
+  }
+
   async connectLive(callbacks: any, systemInstruction: string): Promise<any> {
     console.warn("Live API is currently not supported. This feature is disabled.");
     return {

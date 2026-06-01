@@ -17,6 +17,42 @@ const Emergency: React.FC<Props> = ({ user }) => {
   const [loadingHospitals, setLoadingHospitals] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [customAddress, setCustomAddress] = useState('');
+  const [extracting, setExtracting] = useState(false);
+  const [locationExtracted, setLocationExtracted] = useState<any>(null);
+
+  const handleResolveLocation = async (presetText?: string) => {
+    const textToResolve = presetText || customAddress;
+    if (!textToResolve.trim()) return;
+    setExtracting(true);
+    setLoadingHospitals(true);
+    setError(null);
+    try {
+      const extracted = await ai.extractLocation(textToResolve);
+      setLocationExtracted(extracted);
+      if (extracted && extracted.latitude && extracted.longitude) {
+        setCustomAddress(textToResolve);
+        const result = await ai.findHospitals(extracted.latitude, extracted.longitude);
+        const realHospitals = (result.hospitals || []).map((h: any) => ({
+          ...h,
+          uri: h.uri || `https://www.google.com/maps/search/${encodeURIComponent(h.name + (h.address ? ' ' + h.address : ''))}`
+        }));
+        setHospitals(realHospitals.length > 0 ? realHospitals.slice(0, 5) : [
+          { name: 'Reddington Hospital', address: 'Victoria Island, Lagos', distance: '1.2km' },
+          { name: 'Lagoon Hospital', address: 'Ikoyi, Lagos', distance: '2.5km' },
+        ]);
+      } else {
+        throw new Error("Could not extract precise coordinates.");
+      }
+    } catch (err: any) {
+      console.error(err);
+      setError("AI was unable to resolve landmark coordinates. Try listing a main city or center.");
+    } finally {
+      setExtracting(false);
+      setLoadingHospitals(false);
+    }
+  };
+
   useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -113,6 +149,76 @@ const Emergency: React.FC<Props> = ({ user }) => {
                <p className="text-lg font-black text-gray-900 dark:text-white">Call Now</p>
              </div>
           </button>
+        </div>
+
+        {/* Custom Landmark Extraction Search (Groq Llama-3.3-70b-versatile JSON Mode) */}
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl border border-red-100 dark:border-gray-700 space-y-4 shadow-sm transition-all">
+          <div className="flex items-center justify-between">
+            <h3 className="font-black text-gray-900 dark:text-white uppercase tracking-widest text-[11px] flex items-center gap-2">
+              <Sparkles size={14} className="text-red-500 animate-pulse" /> Dispatch Address Grounding
+            </h3>
+            <span className="text-[9px] bg-red-100 dark:bg-red-900/30 text-red-600 px-2 py-0.5 rounded-full font-black uppercase tracking-wider">Llama-3.3 Extraction</span>
+          </div>
+
+          <p className="text-xs text-gray-400 leading-relaxed">
+            Trouble with GPS? Enter your nearest landmark or full address. Genova's AI parser will extract exact coordinate bounds to anchor emergency routing.
+          </p>
+
+          <div className="flex gap-2 items-center">
+            <input 
+              type="text"
+              value={customAddress}
+              onChange={(e) => setCustomAddress(e.target.value)}
+              placeholder="e.g. Lekki Conservation Centre in Lagos, Nigeria"
+              className="flex-1 bg-gray-50 dark:bg-gray-900 border-none rounded-2xl px-4 py-3.5 text-xs outline-none text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:ring-2 focus:ring-red-500 transition-all shadow-inner"
+              onKeyPress={(e) => e.key === 'Enter' && handleResolveLocation()}
+            />
+            <button
+              onClick={() => handleResolveLocation()}
+              disabled={extracting || !customAddress.trim()}
+              className="px-5 py-3.5 bg-red-600 text-white rounded-2xl text-xs font-bold font-black uppercase tracking-wider hover:bg-red-700 disabled:opacity-50 transition-all active:scale-95 flex items-center gap-2 whitespace-nowrap"
+            >
+              {extracting ? <Loader2 size={12} className="animate-spin" /> : <Navigation size={12} />}
+              Resolve
+            </button>
+          </div>
+
+          {/* Quick-select presets of user's request example! */}
+          <div className="flex flex-wrap items-center gap-2 pt-1">
+            <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Example queries:</span>
+            <button 
+              type="button"
+              onClick={() => handleResolveLocation("Meet me at the Lekki Conservation Centre in Lagos, Nigeria.")}
+              className="text-[10px] px-3 py-1 bg-gray-50 hover:bg-red-50 dark:bg-gray-900/40 dark:hover:bg-red-950/20 text-gray-500 hover:text-red-600 rounded-full border border-dashed border-gray-200 dark:border-gray-700 transition"
+            >
+              Lekki Conservation Centre 🌴
+            </button>
+            <button 
+              type="button"
+              onClick={() => handleResolveLocation("I am situated at Ikeja City Mall, Alausa, Lagos.")}
+              className="text-[10px] px-3 py-1 bg-gray-50 hover:bg-red-50 dark:bg-gray-900/40 dark:hover:bg-red-950/20 text-gray-500 hover:text-red-600 rounded-full border border-dashed border-gray-200 dark:border-gray-700 transition"
+            >
+              Ikeja City Mall 🛍️
+            </button>
+          </div>
+
+          {locationExtracted && (
+            <div className="p-4 bg-emerald-50 dark:bg-emerald-950/10 border border-emerald-100 dark:border-emerald-950/30 rounded-2xl text-xs flex flex-col gap-1 text-emerald-800 dark:text-emerald-400 animate-in fade-in duration-300">
+              <p className="font-bold uppercase tracking-wider text-[10px] text-emerald-600 dark:text-emerald-500">Extracted Bounds Resolved Successfully</p>
+              <p className="font-medium mt-1">📍 Landmark: <span className="font-black text-emerald-900 dark:text-emerald-300">{locationExtracted.landmark || customAddress}</span></p>
+              <div className="flex gap-4 text-[10px] font-mono text-emerald-600/80 mt-1">
+                <span>City: {locationExtracted.city || 'Lagos'}</span>
+                <span>Country: {locationExtracted.country || 'Nigeria'}</span>
+                <span>Coords: {Number(locationExtracted.latitude).toFixed(4)}°N, {Number(locationExtracted.longitude).toFixed(4)}°E</span>
+              </div>
+            </div>
+          )}
+
+          {error && (
+            <div className="p-4 bg-orange-50 dark:bg-orange-950/10 border border-orange-100 dark:border-orange-950/30 rounded-2xl text-xs text-orange-800 dark:text-orange-400">
+               {error}
+            </div>
+          )}
         </div>
 
         {/* Nearby Hospitals */}

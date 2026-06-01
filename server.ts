@@ -151,6 +151,39 @@ async function startServer() {
     }
   });
 
+  // 5. Landmark & Location extraction endpoint using Groq
+  app.post("/api/extract-location", async (req, res) => {
+    const { text } = req.body;
+    try {
+      const groqClient = getGroqClient();
+      const response = await groqClient.chat.completions.create({
+        model: "llama-3.3-70b-versatile",
+        messages: [
+          {
+            role: "user",
+            content: `Extract the location details from this text into JSON format: '${text}'.
+            Return a JSON object in this exact format:
+            {
+              "landmark": "Lekki Conservation Centre",
+              "city": "Lagos",
+              "country": "Nigeria",
+              "latitude": 6.4281,
+              "longitude": 3.4219
+            }
+            Use your general knowledge to estimate accurate coordinates (lat/lng) for the landmark or address described. Return ONLY the JSON object, do not explain the coordinates, do not write anything else.`
+          }
+        ],
+        response_format: { type: "json_object" }
+      });
+
+      const parsed = JSON.parse(response.choices[0]?.message?.content || "{}");
+      res.json(parsed);
+    } catch (error: any) {
+      console.error("Groq Location Extraction Error on Backend:", error);
+      res.status(500).json({ error: error?.message || "Internal location extraction error" });
+    }
+  });
+
   // Vite integration for assets serving & hot reload proxying
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({

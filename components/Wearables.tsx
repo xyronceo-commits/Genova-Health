@@ -47,6 +47,25 @@ const Wearables: React.FC<Props> = ({ user }) => {
     };
   }, [device]);
 
+  const connectVirtualDevice = () => {
+    setIsScanning(true);
+    setError(null);
+    setScanStatus('Synthesizing Virtual Bluetooth link...');
+    
+    setTimeout(() => {
+      const deviceData = {
+        name: 'Genova SmartBand v2 (Demo)',
+        id: 'DEMO-SMARTBAND-001',
+        connected: true,
+        lastSeen: new Date().toISOString()
+      };
+      setDevice(deviceData);
+      localStorage.setItem(STORAGE_KEYS.WEARABLE_DEVICE, JSON.stringify(deviceData));
+      setIsScanning(false);
+      setScanStatus('');
+    }, 1500);
+  };
+
   const requestBluetooth = async () => {
     if (!isPremium) {
       navigate('/premium');
@@ -173,7 +192,7 @@ const Wearables: React.FC<Props> = ({ user }) => {
         <div className="lg:col-span-7 space-y-6">
           <motion.div 
             layout
-            className={`bg-white dark:bg-gray-800 p-8 md:p-12 rounded-[3rem] shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col items-center justify-center text-center space-y-8 transition-all relative overflow-hidden ${!isPremium ? 'opacity-40 grayscale pointer-events-none' : ''}`}
+            className="bg-white dark:bg-gray-800 p-8 md:p-12 rounded-[3rem] shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col items-center justify-center text-center space-y-8 transition-all relative overflow-hidden"
           >
             <AnimatePresence mode="wait">
               {!device ? (
@@ -269,6 +288,14 @@ const Wearables: React.FC<Props> = ({ user }) => {
                     >
                       {isScanning ? <RefreshCw className="animate-spin" size={24} /> : <Search size={24} />}
                       {isScanning ? 'Searching...' : 'Scan for Devices'}
+                    </button>
+
+                    <button 
+                      onClick={connectVirtualDevice}
+                      disabled={isScanning}
+                      className="w-full mt-3 py-4 bg-gray-50 hover:bg-blue-50 dark:bg-gray-900/40 dark:hover:bg-blue-950/20 text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-[2rem] font-black text-xs uppercase tracking-widest transition-all border border-dashed border-gray-200 dark:border-gray-700 active:scale-95 flex items-center justify-center gap-2"
+                    >
+                      <Zap size={14} className="text-blue-500 animate-pulse" /> Connect Genova Virtual Band (Demo)
                     </button>
                     <p className="mt-4 text-[10px] font-black text-gray-300 dark:text-gray-600 uppercase tracking-[0.3em]">Supports Apple Watch, Fitbit, Garmin & more</p>
                   </div>
