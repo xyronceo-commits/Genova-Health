@@ -328,7 +328,7 @@ export class AIService {
       console.warn("Backend Biometrics Analysis Route Unavailable, falling back client-side:", err);
     }
 
-    // 2. Second Choice: Direct Groq client (Llama 70B)
+    // 2. Second Choice: Direct Groq client (Llama 70b)
     const groqClient = this.getGroqClient();
     if (groqClient) {
       try {
