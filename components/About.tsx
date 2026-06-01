@@ -70,6 +70,45 @@ const About: React.FC = () => {
           ))}
         </section>
 
+        {/* Dedicated Data Privacy & Local Storage Section */}
+        <section className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-800 p-8 rounded-3xl transition-all shadow-sm space-y-6">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-emerald-500/10 dark:bg-emerald-500/5 text-emerald-600 dark:text-emerald-400 rounded-xl animate-pulse">
+              <Database size={20} />
+            </div>
+            <h3 className="font-extrabold text-lg text-gray-900 dark:text-white">Data Privacy & Local Storage</h3>
+          </div>
+
+          <div className="space-y-4 text-sm text-gray-600 dark:text-gray-300 leading-relaxed font-medium">
+            <p>
+              To ensure unmatched privacy, Genova Health strictly relies on <span className="font-mono bg-gray-100 dark:bg-gray-750 px-1.5 py-0.5 rounded text-blue-600 dark:text-blue-400 font-extrabold">localStorage</span> to save all your medical profile specifications and health metrics directly on your physical device. 
+            </p>
+            <p>
+              By utilizing local sandbox database keys, your sensitive information never touches external cloud storage or centralized logging servers, guaranteeing 100% ownership and complete sovereignty over your wellness telemetry.
+            </p>
+            
+            <div className="p-5 bg-blue-500/5 dark:bg-blue-900/10 rounded-2xl border border-blue-500/10 dark:border-blue-900/20 space-y-4">
+              <h4 className="font-bold text-xs text-blue-600 dark:text-blue-400 uppercase tracking-widest flex items-center gap-1.5">
+                <Lock size={12} /> Local Storage Breakdown:
+              </h4>
+              <ul className="text-xs space-y-3 font-semibold text-gray-500 dark:text-gray-400">
+                <li className="flex items-start gap-2.5">
+                  <span className="text-emerald-500 mt-0.5 flex-shrink-0">•</span>
+                  <span><strong>Onboarding & Demographics:</strong> Your name, age, allergies, blood group, height, weight, and clinical goals are safely saved client-side for dynamic personalization.</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="text-emerald-500 mt-0.5 flex-shrink-0">•</span>
+                  <span><strong>SmartScan Biometrics:</strong> Digital PPG vital readings, pulse estimates, historical blood pressure trends, and stress records remain strictly in local storage registry.</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="text-emerald-500 mt-0.5 flex-shrink-0">•</span>
+                  <span><strong>AI Assistant Dialogues:</strong> Dialogue session history and clinical system advice context are stored exclusively in temporary browser state cache, maintaining complete medical anonymity.</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
         {/* Privacy Highlight Row */}
         <section className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-800 p-8 rounded-3xl transition-all shadow-sm space-y-6">
           <div className="flex items-center gap-3">
