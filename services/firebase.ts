@@ -1,7 +1,7 @@
 
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
-import { initializeFirestore, doc, getDoc, setDoc, collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
+import { initializeFirestore, doc, getDoc, setDoc, collection, query, orderBy, limit, getDocs, deleteDoc } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
@@ -118,7 +118,9 @@ export const addHealthMetric = async (uid: string, metric: any) => {
   try {
     const historyRef = doc(db, 'users', uid, 'history', Date.now().toString());
     await setDoc(historyRef, {
-      ...metric,
+      heartRate: Number(metric.heartRate) || 72,
+      bloodPressure: String(metric.bloodPressure || metric.bp || "120/80"),
+      stressLevel: String(metric.stressLevel || metric.stress || "Low"),
       timestamp: new Date().toISOString()
     });
   } catch (error) {
@@ -135,5 +137,60 @@ export const getHealthHistory = async (uid: string, limitCount = 10) => {
     return querySnapshot.docs.map(doc => doc.data());
   } catch (error) {
     handleFirestoreError(error, OperationType.LIST, path);
+  }
+};
+
+export const saveChatSession = async (uid: string, chat: any) => {
+  const path = `users/${uid}/chats/${chat.id}`;
+  try {
+    const chatRef = doc(db, 'users', uid, 'chats', chat.id);
+    await setDoc(chatRef, {
+      id: chat.id,
+      title: chat.title || 'Conversation',
+      assistantType: chat.assistantType,
+      messages: chat.messages.map((m: any) => ({
+        role: m.role,
+        text: m.text,
+        timestamp: m.timestamp instanceof Date ? m.timestamp.toISOString() : String(m.timestamp)
+      })),
+      updatedAt: new Date().toISOString()
+    });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+};
+
+export const getChatSessions = async (uid: string) => {
+  const path = `users/${uid}/chats`;
+  try {
+    const chatsRef = collection(db, 'users', uid, 'chats');
+    const q = query(chatsRef, orderBy('updatedAt', 'desc'));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: data.id,
+        title: data.title,
+        assistantType: data.assistantType,
+        messages: (data.messages || []).map((m: any) => ({
+          role: m.role,
+          text: m.text,
+          timestamp: new Date(m.timestamp)
+        })),
+        updatedAt: new Date(data.updatedAt)
+      };
+    });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.LIST, path);
+  }
+};
+
+export const deleteChatSession = async (uid: string, chatId: string) => {
+  const path = `users/${uid}/chats/${chatId}`;
+  try {
+    const chatRef = doc(db, 'users', uid, 'chats', chatId);
+    await deleteDoc(chatRef);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
   }
 };

@@ -28,10 +28,23 @@
       "properties": {
         "heartRate": { "type": "number" },
         "bloodPressure": { "type": "string" },
-        "stressLevel": { "type": "string", "enum": ["Low", "Medium", "High"] },
+        "stressLevel": { "type": "string" },
         "timestamp": { "type": "string", "format": "date-time" }
       },
       "required": ["heartRate", "timestamp"]
+    },
+    "ChatSession": {
+      "title": "Chat Session",
+      "description": "A historical conversation session between user and AI Assistant.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "assistantType": { "type": "string" },
+        "messages": { "type": "array", "items": { "type": "object" } },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "title", "assistantType", "messages", "updatedAt"]
     }
   },
   "firestore": {
@@ -42,6 +55,10 @@
     "/users/{userId}/history/{metricId}": {
       "schema": "HealthMetric",
       "description": "Historical health metrics for the user."
+    },
+    "/users/{userId}/chats/{chatId}": {
+      "schema": "ChatSession",
+      "description": "Historical chat sessions with Genova AI assistants."
     }
   }
 }
