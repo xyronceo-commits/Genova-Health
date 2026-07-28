@@ -1,6 +1,7 @@
 
 import * as React from 'react';
 import { UserProfile, BloodGroup, Genotype } from '../types';
+import { STORAGE_KEYS } from '../constants';
 import { User, ShieldCheck, ArrowRight, Dna, Sparkles, Activity, Heart, ArrowLeft, Target, Shield, Camera, Mic, MapPin, Bluetooth, Bot, Utensils, Phone, Mail, Globe, Apple, Lock, Loader2 } from 'lucide-react';
 import { signInWithGoogle, auth, saveUserProfile, getUserProfile } from '../services/firebase';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
@@ -68,7 +69,13 @@ const Onboarding = ({ onComplete }: Props) => {
       if (existingProfile && isLogin) {
         onComplete(existingProfile as UserProfile);
       } else {
-        const finalProfile = { ...profile, subscriptionStatus: 'free' as const } as UserProfile;
+        // Zero Start: Clear stale local device/metric history for new signup
+        localStorage.removeItem('genova_daily_steps');
+        localStorage.removeItem(STORAGE_KEYS.HEALTH_HISTORY);
+        localStorage.removeItem(STORAGE_KEYS.WEARABLE_DEVICE);
+        localStorage.removeItem(STORAGE_KEYS.NUTRI_LOG);
+
+        const finalProfile = { ...profile, subscriptionStatus: 'gold' as const } as UserProfile;
         await saveUserProfile(uid, finalProfile);
         onComplete(finalProfile);
       }
@@ -521,7 +528,7 @@ const Onboarding = ({ onComplete }: Props) => {
                         emergencyContactName: profile.emergencyContactName || 'Kin Contact',
                         emergencyContactPhone: profile.emergencyContactPhone || '+234 800 000 0000',
                         stepGoal: profile.stepGoal || 10000,
-                        subscriptionStatus: 'free'
+                        subscriptionStatus: 'gold'
                       };
                       onComplete(guestProfile);
                     }}

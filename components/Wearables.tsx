@@ -20,7 +20,7 @@ const Wearables: React.FC<Props> = ({ user }) => {
   const [scanStatus, setScanStatus] = useState('');
   const intervalRef = useRef<number | null>(null);
 
-  const isPremium = user.subscriptionStatus === 'premium';
+  const isPremium = true;
 
   useEffect(() => {
     const savedDevice = localStorage.getItem(STORAGE_KEYS.WEARABLE_DEVICE);
@@ -67,11 +67,6 @@ const Wearables: React.FC<Props> = ({ user }) => {
   };
 
   const requestBluetooth = async () => {
-    if (!isPremium) {
-      navigate('/premium');
-      return;
-    }
-    
     setIsScanning(true);
     setError(null);
     setScanStatus('Initializing Bluetooth...');
@@ -137,7 +132,6 @@ const Wearables: React.FC<Props> = ({ user }) => {
           <div>
             <h1 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight flex items-center gap-2">
               Wearables
-              {!isPremium && <Crown size={20} className="text-amber-500" />}
             </h1>
             <p className="text-gray-500 dark:text-gray-400 font-medium">Manage your connected health ecosystem</p>
           </div>
@@ -157,35 +151,6 @@ const Wearables: React.FC<Props> = ({ user }) => {
           )}
         </AnimatePresence>
       </motion.header>
-
-      {!isPremium && (
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.2 }}
-          className="bg-gradient-to-br from-amber-500 to-amber-600 p-8 rounded-[2.5rem] text-white shadow-2xl shadow-amber-500/20 relative overflow-hidden group mb-8"
-        >
-          <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
-          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div className="flex items-start gap-5">
-              <div className="p-4 bg-white/20 rounded-3xl backdrop-blur-md shadow-xl border border-white/30">
-                <Crown size={32} className="text-amber-100" />
-              </div>
-              <div>
-                <h3 className="text-2xl font-black tracking-tight">Unlock Genova Wearables</h3>
-                <p className="text-amber-50/80 font-medium max-w-md">Connect your Apple Watch, Fitbit, or Garmin for 24/7 AI-powered health monitoring and automatic symptom cross-referencing.</p>
-              </div>
-            </div>
-            <button 
-              onClick={() => navigate('/premium')} 
-              className="bg-white text-amber-600 px-8 py-4 rounded-[2rem] font-black text-lg hover:scale-105 active:scale-95 transition-all shadow-xl flex items-center gap-2"
-            >
-              Get Genova Gold <ChevronLeft className="rotate-180" size={20} />
-            </button>
-          </div>
-          <Crown className="absolute -right-12 -bottom-12 w-64 h-64 text-white/10 rotate-12" />
-        </motion.div>
-      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Main Interaction Area */}

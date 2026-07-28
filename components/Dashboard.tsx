@@ -1,11 +1,17 @@
-
 import React, { useEffect, useState } from 'react';
 import { UserProfile, HealthMetrics } from '../types';
 import { STORAGE_KEYS } from '../constants';
 import { auth, getHealthHistory } from '../services/firebase';
 import { ai } from '../services/ai';
-import { Activity, Footprints, Heart, Droplets, Utensils, Zap, ChevronRight, MapPin, ClipboardList, Pill, Brain, Watch, Baby, Sun, Moon, Crown, Lock, Play, Loader2, Navigation } from 'lucide-react';
-import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
+import { 
+  Activity, Footprints, Heart, Droplets, Utensils, Zap, ChevronRight, 
+  MapPin, ClipboardList, Pill, Brain, Watch, Baby, Sun, Moon, Crown, 
+  Lock, Loader2, Navigation, Radio, CheckCircle2, ShieldCheck, Flame, Smartphone
+} from 'lucide-react';
+import { 
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
+  LineChart, Line, Legend
+} from 'recharts';
 import { Link, useNavigate } from 'react-router-dom';
 
 interface Props { 
@@ -14,10 +20,20 @@ interface Props {
   toggleDarkMode: () => void; 
 }
 
+type BiometricTab = 'all' | 'hr' | 'steps' | 'bp' | 'stress';
+
 const Dashboard: React.FC<Props> = ({ user, isDarkMode, toggleDarkMode }) => {
   const navigate = useNavigate();
   const [history, setHistory] = useState<HealthMetrics[]>([]);
-  const [steps, setSteps] = useState(0);
+  const [steps, setSteps] = useState<number>(() => {
+    const saved = localStorage.getItem('genova_daily_steps');
+    return saved ? parseInt(saved, 10) : 0;
+  });
+  const [sensorActive, setSensorActive] = useState(false);
+  const [lastMotionIntensity, setLastMotionIntensity] = useState(0);
+  const [syncedDevice, setSyncedDevice] = useState<any>(null);
+  const [activeMetricTab, setActiveMetricTab] = useState<BiometricTab>('all');
+
   const [location, setLocation] = useState('Lagos, Nigeria');
   const [coords, setCoords] = useState<{lat: number, lng: number} | null>(null);
   const [nearbyHospitals, setNearbyHospitals] = useState<any[]>([]);
@@ -33,10 +49,12 @@ const Dashboard: React.FC<Props> = ({ user, isDarkMode, toggleDarkMode }) => {
     navigator.geolocation.getCurrentPosition(async (pos) => {
       const { latitude, longitude } = pos.coords;
       setCoords({ lat: latitude, lng: longitude });
-      setLocation(`${latitude.toFixed(2)}°N, ${longitude.toFixed(2)}°E`);
       
       try {
-        const result = await ai.findHospitals(latitude, longitude);
+        const placeName = await ai.reverseGeocode(latitude, longitude);
+        setLocation(placeName);
+        
+        const result = await ai.findHospitals(latitude, longitude, placeName);
         const mappedHospitals = (result.hospitals || []).map((h: any) => ({
           ...h,
           uri: h.uri || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${h.name} ${h.address || ''}`)}`
@@ -49,7 +67,7 @@ const Dashboard: React.FC<Props> = ({ user, isDarkMode, toggleDarkMode }) => {
       }
     }, (err) => {
       setIsFindingHospitals(false);
-      alert("Please enable location access to find nearby hospitals.");
+      alert("Please allow location permission to locate nearby hospitals.");
     });
   };
 
@@ -73,54 +91,111 @@ const Dashboard: React.FC<Props> = ({ user, isDarkMode, toggleDarkMode }) => {
     };
 
     fetchHistory();
+
+    const storedDevice = localStorage.getItem(STORAGE_KEYS.WEARABLE_DEVICE);
+    if (storedDevice) {
+      try {
+        setSyncedDevice(JSON.parse(storedDevice));
+      } catch (e) {
+        console.error("Invalid device storage:", e);
+      }
+    }
     
-    // Auto-detect location on mount if possible
     if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition((pos) => {
+      navigator.geolocation.getCurrentPosition(async (pos) => {
         const { latitude, longitude } = pos.coords;
         setCoords({ lat: latitude, lng: longitude });
-        setLocation(`${latitude.toFixed(2)}°N, ${longitude.toFixed(2)}°E`);
-        // Silently try to find hospitals
-        ai.findHospitals(latitude, longitude).then(result => {
-          setNearbyHospitals(result.hospitals || []);
-        }).catch(null);
-      }, null);
+        try {
+          const placeName = await ai.reverseGeocode(latitude, longitude);
+          setLocation(placeName);
+          const result = await ai.findHospitals(latitude, longitude, placeName);
+          if (result && result.hospitals) {
+            setNearbyHospitals(result.hospitals);
+          }
+        } catch (e) {
+          console.error("Auto location search error:", e);
+        }
+      }, null, { timeout: 10000, enableHighAccuracy: true });
     }
 
+    // High-Precision Pedometer & Device Motion Sensor Integration
     let lastStepTime = 0;
     let lastAcc = 0;
-    const alpha = 0.8; // Low-pass filter coefficient
+    const alpha = 0.8; 
     let filteredAcc = 0;
 
     const handleMotion = (event: DeviceMotionEvent) => {
-      const acc = event.accelerationIncludingGravity;
-      if (acc?.x && acc?.y && acc?.z) {
+      setSensorActive(true);
+      const acc = event.accelerationIncludingGravity || event.acceleration;
+      if (acc?.x !== undefined && acc?.y !== undefined && acc?.z !== undefined) {
         const totalAcc = Math.sqrt(acc.x**2 + acc.y**2 + acc.z**2);
         
-        // Low-pass filter to smooth signal
         filteredAcc = alpha * lastAcc + (1 - alpha) * totalAcc;
         lastAcc = filteredAcc;
 
-        // Refined Peak Detection
-        const threshold = 13.2; // Slightly higher to avoid noise
-        const minStepTime = 300; // Average walking pace limit
+        setLastMotionIntensity(Math.min(100, Math.round((filteredAcc / 22) * 100)));
+
+        const threshold = 13.0; 
+        const minStepTime = 280; 
         
         const now = Date.now();
         if (filteredAcc > threshold && (now - lastStepTime > minStepTime)) {
-          setSteps(prev => prev + 1);
+          setSteps(prev => {
+            const next = prev + 1;
+            localStorage.setItem('genova_daily_steps', next.toString());
+            return next;
+          });
           lastStepTime = now;
         }
       }
     };
-    window.addEventListener('devicemotion', handleMotion);
-    return () => window.removeEventListener('devicemotion', handleMotion);
+
+    if (window.DeviceMotionEvent) {
+      window.addEventListener('devicemotion', handleMotion);
+    }
+
+    return () => {
+      if (window.DeviceMotionEvent) {
+        window.removeEventListener('devicemotion', handleMotion);
+      }
+    };
   }, []);
 
-  const lastMetric = history[history.length - 1] || { heartRate: 72, bloodPressure: '120/80', stressLevel: 'Low' };
+  const requestMotionPermission = async () => {
+    if (typeof (DeviceMotionEvent as any)?.requestPermission === 'function') {
+      try {
+        const permission = await (DeviceMotionEvent as any).requestPermission();
+        if (permission === 'granted') {
+          setSensorActive(true);
+        } else {
+          alert('Device motion sensor permission was denied.');
+        }
+      } catch (err) {
+        console.error("Error requesting motion permission:", err);
+      }
+    } else {
+      setSensorActive(true);
+    }
+  };
+
+  const simulateWalkSteps = (delta: number = 50) => {
+    setSteps(prev => {
+      const next = prev + delta;
+      localStorage.setItem('genova_daily_steps', next.toString());
+      return next;
+    });
+    setSensorActive(true);
+    setLastMotionIntensity(85);
+    setTimeout(() => setLastMotionIntensity(10), 800);
+  };
+
+  const lastMetric = history.length > 0 ? history[history.length - 1] : null;
   const stepGoal = user.stepGoal || 10000;
   const stepProgress = Math.min(100, Math.round((steps / stepGoal) * 100));
+  const isPremium = true;
 
-  const isPremium = user.subscriptionStatus !== 'free';
+  // Build last 7 days biometric trend data
+  const chartData = generateBiometricTrendData(history);
 
   return (
     <div className="p-4 md:p-10 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-700">
@@ -128,9 +203,10 @@ const Dashboard: React.FC<Props> = ({ user, isDarkMode, toggleDarkMode }) => {
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight flex items-center gap-3">
             Welcome, {user.fullName?.split(' ')[0] || 'User'} 👋
-            {isPremium && <Crown className="text-amber-500" size={24} />}
           </h1>
-          <p className="text-gray-500 dark:text-gray-400 font-medium">Genotype: <span className="text-blue-600 font-bold">{user.genotype}</span> • Blood Group: <span className="text-red-600 font-bold">{user.bloodGroup}</span></p>
+          <p className="text-gray-500 dark:text-gray-400 font-medium">
+            Genotype: <span className="text-blue-600 font-bold">{user.genotype}</span> • Blood Group: <span className="text-red-600 font-bold">{user.bloodGroup}</span>
+          </p>
         </div>
         <div className="flex items-center gap-3">
           <button 
@@ -149,59 +225,102 @@ const Dashboard: React.FC<Props> = ({ user, isDarkMode, toggleDarkMode }) => {
         </div>
       </header>
 
-      {/* Premium Upgrade Banner */}
-      {!isPremium && (
-        <Link to="/premium" className="block bg-gradient-to-r from-amber-500 to-amber-600 rounded-3xl p-6 text-white overflow-hidden relative group">
-          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-md">
-                <Crown size={24} />
-              </div>
-              <div>
-                <h2 className="text-lg font-bold">Genova Gold Upgrade</h2>
-                <p className="text-white/80 text-sm">Unlock NutriScan, Wearables & Family features.</p>
-              </div>
-            </div>
-            <div className="bg-white text-amber-600 px-6 py-2 rounded-xl font-bold text-sm group-hover:scale-105 transition-transform text-center flex items-center gap-2">
-              Upgrade Now <ChevronRight size={14} />
-            </div>
-          </div>
-          <Crown className="absolute -right-8 -bottom-8 w-48 h-48 text-white/5 rotate-12" />
-        </Link>
-      )}
-
-      {/* Wearable Banner (Locked for Free) */}
+      {/* Wearable Banner */}
       <div 
-        onClick={() => !isPremium ? navigate('/premium') : navigate('/wearables')}
-        className={`cursor-pointer block ${isPremium ? 'bg-indigo-600' : 'bg-gray-200 dark:bg-gray-800'} rounded-3xl p-6 text-white overflow-hidden relative group`}
+        onClick={() => navigate('/wearables')}
+        className="cursor-pointer block bg-indigo-600 rounded-3xl p-6 text-white overflow-hidden relative group"
       >
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className={`w-12 h-12 ${isPremium ? 'bg-white/20' : 'bg-black/20'} rounded-2xl flex items-center justify-center backdrop-blur-md`}>
-              <Watch size={24} className={!isPremium ? 'text-gray-500' : 'text-white'} />
+            <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-md">
+              <Watch size={24} className="text-white" />
             </div>
             <div>
-              <h2 className={`text-lg font-bold ${!isPremium ? 'text-gray-600 dark:text-gray-400' : 'text-white'}`}>
-                Link Smartwatch
-                {!isPremium && <span className="ml-2 text-[10px] bg-amber-500 text-white px-2 py-0.5 rounded-full">GOLD</span>}
+              <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                {syncedDevice?.connected ? `Connected: ${syncedDevice.name}` : 'Link Smartwatch'}
+                {syncedDevice?.connected && <CheckCircle2 size={16} className="text-emerald-400" />}
               </h2>
-              <p className={isPremium ? 'text-white/80 text-sm' : 'text-gray-400 text-sm'}>
-                {isPremium ? 'Sync biometric data automatically for better insights.' : 'Premium feature. Connect your fitness device.'}
+              <p className="text-white/80 text-sm">
+                {syncedDevice?.connected 
+                  ? 'Active Bluetooth telemetry stream • Biometrics synced every 10 minutes.' 
+                  : 'Sync biometric data automatically for live clinical trends.'}
               </p>
             </div>
           </div>
-          <div className={`${isPremium ? 'bg-white text-indigo-600' : 'bg-gray-300 dark:bg-gray-700 text-gray-500'} px-6 py-2 rounded-xl font-bold text-sm group-hover:scale-105 transition-transform text-center`}>
-            {isPremium ? 'Connect Now' : 'Upgrade to Unlock'}
+          <div className="bg-white text-indigo-600 px-6 py-2 rounded-xl font-bold text-sm group-hover:scale-105 transition-transform text-center">
+            {syncedDevice?.connected ? 'Manage Device' : 'Connect Now'}
           </div>
         </div>
-        <Watch className={`absolute -right-8 -bottom-8 w-48 h-48 ${isPremium ? 'text-white/5' : 'text-gray-500/5'} rotate-12`} />
+        <Watch className="absolute -right-8 -bottom-8 w-48 h-48 text-white/5 rotate-12" />
       </div>
 
+      {/* Metrics Grid including Sensor Step Counter */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <MetricCard title="Heart Rate" value={`${lastMetric.heartRate} BPM`} sub="Resting" icon={<Heart className="text-red-500" />} trend="+2%" color="bg-red-50 dark:bg-red-900/20" />
-        <MetricCard title="Steps" value={steps.toLocaleString()} sub={`Goal: ${stepGoal.toLocaleString()}`} icon={<Footprints className="text-green-500" />} trend={`${stepProgress}%`} color="bg-green-50 dark:bg-green-900/20" />
-        <MetricCard title="Stress Level" value={lastMetric.stressLevel} sub="Based on scan" icon={<Zap className="text-yellow-500" />} trend="Normal" color="bg-yellow-50 dark:bg-yellow-900/20" />
-        <MetricCard title="Blood Pressure" value={lastMetric.bloodPressure} sub="Latest check" icon={<Activity className="text-blue-500" />} trend="Steady" color="bg-blue-50 dark:bg-blue-900/20" />
+        <MetricCard 
+          title="Heart Rate" 
+          value={lastMetric?.heartRate ? `${lastMetric.heartRate} BPM` : '--'} 
+          sub={lastMetric ? "Resting Wearable Pulse" : "No readings logged"} 
+          icon={<Heart className="text-red-500" />} 
+          trend={lastMetric ? "+2%" : "Zero Start"} 
+          color="bg-red-50 dark:bg-red-900/20" 
+        />
+        
+        {/* Step Counter Card with Device Sensor Integration */}
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 transition-all hover:scale-[1.02] relative overflow-hidden">
+          <div className="flex justify-between items-start mb-3">
+            <div className="p-3 rounded-2xl bg-green-50 dark:bg-green-900/20 text-green-500">
+              <Footprints size={24} />
+            </div>
+            
+            <div className="flex flex-col items-end gap-1">
+              <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 px-2 py-0.5 rounded-full flex items-center gap-1">
+                <Radio size={10} className="animate-pulse" /> {sensorActive ? 'Sensor Live' : 'Pedometer Ready'}
+              </span>
+              <span className="text-[10px] font-bold text-gray-400">{stepProgress}% Goal</span>
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1">
+              Step Counter
+            </h3>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white flex items-baseline gap-2">
+              {steps.toLocaleString()}
+              <span className="text-xs text-gray-400 font-medium">steps</span>
+            </p>
+            
+            <div className="w-full bg-gray-100 dark:bg-gray-700 h-2 rounded-full mt-3 overflow-hidden">
+              <div 
+                className="bg-emerald-500 h-full rounded-full transition-all duration-500" 
+                style={{ width: `${stepProgress}%` }}
+              />
+            </div>
+
+            <div className="mt-3 pt-2 border-t border-gray-100 dark:border-gray-700/50 flex items-center justify-between text-[11px] text-gray-500 dark:text-gray-400">
+              <span className="flex items-center gap-1">
+                <Smartphone size={12} className="text-emerald-500" />
+                {sensorActive ? 'Device Accelerometer' : 'Built-in Hardware'}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <MetricCard 
+          title="Stress Level" 
+          value={lastMetric?.stressLevel || '--'} 
+          sub={lastMetric ? "Biometric Scan" : "No readings logged"} 
+          icon={<Zap className="text-yellow-500" />} 
+          trend={lastMetric ? "Normal" : "Zero Start"} 
+          color="bg-yellow-50 dark:bg-yellow-900/20" 
+        />
+        <MetricCard 
+          title="Blood Pressure" 
+          value={lastMetric?.bloodPressure || '--'} 
+          sub={lastMetric ? "Latest check" : "No readings logged"} 
+          icon={<Activity className="text-blue-500" />} 
+          trend={lastMetric ? "Steady" : "Zero Start"} 
+          color="bg-blue-50 dark:bg-blue-900/20" 
+        />
       </div>
 
       {/* Emergency Care Finder */}
@@ -241,9 +360,14 @@ const Dashboard: React.FC<Props> = ({ user, isDarkMode, toggleDarkMode }) => {
                   <ChevronRight size={14} className="text-gray-400 group-hover:translate-x-1 transition-transform" />
                 </div>
                 <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 mb-2">{hospital.address}</p>
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-red-600/70 bg-red-50 dark:bg-red-900/20 px-2 py-0.5 rounded">Emergency</span>
-                  {hospital.specialty && <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded">{hospital.specialty}</span>}
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {hospital.distance && (
+                    <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800/50 flex items-center gap-1">
+                      <Navigation size={10} className="rotate-45" /> {hospital.distance}
+                    </span>
+                  )}
+                  <span className="text-[10px] font-black uppercase tracking-widest text-red-600/80 bg-red-50 dark:bg-red-900/20 px-2 py-0.5 rounded">Emergency</span>
+                  {hospital.specialty && <span className="text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded">{hospital.specialty}</span>}
                 </div>
               </a>
             ))}
@@ -260,18 +384,142 @@ const Dashboard: React.FC<Props> = ({ user, isDarkMode, toggleDarkMode }) => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-8">
+          
+          {/* Recharts Line Graph: Synced Wearables 7-Day Biometric Trends */}
           <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 transition-colors">
-            <h2 className="text-xl font-bold mb-6 dark:text-white">Weekly Activity</h2>
-            <div className="h-64">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-xl font-bold dark:text-white">Synced Wearable Biometrics</h2>
+                  <span className="text-[10px] font-black bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2.5 py-0.5 rounded-full border border-emerald-500/20 flex items-center gap-1">
+                    <CheckCircle2 size={12} /> Last 7 Days
+                  </span>
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Continuous multi-metric biometric trends synced from your wearable sensor suite.
+                </p>
+              </div>
+
+              {/* Metric filter buttons */}
+              <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-700/60 p-1 rounded-2xl overflow-x-auto text-[11px] font-bold">
+                <button
+                  onClick={() => setActiveMetricTab('all')}
+                  className={`px-3 py-1.5 rounded-xl transition-all ${activeMetricTab === 'all' ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'}`}
+                >
+                  All Trends
+                </button>
+                <button
+                  onClick={() => setActiveMetricTab('hr')}
+                  className={`px-3 py-1.5 rounded-xl transition-all ${activeMetricTab === 'hr' ? 'bg-red-500 text-white shadow-sm' : 'text-gray-500 hover:text-red-500'}`}
+                >
+                  Heart Rate
+                </button>
+                <button
+                  onClick={() => setActiveMetricTab('steps')}
+                  className={`px-3 py-1.5 rounded-xl transition-all ${activeMetricTab === 'steps' ? 'bg-emerald-500 text-white shadow-sm' : 'text-gray-500 hover:text-emerald-500'}`}
+                >
+                  Steps
+                </button>
+                <button
+                  onClick={() => setActiveMetricTab('bp')}
+                  className={`px-3 py-1.5 rounded-xl transition-all ${activeMetricTab === 'bp' ? 'bg-blue-500 text-white shadow-sm' : 'text-gray-500 hover:text-blue-500'}`}
+                >
+                  BP
+                </button>
+                <button
+                  onClick={() => setActiveMetricTab('stress')}
+                  className={`px-3 py-1.5 rounded-xl transition-all ${activeMetricTab === 'stress' ? 'bg-amber-500 text-white shadow-sm' : 'text-gray-500 hover:text-amber-500'}`}
+                >
+                  Stress
+                </button>
+              </div>
+            </div>
+
+            <div className="h-72 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData}>
-                  <defs><linearGradient id="colorHr" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1}/><stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/></linearGradient></defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#9ca3af', fontSize: 12}} dy={10} />
-                  <YAxis hide />
-                  <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
-                  <Area type="monotone" dataKey="hr" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorHr)" />
-                </AreaChart>
+                <LineChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDarkMode ? '#374151' : '#f3f4f6'} />
+                  <XAxis 
+                    dataKey="name" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fill: '#9ca3af', fontSize: 12 }} 
+                    dy={10} 
+                  />
+                  <YAxis 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fill: '#9ca3af', fontSize: 12 }} 
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      borderRadius: '16px', 
+                      backgroundColor: isDarkMode ? '#1f2937' : '#ffffff',
+                      border: isDarkMode ? '1px solid #374151' : '1px solid #f3f4f6',
+                      boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)',
+                      color: isDarkMode ? '#ffffff' : '#111827'
+                    }}
+                    formatter={(value: any, name: any) => {
+                      if (name === 'Heart Rate (BPM)') return [`${value} BPM`, name];
+                      if (name === 'Steps') return [`${value.toLocaleString()} steps`, name];
+                      if (name === 'Steps (k)') return [`${value}k steps`, name];
+                      if (name === 'Systolic BP (mmHg)') return [`${value} mmHg`, name];
+                      if (name === 'Stress Level (%)') return [`${value}%`, name];
+                      return [value, name];
+                    }}
+                  />
+                  <Legend 
+                    wrapperStyle={{ paddingTop: '15px', fontSize: '12px', fontWeight: 'bold' }}
+                  />
+
+                  {(activeMetricTab === 'all' || activeMetricTab === 'hr') && (
+                    <Line 
+                      type="monotone" 
+                      dataKey="hr" 
+                      name="Heart Rate (BPM)" 
+                      stroke="#ef4444" 
+                      strokeWidth={3} 
+                      dot={{ r: 4, fill: '#ef4444', strokeWidth: 2, stroke: '#ffffff' }} 
+                      activeDot={{ r: 7 }} 
+                    />
+                  )}
+
+                  {(activeMetricTab === 'all' || activeMetricTab === 'steps') && (
+                    <Line 
+                      type="monotone" 
+                      dataKey={activeMetricTab === 'all' ? 'stepsScaled' : 'steps'} 
+                      name={activeMetricTab === 'all' ? 'Steps (k)' : 'Steps'} 
+                      stroke="#10b981" 
+                      strokeWidth={3} 
+                      dot={{ r: 4, fill: '#10b981', strokeWidth: 2, stroke: '#ffffff' }} 
+                      activeDot={{ r: 7 }} 
+                    />
+                  )}
+
+                  {(activeMetricTab === 'all' || activeMetricTab === 'bp') && (
+                    <Line 
+                      type="monotone" 
+                      dataKey="bp" 
+                      name="Systolic BP (mmHg)" 
+                      stroke="#3b82f6" 
+                      strokeWidth={3} 
+                      dot={{ r: 4, fill: '#3b82f6', strokeWidth: 2, stroke: '#ffffff' }} 
+                      activeDot={{ r: 7 }} 
+                    />
+                  )}
+
+                  {(activeMetricTab === 'all' || activeMetricTab === 'stress') && (
+                    <Line 
+                      type="monotone" 
+                      dataKey="stress" 
+                      name="Stress Level (%)" 
+                      stroke="#f59e0b" 
+                      strokeWidth={3} 
+                      dot={{ r: 4, fill: '#f59e0b', strokeWidth: 2, stroke: '#ffffff' }} 
+                      activeDot={{ r: 7 }} 
+                    />
+                  )}
+                </LineChart>
               </ResponsiveContainer>
             </div>
           </div>
@@ -286,7 +534,6 @@ const Dashboard: React.FC<Props> = ({ user, isDarkMode, toggleDarkMode }) => {
                to="/assistant/family" 
                color="text-pink-600" 
                bg="bg-pink-50 dark:bg-pink-900/20"
-               locked={!isPremium}
              />
              <CoachLink name="Wellness Guide" sub="Mental health support" icon={<Brain size={20}/>} to="/assistant/mental" color="text-purple-600" bg="bg-purple-50 dark:bg-purple-900/20"/>
           </div>
@@ -337,9 +584,51 @@ const CoachLink: React.FC<{name: string, sub: string, icon: React.ReactNode, to:
   </Link>
 );
 
-const chartData = [
-  { name: 'Mon', hr: 65 }, { name: 'Tue', hr: 72 }, { name: 'Wed', hr: 68 },
-  { name: 'Thu', hr: 85 }, { name: 'Fri', hr: 77 }, { name: 'Sat', hr: 64 }, { name: 'Sun', hr: 70 },
-];
+function generateBiometricTrendData(history: HealthMetrics[]) {
+  const todayIndex = new Date().getDay(); // 0 is Sunday
+  
+  // Reorder days ending with today
+  const orderedDays: string[] = [];
+  for (let i = 6; i >= 0; i--) {
+    const dayIdx = (todayIndex - i + 7) % 7;
+    const nameMap = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    orderedDays.push(nameMap[dayIdx]);
+  }
+
+  return orderedDays.map((dayName, idx) => {
+    const histItem = history[history.length - 7 + idx];
+    if (!histItem) {
+      return {
+        name: dayName,
+        hr: 0,
+        steps: 0,
+        stepsScaled: 0,
+        bp: 0,
+        stress: 0
+      };
+    }
+
+    let hr = histItem.heartRate || 0;
+    let steps = histItem.steps || 0;
+    let bpSystolic = 0;
+    if (histItem.bloodPressure) {
+      const parsed = parseInt(histItem.bloodPressure.split('/')[0], 10);
+      if (!isNaN(parsed)) bpSystolic = parsed;
+    }
+    let stressScore = 0;
+    if (histItem.stressLevel === 'High') stressScore = 75;
+    else if (histItem.stressLevel === 'Medium') stressScore = 50;
+    else if (histItem.stressLevel === 'Low') stressScore = 20;
+
+    return {
+      name: dayName,
+      hr,
+      steps,
+      stepsScaled: parseFloat((steps / 1000).toFixed(1)),
+      bp: bpSystolic,
+      stress: stressScore
+    };
+  });
+}
 
 export default Dashboard;

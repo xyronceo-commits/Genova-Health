@@ -95,6 +95,10 @@ const App = () => {
   const handleLogout = () => {
     logout().catch(err => console.error("Sign-out error:", err));
     localStorage.removeItem(STORAGE_KEYS.USER_PROFILE);
+    localStorage.removeItem(STORAGE_KEYS.HEALTH_HISTORY);
+    localStorage.removeItem(STORAGE_KEYS.WEARABLE_DEVICE);
+    localStorage.removeItem(STORAGE_KEYS.NUTRI_LOG);
+    localStorage.removeItem('genova_daily_steps');
     setUser(null);
   };
 
@@ -108,7 +112,7 @@ const App = () => {
 
   return (
     <Router>
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 pb-20 md:pb-0 md:pl-20 transition-colors font-sans">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 pb-20 md:pb-0 md:pl-16 transition-colors font-sans">
         <Routes>
           {!user ? (
             <Route path="*" element={<Onboarding onComplete={handleOnboardingComplete} />} />

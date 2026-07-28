@@ -40,18 +40,7 @@ const Assistant: React.FC<Props> = ({ user }) => {
 
   const scrollRef = useRef<HTMLDivElement>(null);
   
-  const canAccess = () => {
-    if (user.subscriptionStatus === 'gold') return true;
-    
-    const freeAssistants = ['nurse'];
-    const silverAssistants = ['nurse', 'fitness', 'nutritionist', 'prescription'];
-    
-    if (user.subscriptionStatus === 'silver') {
-      return silverAssistants.includes(type || 'nurse');
-    }
-    
-    return freeAssistants.includes(type || 'nurse');
-  };
+  const canAccess = () => true;
 
   useEffect(() => {
     if (!canAccess()) {
@@ -665,8 +654,6 @@ const Assistant: React.FC<Props> = ({ user }) => {
               <div className="overflow-hidden">
                 <h1 className="font-bold text-base md:text-lg flex items-center gap-2 truncate">
                   {isLiveMode ? 'Live Triage' : assistantConfig.title}
-                  {user.subscriptionStatus === 'gold' && <Crown size={14} className="text-amber-300 shadow-sm shrink-0" />}
-                  {user.subscriptionStatus === 'silver' && <Shield size={14} className="text-blue-200 shrink-0" />}
                 </h1>
                 <div className="flex items-center gap-1">
                   <span className={`w-2 h-2 rounded-full ${isLiveActive || isListening ? 'bg-red-400 animate-ping' : 'bg-green-400 animate-pulse'}`}></span>

@@ -98,11 +98,7 @@ const SmartScan: React.FC<Props> = ({ user }) => {
     localStorage.setItem(STORAGE_KEYS.NUTRI_LOG, JSON.stringify({ date: today, ...newCounts }));
   };
 
-  const limits = {
-    free: { nutri: 5, bio: 1, sync: false },
-    silver: { nutri: 10, bio: 5, sync: true },
-    gold: { nutri: Infinity, bio: Infinity, sync: true }
-  }[tier] || { nutri: 5, bio: 1, sync: false };
+  const limits = { nutri: Infinity, bio: Infinity, sync: true };
 
   useEffect(() => {
     return () => {
@@ -174,10 +170,6 @@ const SmartScan: React.FC<Props> = ({ user }) => {
   };
 
   const startNutriCamera = () => {
-    if (scanCount.nutri >= limits.nutri) {
-      navigate('/premium');
-      return;
-    }
     setError(null);
     setMode('nutrition_camera');
   };
@@ -516,7 +508,6 @@ const SmartScan: React.FC<Props> = ({ user }) => {
                   title="NutriScan™"
                   desc="Calorie & Macro Analysis"
                   color="orange"
-                  count={tier !== 'gold' ? `${scanCount.nutri}/${limits.nutri}` : undefined}
                 />
 
                 <ScanModeButton 
@@ -658,12 +649,6 @@ const SmartScan: React.FC<Props> = ({ user }) => {
                    <Link to="/wearables" className="group block w-full py-5 bg-blue-600 text-white rounded-[2rem] font-black hover:bg-blue-700 transition-all shadow-xl shadow-blue-600/20 active:scale-95 flex items-center justify-center gap-2">
                      <Watch size={20} /> Connect Smartwatch Device <ChevronRight size={20} className="group-hover:translate-x-1 transition-transform" />
                    </Link>
-                   <button 
-                     onClick={connectDemoDevice}
-                     className="w-full py-4 bg-white/10 hover:bg-white/15 border border-white/10 text-white rounded-[2rem] font-bold text-xs transition-all active:scale-95 flex items-center justify-center gap-2"
-                   >
-                     <Bluetooth size={16} className="text-blue-400" /> Quick Connect Demo Smartband
-                   </button>
                    <button onClick={reset} className="w-full py-3 text-gray-500 font-bold uppercase tracking-widest text-[10px] hover:text-white transition-colors">Return to Diagnostic Suite</button>
                  </div>
               </motion.div>
@@ -826,7 +811,6 @@ const ScanModeButton: React.FC<{onClick: () => void, icon: React.ReactNode, titl
             {title} 
             {count && <span className="text-[10px] bg-white/10 px-2 py-0.5 rounded-full font-black">{count}</span>}
             {badge && <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-black uppercase tracking-wider ${badge === 'Connected' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-blue-500/20 text-blue-400 border border-blue-500/30'}`}>{badge}</span>}
-            {premium && <Crown size={14} className="text-amber-500" />}
           </h3>
           <p className="text-sm text-gray-400 font-medium">{desc}</p>
         </div>

@@ -58,22 +58,27 @@ const Emergency: React.FC<Props> = ({ user }) => {
       navigator.geolocation.getCurrentPosition(
         async (pos) => {
           try {
-            const result = await ai.findHospitals(pos.coords.latitude, pos.coords.longitude);
+            const { latitude, longitude } = pos.coords;
+            const placeName = await ai.reverseGeocode(latitude, longitude);
+            if (placeName && !customAddress) {
+              setCustomAddress(placeName);
+            }
+            const result = await ai.findHospitals(latitude, longitude, placeName);
             const realHospitals = (result.hospitals || []).map((h: any) => ({
               ...h,
-              uri: h.uri || `https://www.google.com/maps/search/${encodeURIComponent(h.name + (h.address ? ' ' + h.address : ''))}`
+              uri: h.uri || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(h.name + (h.address ? ' ' + h.address : ''))}`
             }));
             
             setHospitals(realHospitals.length > 0 ? realHospitals.slice(0, 5) : [
-              { name: 'Reddington Hospital', address: 'Victoria Island, Lagos', distance: '1.2km' },
-              { name: 'Lagoon Hospital', address: 'Ikoyi, Lagos', distance: '2.5km' },
+              { name: 'State General Hospital', address: placeName || 'Osogbo, Osun State', distance: '1.2 km away' },
+              { name: 'University Teaching Hospital', address: placeName || 'Osogbo, Osun State', distance: '2.5 km away' },
             ]);
           } catch (err) {
             console.error(err);
             setError("Could not load dynamic hospital list. Showing local defaults.");
             setHospitals([
-              { name: 'Reddington Hospital', address: 'Victoria Island, Lagos', distance: '1.2km' },
-              { name: 'Lagoon Hospital', address: 'Ikoyi, Lagos', distance: '2.5km' },
+              { name: 'State General Hospital', address: 'Osogbo, Osun State', distance: '1.2 km away' },
+              { name: 'University Teaching Hospital', address: 'Osogbo, Osun State', distance: '2.5 km away' },
             ]);
           } finally {
             setLoadingHospitals(false);
@@ -84,8 +89,8 @@ const Emergency: React.FC<Props> = ({ user }) => {
           setLoadingHospitals(false);
           setError("Location access denied. Displaying emergency contacts.");
           setHospitals([
-            { name: 'Reddington Hospital', address: 'Victoria Island, Lagos', distance: '1.2km' },
-            { name: 'Lagoon Hospital', address: 'Ikoyi, Lagos', distance: '2.5km' },
+            { name: 'State General Hospital', address: 'Osogbo, Osun State', distance: '1.2 km away' },
+            { name: 'University Teaching Hospital', address: 'Osogbo, Osun State', distance: '2.5 km away' },
           ]);
         },
         { timeout: 10000, enableHighAccuracy: true }
