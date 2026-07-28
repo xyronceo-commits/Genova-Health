@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Bluetooth, Watch, Activity, Battery, CheckCircle2, XCircle, AlertCircle, RefreshCw, ChevronLeft, Zap, Crown, Search, Wifi, Smartphone, Radio } from 'lucide-react';
+import { Bluetooth, Watch, Activity, Battery, CheckCircle2, XCircle, AlertCircle, RefreshCw, ChevronLeft, Zap, Crown, Search, Wifi, Smartphone, Radio, ShieldCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { STORAGE_KEYS } from '../constants';
 import { UserProfile } from '../types';
@@ -18,7 +18,23 @@ const Wearables: React.FC<Props> = ({ user }) => {
   const [liveHr, setLiveHr] = useState(72);
   const [liveBattery, setLiveBattery] = useState(88);
   const [scanStatus, setScanStatus] = useState('');
+  const [sensorPermission, setSensorPermission] = useState<boolean>(() => {
+    return localStorage.getItem('genova_sensor_permission') === 'true';
+  });
+  const [showPermissionModal, setShowPermissionModal] = useState(false);
   const intervalRef = useRef<number | null>(null);
+
+  const grantSensorPermission = () => {
+    localStorage.setItem('genova_sensor_permission', 'true');
+    setSensorPermission(true);
+    setShowPermissionModal(false);
+  };
+
+  const revokeSensorPermission = () => {
+    localStorage.setItem('genova_sensor_permission', 'false');
+    setSensorPermission(false);
+    if (device) disconnect();
+  };
 
   const isPremium = true;
 
@@ -48,6 +64,10 @@ const Wearables: React.FC<Props> = ({ user }) => {
   }, [device]);
 
   const connectVirtualDevice = () => {
+    if (!sensorPermission) {
+      setShowPermissionModal(true);
+      return;
+    }
     setIsScanning(true);
     setError(null);
     setScanStatus('Synthesizing Virtual Bluetooth link...');
@@ -67,6 +87,10 @@ const Wearables: React.FC<Props> = ({ user }) => {
   };
 
   const requestBluetooth = async () => {
+    if (!sensorPermission) {
+      setShowPermissionModal(true);
+      return;
+    }
     setIsScanning(true);
     setError(null);
     setScanStatus('Initializing Bluetooth...');
@@ -425,6 +449,38 @@ const Wearables: React.FC<Props> = ({ user }) => {
             transition={{ delay: 0.5 }}
             className="p-8 bg-white dark:bg-gray-800 rounded-[3rem] border border-gray-100 dark:border-gray-700 space-y-4 shadow-sm"
            >
+              <div className="flex items-center justify-between">
+                <h4 className="font-black text-gray-400 dark:text-gray-500 text-[10px] uppercase tracking-[0.2em]">Sensor Tracking Permission</h4>
+                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${sensorPermission ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400'}`}>
+                  {sensorPermission ? 'Granted' : 'Pending'}
+                </span>
+              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed font-medium">
+                Real-time biometrics streaming requires explicit device sensor access (Bluetooth Low Energy, Camera PPG, and Motion).
+              </p>
+              {sensorPermission ? (
+                <button
+                  onClick={revokeSensorPermission}
+                  className="w-full py-2.5 text-xs font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-2xl transition-all border border-red-100 dark:border-red-900/30"
+                >
+                  Revoke Sensor Permissions
+                </button>
+              ) : (
+                <button
+                  onClick={() => setShowPermissionModal(true)}
+                  className="w-full py-2.5 text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 dark:hover:bg-blue-900/50 rounded-2xl transition-all border border-blue-100 dark:border-blue-900/30 flex items-center justify-center gap-2"
+                >
+                  <ShieldCheck size={14} /> Grant Sensor Permissions
+                </button>
+              )}
+           </motion.div>
+
+           <motion.div 
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.6 }}
+            className="p-8 bg-white dark:bg-gray-800 rounded-[3rem] border border-gray-100 dark:border-gray-700 space-y-4 shadow-sm"
+           >
               <h4 className="font-black text-gray-400 dark:text-gray-500 text-[10px] uppercase tracking-[0.2em]">Supported Standards</h4>
               <div className="flex flex-wrap gap-2">
                 {['BLE', 'ANT+', 'GATT', 'HealthKit', 'Google Fit'].map(s => (
@@ -436,6 +492,68 @@ const Wearables: React.FC<Props> = ({ user }) => {
            </motion.div>
         </div>
       </div>
+
+      {/* Sensor Permission Consent Modal */}
+      <AnimatePresence>
+        {showPermissionModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-white dark:bg-gray-800 rounded-[2.5rem] p-8 max-w-md w-full space-y-6 border border-gray-100 dark:border-gray-700 shadow-2xl relative overflow-hidden"
+            >
+              <div className="w-14 h-14 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-2xl flex items-center justify-center">
+                <Radio size={32} />
+              </div>
+
+              <div className="space-y-2">
+                <h3 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">
+                  Sensor Integration Request
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed font-medium">
+                  Genova Health needs your explicit consent to access real-time device sensors:
+                </p>
+              </div>
+
+              <div className="space-y-3 bg-gray-50 dark:bg-gray-900/50 p-4 rounded-2xl text-xs space-y-2">
+                <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300 font-bold">
+                  <Bluetooth size={16} className="text-blue-500 shrink-0" />
+                  <span>Bluetooth LE (Heart Rate & Pulse Ox)</span>
+                </div>
+                <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300 font-bold">
+                  <Activity size={16} className="text-emerald-500 shrink-0" />
+                  <span>Optical Camera PPG (Cardiovascular Biometrics)</span>
+                </div>
+                <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300 font-bold">
+                  <Smartphone size={16} className="text-purple-500 shrink-0" />
+                  <span>Accelerometer / Motion (Steps & Active Vitals)</span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 pt-2">
+                <button
+                  onClick={() => setShowPermissionModal(false)}
+                  className="flex-1 py-3.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-extrabold text-sm rounded-2xl transition-all"
+                >
+                  Deny
+                </button>
+                <button
+                  onClick={grantSensorPermission}
+                  className="flex-1 py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-sm rounded-2xl shadow-lg shadow-blue-500/20 transition-all flex items-center justify-center gap-2"
+                >
+                  <ShieldCheck size={18} /> Allow Sensors
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
