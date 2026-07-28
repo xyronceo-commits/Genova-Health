@@ -8,7 +8,7 @@ import { STORAGE_KEYS } from '../constants';
 import { ai } from '../services/ai';
 import { auth, addHealthMetric } from '../services/firebase';
 
-type ScanMode = 'choosing' | 'vitals_sync' | 'nutrition_camera' | 'vitals_camera';
+type ScanMode = 'choosing' | 'vitals_sync' | 'nutrition_camera';
 
 interface Props {
   user: UserProfile;
@@ -113,14 +113,13 @@ const SmartScan: React.FC<Props> = ({ user }) => {
   }, []);
 
   useEffect(() => {
-    if ((mode === 'nutrition_camera' || mode === 'vitals_camera') && !results) {
+    if (mode === 'nutrition_camera' && !results) {
       const initCamera = async () => {
         try {
           if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
             throw new Error("MediaDevices API not available");
           }
           
-          // Race to make sure we don't hang if user's browser or test environment delays getUserMedia
           const getUserMediaPromise = navigator.mediaDevices.getUserMedia({ 
             video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } } 
           });
@@ -132,64 +131,15 @@ const SmartScan: React.FC<Props> = ({ user }) => {
           streamRef.current = stream;
           if (videoRef.current) {
             videoRef.current.srcObject = stream;
-            // Safari/iOS fixes
             videoRef.current.setAttribute('playsinline', 'true');
             await videoRef.current.play();
           }
-
-          // Try to enable torch if vitals mode
-          if (mode === 'vitals_camera') {
-            const track = stream.getVideoTracks()[0];
-            try {
-              const capabilities = (track.getCapabilities && track.getCapabilities()) as any;
-              if (capabilities?.torch) {
-                await track.applyConstraints({
-                  advanced: [{ torch: true }]
-                } as any);
-              }
-            } catch (torchErr) {
-              console.warn("Torch not supported on this device/browser");
-            }
-          }
         } catch (err) {
-          console.warn("Camera could not start (falling back to software simulation):", err);
-          setIsPulseOverridden(true);
-          
-          if (mode === 'vitals_camera') {
-             setError("Notice: Camera source timeout. Automatically activated clinical software simulation.");
-             setTimeout(() => {
-                setError(null);
-                setIsBioScanning(true);
-                setFingerDetected(true);
-                setBioScanProgress(0);
-                
-                // Fast 10-second simulation for responsive user experiences and test runner compliance
-                const scanDuration = 10000;
-                const startTime = Date.now();
-                const simulateInterval = setInterval(() => {
-                  const elapsed = Date.now() - startTime;
-                  const progress = Math.min((elapsed / scanDuration) * 100, 100);
-                  setBioScanProgress(progress);
-                  
-                  const heartRateFreq = (74 + Math.sin(elapsed / 1200) * 10) / 60;
-                  const value = 150 + Math.sin(2 * Math.PI * heartRateFreq * (elapsed / 1000)) * 25 + Math.random() * 3;
-                  ppgBufferRef.current.push(value);
-                  
-                  if (progress >= 100) {
-                    clearInterval(simulateInterval);
-                    stopVitalsScan(true);
-                  }
-                }, 100);
-                bioScanIntervalRef.current = simulateInterval;
-             }, 800);
-          } else if (mode === 'nutrition_camera') {
-             setError("Notice: Camera source timeout. You can use the Quick Test Preset Meals below to run instant nutrition analysis.");
-             setTimeout(() => {
-                setError(null);
-             }, 4000);
-          } else {
-            setMode('choosing');
-          }
+          console.warn("Camera could not start:", err);
+          setError("Notice: Camera source timeout. You can use the Quick Test Preset Meals below to run instant nutrition analysis.");
+          setTimeout(() => {
+            setError(null);
+          }, 4000);
         }
       };
       initCamera();
@@ -232,39 +182,43 @@ const SmartScan: React.FC<Props> = ({ user }) => {
     setMode('nutrition_camera');
   };
 
-  const startVitalsCamera = () => {
-    if (scanCount.bio >= limits.bio) {
-      navigate('/premium');
-      return;
-    }
-    setError(null);
-    setMode('vitals_camera');
-    setBioScanProgress(0);
-    ppgBufferRef.current = [];
+  const startSyncing = () => {
+    setIsSyncing(true);
+    let prog = 0;
+    const interval = setInterval(() => {
+      prog += Math.floor(Math.random() * 10) + 3;
+      if (prog >= 100) {
+        prog = 100;
+        setSyncProgress(100);
+        clearInterval(interval);
+        setTimeout(completeVitalsSync, 600);
+      } else {
+        setSyncProgress(prog);
+      }
+    }, 120);
   };
 
   const handleVitalsSync = () => {
-    if (!limits.sync) {
-      navigate('/premium');
-      return;
-    }
-    
+    setError(null);
     setMode('vitals_sync');
-    if (deviceConnected) {
-      setIsSyncing(true);
-      let prog = 0;
-      const interval = setInterval(() => {
-        prog += Math.floor(Math.random() * 8) + 2;
-        if (prog >= 100) {
-          prog = 100;
-          setSyncProgress(prog);
-          clearInterval(interval);
-          setTimeout(completeVitalsSync, 800);
-        } else {
-          setSyncProgress(prog);
-        }
-      }, 150);
+    const savedDevice = localStorage.getItem(STORAGE_KEYS.WEARABLE_DEVICE);
+    const isConnected = deviceConnected || !!savedDevice;
+    if (isConnected) {
+      setDeviceConnected(true);
+      startSyncing();
     }
+  };
+
+  const connectDemoDevice = () => {
+    const deviceData = {
+      name: 'Genova SmartBand v2 (Demo)',
+      id: 'DEMO-SMARTBAND-001',
+      connected: true,
+      lastSeen: new Date().toISOString()
+    };
+    localStorage.setItem(STORAGE_KEYS.WEARABLE_DEVICE, JSON.stringify(deviceData));
+    setDeviceConnected(true);
+    startSyncing();
   };
 
   const captureAndAnalyze = async (uploadedBase64?: string) => {
@@ -566,27 +520,18 @@ const SmartScan: React.FC<Props> = ({ user }) => {
                 />
 
                 <ScanModeButton 
-                  onClick={startVitalsCamera}
-                  icon={<Activity size={32} />}
-                  title="VitalsScan™"
-                  desc="Camera-based PPG Vitals"
-                  color="emerald"
-                  count={tier !== 'gold' ? `${scanCount.bio}/${limits.bio}` : undefined}
-                />
-
-                <ScanModeButton 
                   onClick={handleVitalsSync}
-                  icon={<Heart size={32} />}
-                  title="Wellbeing Sync"
-                  desc="Wearable Health Metrics"
+                  icon={<Watch size={32} />}
+                  title="Vitals & Wellbeing Sync™"
+                  desc={deviceConnected ? "Smartwatch Connected • Sync biometrics" : "Smartwatch Required • Connect device to sync"}
                   color="blue"
-                  premium={tier === 'free'}
+                  badge={deviceConnected ? "Connected" : "Requires Smartwatch"}
                 />
 
               <div className="p-6 bg-white/5 rounded-3xl border border-white/10 flex gap-4">
                  <Info className="text-gray-500 shrink-0" size={20} />
                  <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest leading-relaxed">
-                   Wellbeing scans require a Gold subscription and a connected wearable for precision.
+                   Vitals & Wellbeing metrics are synced directly from your connected smartwatch for precision.
                  </p>
               </div>
             </motion.div>
@@ -681,121 +626,6 @@ const SmartScan: React.FC<Props> = ({ user }) => {
             </motion.div>
           )}
 
-          {mode === 'vitals_camera' && !results && (
-            <motion.div 
-              key="vitals-cam"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 1.1 }}
-              className="w-full max-w-md space-y-8"
-            >
-               <div className="relative aspect-square rounded-[3rem] overflow-hidden border-4 border-emerald-500/30 shadow-2xl shadow-emerald-500/10 bg-black">
-                 <video ref={videoRef} autoPlay muted playsInline className="absolute inset-0 w-full h-full object-cover opacity-60" />
-                 <canvas ref={canvasRef} className="hidden" />
-                 
-                 <div className="absolute inset-0 flex flex-col items-center justify-center p-12 text-center">
-                    <AnimatePresence mode="wait">
-                      {!isBioScanning ? (
-                        <motion.div 
-                          key="instructions"
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -10 }}
-                          className="space-y-4"
-                        >
-                          <div className="w-20 h-20 bg-emerald-500 rounded-full flex items-center justify-center mx-auto animate-pulse">
-                            <Activity size={32} />
-                          </div>
-                          <p className="text-lg font-bold">Clinical Pulse Bioscan</p>
-                          <p className="text-xs text-gray-400">Place your index finger firmly over the rear camera & flash, or toggle the PPG Simulator below for testing.</p>
-                        </motion.div>
-                      ) : (
-                        <motion.div 
-                          key="scanning"
-                          initial={{ opacity: 0, scale: 0.9 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          className="space-y-6 w-full"
-                        >
-                          <motion.div 
-                            animate={{ 
-                              scale: fingerDetected ? [1, 1.1, 1] : 1,
-                              backgroundColor: fingerDetected ? "#ef4444" : "#1f2937"
-                            }}
-                            className={`w-24 h-24 rounded-full flex items-center justify-center mx-auto transition-shadow duration-300 ${fingerDetected ? 'shadow-[0_0_50px_rgba(239,68,68,0.5)]' : ''}`}
-                          >
-                            <Heart size={48} className={fingerDetected ? 'animate-pulse' : 'text-gray-600'} />
-                          </motion.div>
-                          <div className="space-y-2">
-                            <p className="text-sm font-black uppercase tracking-widest transition-colors duration-300">
-                              {fingerDetected ? (isPulseOverridden ? 'SIMULATING PULSE' : 'Pulse Detected') : 'Maintain Coverage'}
-                            </p>
-                            <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
-                              <motion.div 
-                                className="h-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]" 
-                                initial={{ width: 0 }}
-                                animate={{ width: `${bioScanProgress}%` }}
-                              />
-                            </div>
-                            <div className="flex justify-between items-center px-1">
-                               <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">{Math.round(bioScanProgress)}% Complete</p>
-                               <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">{isPulseOverridden 
-                                    ? `${Math.max(0, 20 - Math.floor(bioScanProgress * 0.2))}s left`
-                                    : `${Math.max(0, 60 - Math.floor(bioScanProgress * 0.6))}s left`}</p>
-                            </div>
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                 </div>
-
-                 <div className="absolute top-4 left-1/2 -translate-x-1/2 px-4 py-1.5 bg-black/60 backdrop-blur-md rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
-                    <Sparkles size={12} className="text-emerald-500" /> {isPulseOverridden ? 'PPG Simulated Output' : 'AI PPG Analysis'}
-                 </div>
-               </div>
-
-               <div className="text-center space-y-8">
-                 <div>
-                   <h2 className="text-2xl font-black italic tracking-tighter">Genova VitalsScan™</h2>
-                   <p className="text-sm text-gray-400 mt-1 font-medium">Keep dry and hold steady for clinical-grade precision results</p>
-                 </div>
-                 <div className="flex items-center justify-center gap-6">
-                   <button onClick={reset} className="p-4 bg-white/10 rounded-full text-gray-400 hover:text-white transition-colors active:scale-95"><X size={24}/></button>
-                   {!isBioScanning ? (
-                      <button 
-                        onClick={runVitalsScan}
-                        className="px-10 py-5 bg-emerald-600 text-white rounded-[2rem] font-black shadow-xl shadow-emerald-600/20 active:scale-95 transition-all"
-                      >
-                        Start Analysis
-                      </button>
-                   ) : (
-                      <div className="px-10 py-5 bg-white/5 text-gray-500 rounded-[2rem] font-black border border-white/10 flex items-center gap-2">
-                        <Loader2 size={16} className="animate-spin" /> Analyzing...
-                      </div>
-                   )}
-                   <div className="w-12 h-12"></div>
-                  </div>
-
-                  {/* PPG Simulation Toggle Switch */}
-                  <div className="flex items-center justify-between p-5 bg-white/5 rounded-3xl border border-white/5">
-                    <div className="text-left">
-                      <p className="text-sm font-black text-white">Interactive PPG Simulator</p>
-                      <p className="text-[10px] text-gray-500">Enable optical pulse wave output for seamless browser testing.</p>
-                    </div>
-                    <button
-                      onClick={() => setIsPulseOverridden(prev => !prev)}
-                      className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all border ${
-                        isPulseOverridden 
-                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' 
-                          : 'bg-white/5 text-gray-400 border-white/10'
-                      }`}
-                    >
-                      {isPulseOverridden ? 'ON' : 'OFF'}
-                    </button>
-                  </div>
-               </div>
-            </motion.div>
-          )}
-
           {mode === 'vitals_sync' && !results && (
             <motion.div 
               key="vitals-sync"
@@ -814,21 +644,27 @@ const SmartScan: React.FC<Props> = ({ user }) => {
                     <motion.div 
                       animate={{ scale: [1, 1.5, 1], opacity: [0.1, 0, 0.1] }}
                       transition={{ duration: 3, repeat: Infinity }}
-                      className="absolute inset-0 bg-red-500 rounded-full blur-2xl"
+                      className="absolute inset-0 bg-blue-500 rounded-full blur-2xl"
                     />
-                    <div className="w-32 h-32 bg-red-500/10 text-red-500 rounded-[2.5rem] flex items-center justify-center mx-auto border border-red-500/20 shadow-2xl relative z-10">
-                       <Bluetooth size={56} className="animate-pulse" />
+                    <div className="w-32 h-32 bg-blue-500/10 text-blue-400 rounded-[2.5rem] flex items-center justify-center mx-auto border border-blue-500/20 shadow-2xl relative z-10">
+                       <Watch size={56} className="animate-pulse" />
                     </div>
                  </div>
                  <div className="space-y-3">
-                   <h2 className="text-3xl font-black tracking-tight">Wearable Required</h2>
-                   <p className="text-gray-400 font-medium leading-relaxed max-w-[280px] mx-auto">Wellbeing Sync requires a paired Bluetooth device to pull live clinical-grade metrics.</p>
+                   <h2 className="text-3xl font-black tracking-tight">Smartwatch Required</h2>
+                   <p className="text-gray-400 font-medium leading-relaxed max-w-[280px] mx-auto">Vitals & Wellbeing Sync requires a connected smartwatch or fitness band to pull live biometrics.</p>
                  </div>
-                 <div className="space-y-4 pt-4">
+                 <div className="space-y-3 pt-4">
                    <Link to="/wearables" className="group block w-full py-5 bg-blue-600 text-white rounded-[2rem] font-black hover:bg-blue-700 transition-all shadow-xl shadow-blue-600/20 active:scale-95 flex items-center justify-center gap-2">
-                     Connect Device <ChevronRight size={20} className="group-hover:translate-x-1 transition-transform" />
+                     <Watch size={20} /> Connect Smartwatch Device <ChevronRight size={20} className="group-hover:translate-x-1 transition-transform" />
                    </Link>
-                   <button onClick={reset} className="w-full py-4 text-gray-500 font-bold uppercase tracking-widest text-[10px] hover:text-white transition-colors">Return to Diagnostic Suite</button>
+                   <button 
+                     onClick={connectDemoDevice}
+                     className="w-full py-4 bg-white/10 hover:bg-white/15 border border-white/10 text-white rounded-[2rem] font-bold text-xs transition-all active:scale-95 flex items-center justify-center gap-2"
+                   >
+                     <Bluetooth size={16} className="text-blue-400" /> Quick Connect Demo Smartband
+                   </button>
+                   <button onClick={reset} className="w-full py-3 text-gray-500 font-bold uppercase tracking-widest text-[10px] hover:text-white transition-colors">Return to Diagnostic Suite</button>
                  </div>
               </motion.div>
             ) : (
@@ -962,7 +798,7 @@ const SmartScan: React.FC<Props> = ({ user }) => {
   );
 };
 
-const ScanModeButton: React.FC<{onClick: () => void, icon: React.ReactNode, title: string, desc: string, color: 'orange' | 'emerald' | 'blue', count?: string, premium?: boolean}> = ({ onClick, icon, title, desc, color, count, premium }) => {
+const ScanModeButton: React.FC<{onClick: () => void, icon: React.ReactNode, title: string, desc: string, color: 'orange' | 'emerald' | 'blue', count?: string, badge?: string, premium?: boolean}> = ({ onClick, icon, title, desc, color, count, badge, premium }) => {
   const colors = {
     orange: "bg-orange-600/10 border-orange-500/20 hover:bg-orange-600/20",
     emerald: "bg-emerald-600/10 border-emerald-500/20 hover:bg-emerald-600/20",
@@ -989,6 +825,7 @@ const ScanModeButton: React.FC<{onClick: () => void, icon: React.ReactNode, titl
           <h3 className="text-xl font-bold flex items-center gap-2">
             {title} 
             {count && <span className="text-[10px] bg-white/10 px-2 py-0.5 rounded-full font-black">{count}</span>}
+            {badge && <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-black uppercase tracking-wider ${badge === 'Connected' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-blue-500/20 text-blue-400 border border-blue-500/30'}`}>{badge}</span>}
             {premium && <Crown size={14} className="text-amber-500" />}
           </h3>
           <p className="text-sm text-gray-400 font-medium">{desc}</p>
