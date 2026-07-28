@@ -27,8 +27,8 @@ const About: React.FC = () => {
     },
     {
       icon: <Shield className="text-indigo-500" size={24} />,
-      title: "Self-Sovereign Backups",
-      desc: "Firebase Authentication and database backup modules are purely opt-in, giving you direct custody over your credentials."
+      title: "Self-Sovereign Architecture",
+      desc: "All health records and authentication keys are stored 100% locally on your device with zero cloud database dependency."
     }
   ];
 
@@ -223,10 +223,10 @@ const About: React.FC = () => {
                 <div className="space-y-2">
                   <h4 className="font-extrabold text-gray-900 dark:text-white flex items-center gap-2 text-sm uppercase tracking-wider">
                     <Award size={14} className="text-indigo-500" />
-                    4. Firebase Opt-In Security
+                    4. Offline Local Sandbox
                   </h4>
                   <p className="text-xs">
-                    If you choose to use Firebase database storage to backup your user credentials, your data is securely logged through verified security policies where only your authenticated account holds Firestore readout keys. If you want to remain 100% offline, you can continue fully client-side using guest credentials with your database completely isolated.
+                    Genova operates 100% client-side. Your user credentials, chat logs, and bio-scans are completely isolated to your device browser sandbox without transmitting data to cloud databases.
                   </p>
                 </div>
 

@@ -20,6 +20,23 @@ async function startServer() {
     return new Groq({ apiKey: key });
   };
 
+  // Helper for resilient JSON parsing
+  const safeParseJSON = (rawText: string | undefined | null, fallback: any = {}) => {
+    if (!rawText) return fallback;
+    try {
+      let cleaned = rawText.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim();
+      const firstBrace = cleaned.search(/[{\[]/);
+      const lastBrace = Math.max(cleaned.lastIndexOf('}'), cleaned.lastIndexOf(']'));
+      if (firstBrace !== -1 && lastBrace > firstBrace) {
+        cleaned = cleaned.substring(firstBrace, lastBrace + 1);
+      }
+      cleaned = cleaned.replace(/,\s*([}\]])/g, '$1');
+      return JSON.parse(cleaned);
+    } catch (e) {
+      return fallback;
+    }
+  };
+
   // 1. Health & Config endpoint
   app.get("/api/health", (req, res) => {
     res.json({ 
@@ -109,7 +126,7 @@ async function startServer() {
         response_format: { type: "json_object" }
       });
 
-      const parsed = JSON.parse(response.choices[0]?.message?.content || "{}");
+      const parsed = safeParseJSON(response.choices[0]?.message?.content, {});
       res.json(parsed);
     } catch (error: any) {
       console.error("Groq Food Analysis Error on Backend:", error);
@@ -143,7 +160,7 @@ async function startServer() {
         response_format: { type: "json_object" }
       });
 
-      const parsed = JSON.parse(response.choices[0]?.message?.content || "{}");
+      const parsed = safeParseJSON(response.choices[0]?.message?.content, {});
       res.json(parsed);
     } catch (error: any) {
       console.error("Groq Biometrics Analysis Error on Backend:", error);
@@ -176,7 +193,7 @@ async function startServer() {
         response_format: { type: "json_object" }
       });
 
-      const parsed = JSON.parse(response.choices[0]?.message?.content || "{}");
+      const parsed = safeParseJSON(response.choices[0]?.message?.content, {});
       res.json(parsed);
     } catch (error: any) {
       console.error("Groq Location Extraction Error on Backend:", error);

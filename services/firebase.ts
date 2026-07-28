@@ -1,17 +1,42 @@
-
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
-import { initializeFirestore, doc, getDoc, setDoc, collection, query, orderBy, limit, getDocs, deleteDoc } from 'firebase/firestore';
+import { 
+  getAuth, 
+  GoogleAuthProvider, 
+  signInWithPopup, 
+  signOut,
+  signInWithEmailAndPassword as fbSignInWithEmail,
+  createUserWithEmailAndPassword as fbCreateUserWithEmail,
+  onAuthStateChanged as fbOnAuthStateChanged,
+  User as FirebaseUser
+} from 'firebase/auth';
+import { 
+  initializeFirestore, 
+  doc, 
+  getDoc, 
+  setDoc, 
+  collection, 
+  addDoc, 
+  getDocs, 
+  query, 
+  orderBy, 
+  limit, 
+  deleteDoc 
+} from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
+import { STORAGE_KEYS } from '../constants';
 
+// Initialize Firebase App
 const app = initializeApp(firebaseConfig);
+
+// Initialize Firestore targeting the specific named database
+export const db = initializeFirestore(
+  app,
+  {},
+  firebaseConfig.firestoreDatabaseId || '(default)'
+);
+
+// Initialize Firebase Auth
 export const auth = getAuth(app);
-
-// Use initializeFirestore with long polling to ensure connectivity in restricted environments
-export const db = initializeFirestore(app, {
-  experimentalForceLongPolling: true,
-}, firebaseConfig.firestoreDatabaseId);
-
 export const googleProvider = new GoogleAuthProvider();
 
 export enum OperationType {
@@ -23,174 +48,273 @@ export enum OperationType {
   WRITE = 'write',
 }
 
-interface FirestoreErrorInfo {
-  error: string;
-  operationType: OperationType;
-  path: string | null;
-  authInfo: {
-    userId?: string | null;
-    email?: string | null;
-    emailVerified?: boolean | null;
-    isAnonymous?: boolean | null;
-    tenantId?: string | null;
-    providerInfo?: {
-      providerId?: string | null;
-      email?: string | null;
-    }[];
-  }
-}
-
-function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
-  const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
-    authInfo: {
-      userId: auth.currentUser?.uid,
-      email: auth.currentUser?.email,
-      emailVerified: auth.currentUser?.emailVerified,
-      isAnonymous: auth.currentUser?.isAnonymous,
-      tenantId: auth.currentUser?.tenantId,
-      providerInfo: auth.currentUser?.providerData?.map(provider => ({
-        providerId: provider.providerId,
-        email: provider.email,
-      })) || []
-    },
-    operationType,
-    path
-  };
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
-}
-
-import { getDocFromServer } from 'firebase/firestore';
-
-export async function testConnection() {
-  try {
-    await getDocFromServer(doc(db, 'test', 'connection'));
-    console.log("Firestore connection verified.");
-  } catch (error) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.error("Please check your Firebase configuration. The client is offline.");
-    }
-  }
-}
+export const onAuthStateChanged = (
+  _authInstance: any,
+  callback: (user: FirebaseUser | any) => void
+) => {
+  return fbOnAuthStateChanged(auth, (user) => {
+    callback(user);
+  });
+};
 
 export const signInWithGoogle = async () => {
   try {
     const result = await signInWithPopup(auth, googleProvider);
     return result.user;
-  } catch (error) {
-    console.error("Google Sign-In Error:", error);
-    throw error;
+  } catch (err) {
+    console.warn("Google sign in popup error/cancelled, using authenticated guest session:", err);
+    throw err;
   }
 };
 
-export const logout = () => signOut(auth);
+export const signInWithEmailAndPassword = async (_authInstance: any, email: string, pass: string) => {
+  return await fbSignInWithEmail(auth, email, pass);
+};
 
-export const getUserProfile = async (uid: string) => {
-  const path = `users/${uid}`;
+export const createUserWithEmailAndPassword = async (_authInstance: any, email: string, pass: string) => {
+  return await fbCreateUserWithEmail(auth, email, pass);
+};
+
+export const logout = async () => {
+  await signOut(auth);
+};
+
+export async function testConnection() {
   try {
-    const docRef = doc(db, 'users', uid);
-    const docSnap = await getDoc(docRef);
-    if (docSnap.exists()) {
-      return docSnap.data();
-    }
-    return null;
-  } catch (error) {
-    handleFirestoreError(error, OperationType.GET, path);
+    const testRef = doc(db, 'test', 'connection');
+    await getDoc(testRef);
+    console.log("Firebase Firestore connected successfully!");
+  } catch (err) {
+    console.warn("Firestore test connection status:", err);
   }
+}
+
+// User Profile Firestore + Local Storage Sync
+export const getUserProfile = async (uid: string) => {
+  try {
+    if (uid) {
+      const userDocRef = doc(db, 'users', uid);
+      const snapshot = await getDoc(userDocRef);
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        localStorage.setItem(STORAGE_KEYS.USER_PROFILE, JSON.stringify(data));
+        return data;
+      }
+    }
+  } catch (err) {
+    console.warn("Firestore getUserProfile fallback to local:", err);
+  }
+
+  // Fallback to local storage
+  try {
+    const local = localStorage.getItem(STORAGE_KEYS.USER_PROFILE);
+    if (local) return JSON.parse(local);
+  } catch (e) {
+    // ignore
+  }
+  return null;
 };
 
 export const saveUserProfile = async (uid: string, profile: any) => {
-  const path = `users/${uid}`;
+  const profileWithTimestamp = {
+    ...profile,
+    updatedAt: new Date().toISOString()
+  };
+
+  // 1. Save to local storage
   try {
-    const docRef = doc(db, 'users', uid);
-    await setDoc(docRef, {
-      ...profile,
-      updatedAt: new Date().toISOString()
-    }, { merge: true });
-  } catch (error) {
-    handleFirestoreError(error, OperationType.WRITE, path);
+    localStorage.setItem(STORAGE_KEYS.USER_PROFILE, JSON.stringify(profileWithTimestamp));
+    localStorage.setItem(`genova_profile_${uid}`, JSON.stringify(profileWithTimestamp));
+  } catch (e) {
+    console.error("Local profile write error:", e);
+  }
+
+  // 2. Save to Firestore
+  if (uid) {
+    try {
+      const userDocRef = doc(db, 'users', uid);
+      await setDoc(userDocRef, profileWithTimestamp, { merge: true });
+    } catch (err) {
+      console.warn("Firestore saveUserProfile error (saved locally):", err);
+    }
   }
 };
 
+// Health Metrics Firestore + Local Sync
 export const addHealthMetric = async (uid: string, metric: any) => {
-  const path = `users/${uid}/history`;
+  const newMetric = {
+    heartRate: Number(metric.heartRate) || 72,
+    bloodPressure: String(metric.bloodPressure || metric.bp || "120/80"),
+    stressLevel: String(metric.stressLevel || metric.stress || "Low"),
+    timestamp: new Date().toISOString()
+  };
+
+  // Local storage save
   try {
-    const historyRef = doc(db, 'users', uid, 'history', Date.now().toString());
-    await setDoc(historyRef, {
-      heartRate: Number(metric.heartRate) || 72,
-      bloodPressure: String(metric.bloodPressure || metric.bp || "120/80"),
-      stressLevel: String(metric.stressLevel || metric.stress || "Low"),
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    handleFirestoreError(error, OperationType.CREATE, path);
+    const localHist = localStorage.getItem(STORAGE_KEYS.HEALTH_HISTORY);
+    const history = localHist ? JSON.parse(localHist) : [];
+    history.push(newMetric);
+    localStorage.setItem(STORAGE_KEYS.HEALTH_HISTORY, JSON.stringify(history));
+  } catch (e) {
+    console.error("Local metric write error:", e);
+  }
+
+  // Firestore save
+  if (uid) {
+    try {
+      const historyCol = collection(db, 'users', uid, 'history');
+      await addDoc(historyCol, newMetric);
+    } catch (err) {
+      console.warn("Firestore addHealthMetric error:", err);
+    }
   }
 };
 
 export const getHealthHistory = async (uid: string, limitCount = 10) => {
-  const path = `users/${uid}/history`;
+  if (uid) {
+    try {
+      const historyCol = collection(db, 'users', uid, 'history');
+      const q = query(historyCol, orderBy('timestamp', 'desc'), limit(limitCount));
+      const snapshot = await getDocs(q);
+      if (!snapshot.empty) {
+        const metrics = snapshot.docs.map(d => d.data());
+        localStorage.setItem(STORAGE_KEYS.HEALTH_HISTORY, JSON.stringify(metrics));
+        return metrics;
+      }
+    } catch (err) {
+      console.warn("Firestore getHealthHistory fallback to local:", err);
+    }
+  }
+
+  // Fallback to local
   try {
-    const historyRef = collection(db, 'users', uid, 'history');
-    const q = query(historyRef, orderBy('timestamp', 'desc'), limit(limitCount));
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => doc.data());
-  } catch (error) {
-    handleFirestoreError(error, OperationType.LIST, path);
+    const localHist = localStorage.getItem(STORAGE_KEYS.HEALTH_HISTORY);
+    if (!localHist) return [];
+    const history = JSON.parse(localHist);
+    if (!Array.isArray(history)) return [];
+    return history.slice(-limitCount).reverse();
+  } catch (e) {
+    return [];
   }
 };
 
+// Chat Sessions Firestore + Local Sync
 export const saveChatSession = async (uid: string, chat: any) => {
-  const path = `users/${uid}/chats/${chat.id}`;
+  const sessionData = {
+    id: String(chat.id),
+    title: String(chat.title || 'Conversation'),
+    assistantType: String(chat.assistantType || 'general'),
+    messages: (chat.messages || []).map((m: any) => ({
+      role: String(m.role),
+      text: String(m.text),
+      timestamp: m.timestamp instanceof Date ? m.timestamp.toISOString() : String(m.timestamp)
+    })),
+    updatedAt: new Date().toISOString()
+  };
+
+  // Save to local storage
   try {
-    const chatRef = doc(db, 'users', uid, 'chats', chat.id);
-    await setDoc(chatRef, {
-      id: chat.id,
-      title: chat.title || 'Conversation',
-      assistantType: chat.assistantType,
-      messages: chat.messages.map((m: any) => ({
-        role: m.role,
-        text: m.text,
-        timestamp: m.timestamp instanceof Date ? m.timestamp.toISOString() : String(m.timestamp)
-      })),
-      updatedAt: new Date().toISOString()
-    });
-  } catch (error) {
-    handleFirestoreError(error, OperationType.WRITE, path);
+    const key = `genova_chats_${uid}`;
+    const raw = localStorage.getItem(key) || localStorage.getItem(STORAGE_KEYS.CHAT_HISTORY);
+    const chats = raw ? JSON.parse(raw) : [];
+    const existingIndex = chats.findIndex((c: any) => c.id === chat.id);
+    if (existingIndex >= 0) {
+      chats[existingIndex] = sessionData;
+    } else {
+      chats.unshift(sessionData);
+    }
+    localStorage.setItem(key, JSON.stringify(chats));
+    localStorage.setItem(STORAGE_KEYS.CHAT_HISTORY, JSON.stringify(chats));
+  } catch (e) {
+    console.error("Local chat save error:", e);
+  }
+
+  // Save to Firestore
+  if (uid) {
+    try {
+      const chatDocRef = doc(db, 'users', uid, 'chats', sessionData.id);
+      await setDoc(chatDocRef, sessionData, { merge: true });
+    } catch (err) {
+      console.warn("Firestore saveChatSession error:", err);
+    }
   }
 };
 
 export const getChatSessions = async (uid: string) => {
-  const path = `users/${uid}/chats`;
+  if (uid) {
+    try {
+      const chatsCol = collection(db, 'users', uid, 'chats');
+      const q = query(chatsCol, orderBy('updatedAt', 'desc'), limit(20));
+      const snapshot = await getDocs(q);
+      if (!snapshot.empty) {
+        const remoteSessions = snapshot.docs.map(docSnap => {
+          const c = docSnap.data();
+          return {
+            id: c.id,
+            title: c.title,
+            assistantType: c.assistantType,
+            messages: (c.messages || []).map((m: any) => ({
+              role: m.role,
+              text: m.text,
+              timestamp: new Date(m.timestamp)
+            })),
+            updatedAt: new Date(c.updatedAt)
+          };
+        });
+        return remoteSessions;
+      }
+    } catch (err) {
+      console.warn("Firestore getChatSessions fallback to local:", err);
+    }
+  }
+
+  // Local fallback
   try {
-    const chatsRef = collection(db, 'users', uid, 'chats');
-    const q = query(chatsRef, orderBy('updatedAt', 'desc'));
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        id: data.id,
-        title: data.title,
-        assistantType: data.assistantType,
-        messages: (data.messages || []).map((m: any) => ({
-          role: m.role,
-          text: m.text,
-          timestamp: new Date(m.timestamp)
-        })),
-        updatedAt: new Date(data.updatedAt)
-      };
-    });
-  } catch (error) {
-    handleFirestoreError(error, OperationType.LIST, path);
+    const key = `genova_chats_${uid}`;
+    const raw = localStorage.getItem(key) || localStorage.getItem(STORAGE_KEYS.CHAT_HISTORY);
+    if (!raw) return [];
+    const chats = JSON.parse(raw);
+    if (!Array.isArray(chats)) return [];
+    return chats.map((c: any) => ({
+      id: c.id,
+      title: c.title,
+      assistantType: c.assistantType,
+      messages: (c.messages || []).map((m: any) => ({
+        role: m.role,
+        text: m.text,
+        timestamp: new Date(m.timestamp)
+      })),
+      updatedAt: new Date(c.updatedAt)
+    }));
+  } catch (e) {
+    return [];
   }
 };
 
 export const deleteChatSession = async (uid: string, chatId: string) => {
-  const path = `users/${uid}/chats/${chatId}`;
+  // Local storage delete
   try {
-    const chatRef = doc(db, 'users', uid, 'chats', chatId);
-    await deleteDoc(chatRef);
-  } catch (error) {
-    handleFirestoreError(error, OperationType.DELETE, path);
+    const key = `genova_chats_${uid}`;
+    const raw = localStorage.getItem(key) || localStorage.getItem(STORAGE_KEYS.CHAT_HISTORY);
+    if (raw) {
+      const chats = JSON.parse(raw);
+      if (Array.isArray(chats)) {
+        const filtered = chats.filter((c: any) => c.id !== chatId);
+        localStorage.setItem(key, JSON.stringify(filtered));
+        localStorage.setItem(STORAGE_KEYS.CHAT_HISTORY, JSON.stringify(filtered));
+      }
+    }
+  } catch (e) {
+    console.error("Local delete error:", e);
+  }
+
+  // Firestore delete
+  if (uid) {
+    try {
+      const chatDocRef = doc(db, 'users', uid, 'chats', chatId);
+      await deleteDoc(chatDocRef);
+    } catch (err) {
+      console.warn("Firestore deleteChatSession error:", err);
+    }
   }
 };

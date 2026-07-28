@@ -139,7 +139,7 @@ const Assistant: React.FC<Props> = ({ user }) => {
         setSessions(filtered);
       }
     } catch (err) {
-      console.error("Error loading chat sessions from Firebase:", err);
+      console.error("Error loading chat sessions:", err);
     } finally {
       setSessionsLoading(false);
     }
@@ -315,7 +315,7 @@ const Assistant: React.FC<Props> = ({ user }) => {
         try {
           await saveChatSession(auth.currentUser.uid, updatedSession);
         } catch (err) {
-          console.error("Firebase save failed:", err);
+          console.error("Local save failed:", err);
         }
       }
 

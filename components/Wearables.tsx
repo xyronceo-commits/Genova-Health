@@ -101,9 +101,18 @@ const Wearables: React.FC<Props> = ({ user }) => {
       setScanStatus('');
 
     } catch (err: any) {
-      console.error(err);
-      if (err.name !== 'NotFoundError' && err.name !== 'AbortError') {
-        setError(err.message || "Failed to connect to device.");
+      console.warn("Bluetooth connection attempt:", err);
+      const isCancelled = 
+        err.name === 'NotFoundError' || 
+        err.name === 'AbortError' || 
+        err.name === 'SecurityError' ||
+        err.message?.toLowerCase().includes('cancel') ||
+        err.message?.toLowerCase().includes('denied');
+
+      if (!isCancelled) {
+        setError(err.message || "Failed to connect to Bluetooth device.");
+      } else {
+        setError("Device selection was cancelled or blocked in sandbox. You can use 'Virtual SmartBand' below to test live biometrics.");
       }
       setScanStatus('');
     } finally {

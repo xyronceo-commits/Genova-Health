@@ -3,8 +3,10 @@
   "appId": "1:859726671580:web:3e786450559f91afff0e19",
   "apiKey": "AIzaSyBMPwAg0QVtDOiL6zGE9TaA972v7UO0gps",
   "authDomain": "gen-lang-client-0575030818.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-571f2a6c-6eb1-403a-928d-4153b0dd74a1",
+  "firestoreDatabaseId": "ai-studio-genovahealth-571f2a6c-6eb1-403a-928d-4153b0dd74a1",
   "storageBucket": "gen-lang-client-0575030818.firebasestorage.app",
   "messagingSenderId": "859726671580",
-  "measurementId": ""
+  "measurementId": "",
+  "oAuthClientId": "859726671580-98te59ran7fje0mcn7ht241a2lk7o9ai.apps.googleusercontent.com",
+  "recaptchaSiteKey": ""
 }

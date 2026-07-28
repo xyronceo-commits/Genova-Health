@@ -409,12 +409,6 @@ const Dashboard: React.FC<Props> = ({ user, isDarkMode, toggleDarkMode }) => {
                   All Trends
                 </button>
                 <button
-                  onClick={() => setActiveMetricTab('hr')}
-                  className={`px-3 py-1.5 rounded-xl transition-all ${activeMetricTab === 'hr' ? 'bg-red-500 text-white shadow-sm' : 'text-gray-500 hover:text-red-500'}`}
-                >
-                  Heart Rate
-                </button>
-                <button
                   onClick={() => setActiveMetricTab('steps')}
                   className={`px-3 py-1.5 rounded-xl transition-all ${activeMetricTab === 'steps' ? 'bg-emerald-500 text-white shadow-sm' : 'text-gray-500 hover:text-emerald-500'}`}
                 >

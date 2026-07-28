@@ -3,8 +3,7 @@ import * as React from 'react';
 import { UserProfile, BloodGroup, Genotype } from '../types';
 import { STORAGE_KEYS } from '../constants';
 import { User, ShieldCheck, ArrowRight, Dna, Sparkles, Activity, Heart, ArrowLeft, Target, Shield, Camera, Mic, MapPin, Bluetooth, Bot, Utensils, Phone, Mail, Globe, Apple, Lock, Loader2 } from 'lucide-react';
-import { signInWithGoogle, auth, saveUserProfile, getUserProfile } from '../services/firebase';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithGoogle, auth, saveUserProfile, getUserProfile, createUserWithEmailAndPassword, signInWithEmailAndPassword } from '../services/firebase';
 
 interface Props {
   onComplete: (profile: UserProfile) => void;

@@ -3,6 +3,23 @@ import { GoogleGenAI } from "@google/genai";
 import Groq from "groq-sdk";
 import { Message } from "../types";
 
+function safeParseJSON(rawText: string | undefined | null, fallback: any = {}): any {
+  if (!rawText) return fallback;
+  try {
+    let cleaned = rawText.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim();
+    const firstBrace = cleaned.search(/[{\[]/);
+    const lastBrace = Math.max(cleaned.lastIndexOf('}'), cleaned.lastIndexOf(']'));
+    if (firstBrace !== -1 && lastBrace > firstBrace) {
+      cleaned = cleaned.substring(firstBrace, lastBrace + 1);
+    }
+    // Remove trailing commas before closing braces/brackets
+    cleaned = cleaned.replace(/,\s*([}\]])/g, '$1');
+    return JSON.parse(cleaned);
+  } catch (e) {
+    return fallback;
+  }
+}
+
 export class AIService {
   private getGemini() {
     return new GoogleGenAI({
@@ -115,7 +132,7 @@ export class AIService {
     const gemini = this.getGemini();
     try {
       const response = await gemini.models.generateContentStream({
-        model: 'gemini-3.5-flash',
+        model: 'gemini-2.5-flash',
         contents: [
           ...history.map(h => ({
             role: h.role === 'model' ? 'model' : 'user',
@@ -173,7 +190,7 @@ export class AIService {
     try {
       const gemini = this.getGemini();
       const response = await gemini.models.generateContent({
-        model: "gemini-3.5-flash",
+        model: "gemini-2.5-flash",
         contents: `Given GPS latitude ${lat} and longitude ${lng}, return ONLY the short City, State (e.g. "Osogbo, Osun State" or "Ikeja, Lagos State"). No markdown or extra words.`
       });
       const text = response.text?.trim();
@@ -246,9 +263,9 @@ export class AIService {
       const gemini = this.getGemini();
       try {
         const llmResponse = await gemini.models.generateContent({
-          model: "gemini-3.5-flash",
+          model: "gemini-2.5-flash",
           contents: `Find 5 real healthcare facilities, hospitals or clinics nearest to coordinates (${lat}, ${lng}) in ${locationName}. 
-          Return a JSON object in this exact format:
+          Return ONLY a clean valid JSON object with NO extra text or markdown formatting:
           {
             "hospitals": [
               { 
@@ -265,7 +282,7 @@ export class AIService {
           }
         });
 
-        const parsed = JSON.parse(llmResponse.text || "{\"hospitals\":[]}");
+        const parsed = safeParseJSON(llmResponse.text, { hospitals: [] });
         if (parsed && Array.isArray(parsed.hospitals)) {
           const aiHospitals = parsed.hospitals.map((h: any, i: number) => {
             const hLat = h.lat || (lat + (i + 1) * 0.012);
@@ -367,7 +384,7 @@ export class AIService {
           ],
           response_format: { type: "json_object" }
         });
-        return JSON.parse(completion.choices[0]?.message?.content || "{}");
+        return safeParseJSON(completion.choices[0]?.message?.content, {});
       } catch (groqErr) {
         console.error("Client-side direct Groq Food analysis failed:", groqErr);
       }
@@ -377,7 +394,7 @@ export class AIService {
     const gemini = this.getGemini();
     try {
       const response = await gemini.models.generateContent({
-        model: 'gemini-3.5-flash',
+        model: 'gemini-2.5-flash',
         contents: [
           {
             parts: [
@@ -406,7 +423,7 @@ export class AIService {
         }
       });
       
-      return JSON.parse(response.text || "{}");
+      return safeParseJSON(response.text, {});
     } catch (error) {
       console.error("Gemini and Groq Food Analysis both failed:", error);
       return {
@@ -460,7 +477,7 @@ export class AIService {
           ],
           response_format: { type: "json_object" }
         });
-        return JSON.parse(response.choices[0]?.message?.content || "{}");
+        return safeParseJSON(response.choices[0]?.message?.content, {});
       } catch (groqErr) {
         console.error("Client side direct Groq biometric analytics failed:", groqErr);
       }
@@ -470,7 +487,7 @@ export class AIService {
     const gemini = this.getGemini();
     try {
       const response = await gemini.models.generateContent({
-        model: 'gemini-3.5-flash',
+        model: 'gemini-2.5-flash',
         contents: `Analyze this PPG (Photoplethysmogram) signal data. 
               User Profile: ${userContext}. 
               Signal Data: ${ppgSignal.slice(0, 50).join(', ')}.
@@ -479,7 +496,7 @@ export class AIService {
           responseMimeType: "application/json"
         }
       });
-      return JSON.parse(response.text || "{}");
+      return safeParseJSON(response.text, {});
     } catch (error) {
       console.error("Biometrics Error (Gemini):", error);
       const hr = 72 + Math.floor(Math.random() * 10);
@@ -531,7 +548,7 @@ export class AIService {
           ],
           response_format: { type: "json_object" }
         });
-        return JSON.parse(response.choices[0]?.message?.content || "{}");
+        return safeParseJSON(response.choices[0]?.message?.content, {});
       } catch (groqErr) {
         console.error("Client side direct Groq location extraction failed:", groqErr);
       }
