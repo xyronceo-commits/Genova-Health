@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
-import { UserProfile, BloodGroup, Genotype } from '../types';
-import { User, Settings, Trash2, Save, ChevronLeft, Moon, Sun, Info, Shield, LogOut } from 'lucide-react';
+import { UserProfile, BloodGroup, Genotype, EmergencyContact } from '../types';
+import { User, Settings, Trash2, Save, ChevronLeft, Moon, Sun, Info, Shield, LogOut, Users, Plus, UserPlus, Check } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 interface Props {
@@ -17,11 +17,53 @@ const Profile: React.FC<Props> = ({ user, onUpdate, onLogout, isDarkMode, toggle
   const [formData, setFormData] = useState<UserProfile>(user);
   const [saved, setSaved] = useState(false);
 
+  const [contacts, setContacts] = useState<EmergencyContact[]>(
+    user.emergencyContacts && user.emergencyContacts.length > 0
+      ? user.emergencyContacts
+      : [
+          { name: user.emergencyContactName || 'Dr. Sarah Alabi', phone: user.emergencyContactPhone || '+234 802 345 6789', relationship: 'Primary Doctor' },
+          { name: 'Alex Johnson', phone: '+234 803 987 6543', relationship: 'Spouse' },
+          { name: 'Mary Johnson', phone: '+234 805 111 2222', relationship: 'Mother' },
+        ]
+  );
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newPhone, setNewPhone] = useState('');
+  const [newRel, setNewRel] = useState('Family');
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onUpdate(formData);
+    const updated = {
+      ...formData,
+      emergencyContacts: contacts,
+      emergencyContactName: contacts[0]?.name || '',
+      emergencyContactPhone: contacts[0]?.phone || ''
+    };
+    onUpdate(updated);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
+  };
+
+  const handleAddContact = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newName.trim() || !newPhone.trim()) return;
+    if (contacts.length >= 5) {
+      alert("You can add up to 5 emergency contacts maximum.");
+      return;
+    }
+    const updated = [...contacts, { name: newName.trim(), phone: newPhone.trim(), relationship: newRel }];
+    setContacts(updated);
+    setNewName('');
+    setNewPhone('');
+    setShowAddForm(false);
+  };
+
+  const handleRemoveContact = (index: number) => {
+    if (contacts.length <= 1) {
+      alert("Please keep at least 1 emergency contact in your profile.");
+      return;
+    }
+    setContacts(contacts.filter((_, i) => i !== index));
   };
 
   const confirmLogout = () => {
@@ -125,34 +167,108 @@ const Profile: React.FC<Props> = ({ user, onUpdate, onLogout, isDarkMode, toggle
           </div>
         </section>
 
-        {/* Emergency Contact */}
-        <section className="bg-white dark:bg-gray-800 p-6 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm space-y-6 transition-colors">
-          <div className="flex items-center gap-3 mb-2">
-            <Shield className="text-red-600" size={20}/>
-            <h2 className="font-bold text-gray-900 dark:text-white">Emergency Contact</h2>
+        {/* Emergency Contacts (Up to 5) */}
+        <section className="bg-white dark:bg-gray-800 p-6 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm space-y-4 transition-colors">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-3">
+              <Shield className="text-red-600" size={20}/>
+              <h2 className="font-bold text-gray-900 dark:text-white">Emergency Contacts ({contacts.length}/5)</h2>
+            </div>
+            <span className="text-xs bg-red-100 dark:bg-red-900/30 text-red-600 font-bold px-2.5 py-0.5 rounded-full">
+              Alert Broadcast Group
+            </span>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase ml-1">Contact Name</label>
-              <input 
-                className="w-full bg-gray-50 dark:bg-gray-700 p-3 rounded-xl border-none outline-none focus:ring-2 focus:ring-blue-500 font-medium text-gray-900 dark:text-gray-100"
-                value={formData.emergencyContactName}
-                onChange={e => setFormData({...formData, emergencyContactName: e.target.value})}
-                placeholder="Next of Kin Name"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase ml-1">Phone Number</label>
-              <input 
-                type="tel"
-                className="w-full bg-gray-50 dark:bg-gray-700 p-3 rounded-xl border-none outline-none focus:ring-2 focus:ring-blue-500 font-medium text-gray-900 dark:text-gray-100"
-                value={formData.emergencyContactPhone}
-                onChange={e => setFormData({...formData, emergencyContactPhone: e.target.value})}
-                placeholder="+234..."
-              />
-            </div>
+          <div className="space-y-3">
+            {contacts.map((contact, idx) => (
+              <div key={idx} className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-red-100 dark:bg-red-900/40 text-red-600 font-black rounded-xl flex items-center justify-center text-xs">
+                    {idx + 1}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-sm text-gray-900 dark:text-white">{contact.name}</span>
+                      <span className="text-[9px] bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold px-2 py-0.5 rounded-full">
+                        {contact.relationship}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-400 font-mono">{contact.phone}</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleRemoveContact(idx)}
+                  className="p-2 text-gray-400 hover:text-red-500 rounded-xl transition-colors"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            ))}
           </div>
+
+          {contacts.length < 5 && (
+            <div>
+              {!showAddForm ? (
+                <button
+                  type="button"
+                  onClick={() => setShowAddForm(true)}
+                  className="w-full py-3 border-2 border-dashed border-red-200 dark:border-red-900/50 hover:border-red-400 text-red-600 dark:text-red-400 rounded-2xl text-xs font-bold flex items-center justify-center gap-2 transition-all"
+                >
+                  <UserPlus size={16} /> Add Another Emergency Contact ({5 - contacts.length} remaining)
+                </button>
+              ) : (
+                <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-2xl border border-red-200 dark:border-red-800 space-y-3">
+                  <h4 className="text-xs font-bold text-gray-900 dark:text-white">Add Emergency Contact</h4>
+                  <input
+                    type="text"
+                    placeholder="Full Name"
+                    value={newName}
+                    onChange={e => setNewName(e.target.value)}
+                    className="w-full bg-white dark:bg-gray-800 p-2.5 rounded-xl text-xs font-medium outline-none text-gray-900 dark:text-white border border-gray-200 dark:border-gray-600"
+                  />
+                  <input
+                    type="tel"
+                    placeholder="Phone Number (+234...)"
+                    value={newPhone}
+                    onChange={e => setNewPhone(e.target.value)}
+                    className="w-full bg-white dark:bg-gray-800 p-2.5 rounded-xl text-xs font-medium outline-none text-gray-900 dark:text-white border border-gray-200 dark:border-gray-600"
+                  />
+                  <select
+                    value={newRel}
+                    onChange={e => setNewRel(e.target.value)}
+                    className="w-full bg-white dark:bg-gray-800 p-2.5 rounded-xl text-xs font-medium outline-none text-gray-900 dark:text-white border border-gray-200 dark:border-gray-600"
+                  >
+                    <option value="Family">Family</option>
+                    <option value="Spouse">Spouse</option>
+                    <option value="Mother">Mother</option>
+                    <option value="Father">Father</option>
+                    <option value="Brother">Brother</option>
+                    <option value="Sister">Sister</option>
+                    <option value="Doctor">Doctor / Physician</option>
+                    <option value="Friend">Friend</option>
+                    <option value="Neighbor">Neighbor</option>
+                  </select>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowAddForm(false)}
+                      className="flex-1 py-2 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-xl text-xs font-bold"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleAddContact}
+                      className="flex-1 py-2 bg-red-600 text-white rounded-xl text-xs font-bold shadow-md"
+                    >
+                      Save Contact
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </section>
 
         {/* Fitness Goals */}

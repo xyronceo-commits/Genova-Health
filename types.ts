@@ -8,6 +8,13 @@ export enum Genotype {
   AA = 'AA', AS = 'AS', SS = 'SS', AC = 'AC', SC = 'SC'
 }
 
+export interface EmergencyContact {
+  id?: string;
+  name: string;
+  phone: string;
+  relationship?: string;
+}
+
 export interface UserProfile {
   fullName: string;
   age: number;
@@ -19,6 +26,7 @@ export interface UserProfile {
   allergies: string[];
   emergencyContactName: string;
   emergencyContactPhone: string;
+  emergencyContacts?: EmergencyContact[];
   stepGoal: number;
   subscriptionStatus: 'free' | 'silver' | 'gold';
 }

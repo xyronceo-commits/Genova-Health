@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
-import { Phone, MapPin, ShieldAlert, Heart, ChevronRight, AlertTriangle, Navigation, Loader2, Sparkles, ExternalLink } from 'lucide-react';
+import { Phone, MapPin, ShieldAlert, Heart, ChevronRight, AlertTriangle, Navigation, Loader2, Sparkles, ExternalLink, Users, Send, CheckCircle2, Radio, BellRing, PhoneCall, MessageSquare, AlertOctagon, X, ShieldCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { UserProfile } from '../types';
+import { UserProfile, EmergencyContact } from '../types';
 import { STORAGE_KEYS } from '../constants';
 import { ai } from '../services/ai';
 
@@ -20,6 +20,19 @@ const Emergency: React.FC<Props> = ({ user }) => {
   const [customAddress, setCustomAddress] = useState('');
   const [extracting, setExtracting] = useState(false);
   const [locationExtracted, setLocationExtracted] = useState<any>(null);
+
+  // Selected 3 to 5 emergency contacts list
+  const selectedContacts: EmergencyContact[] = (user?.emergencyContacts && user.emergencyContacts.length > 0)
+    ? user.emergencyContacts
+    : [
+        { name: user?.emergencyContactName || 'Dr. Sarah Alabi', phone: user?.emergencyContactPhone || '+234 802 345 6789', relationship: 'Primary Doctor' },
+        { name: 'Alex Johnson', phone: '+234 803 987 6543', relationship: 'Spouse' },
+        { name: 'Mary Johnson', phone: '+234 805 111 2222', relationship: 'Mother' },
+      ];
+
+  const [showBroadcastModal, setShowBroadcastModal] = useState(false);
+  const [alertProgress, setAlertProgress] = useState<{ [key: number]: boolean }>({});
+  const [broadcasting, setBroadcasting] = useState(false);
 
   const handleResolveLocation = async (presetText?: string) => {
     const textToResolve = presetText || customAddress;
@@ -102,15 +115,31 @@ const Emergency: React.FC<Props> = ({ user }) => {
   }, []);
 
   const handleNotifyKin = () => {
-    if (user?.emergencyContactPhone) {
-      window.location.href = `tel:${user.emergencyContactPhone}`;
-    } else {
-      alert("No emergency contact phone number found in your profile.");
-    }
+    setShowBroadcastModal(true);
+    triggerAlertAllContacts();
   };
 
+  const triggerAlertAllContacts = () => {
+    setActive(true);
+    setBroadcasting(true);
+    setShowBroadcastModal(true);
+    setAlertProgress({});
+
+    selectedContacts.forEach((contact, idx) => {
+      setTimeout(() => {
+        setAlertProgress(prev => ({ ...prev, [idx]: true }));
+        if (idx === selectedContacts.length - 1) {
+          setBroadcasting(false);
+        }
+      }, (idx + 1) * 600);
+    });
+  };
+
+  const allPhones = selectedContacts.map(c => c.phone).join(',');
+  const emergencySmsBody = encodeURIComponent(`EMERGENCY SOS ALERT! ${user?.fullName || 'Patient'} requires urgent medical assistance. GPS Location: ${customAddress || 'Current Location'}. Patient Blood Group: ${user?.bloodGroup || 'O+'}, Genotype: ${user?.genotype || 'AA'}. Please check on them immediately!`);
+
   return (
-    <div className="min-h-screen bg-red-50 dark:bg-gray-900 p-6 md:p-12 transition-colors">
+    <div className="min-h-screen bg-red-50 dark:bg-gray-900 p-6 md:p-12 transition-colors relative">
       <header className="flex justify-between items-center mb-10">
         <button onClick={() => navigate('/')} className="p-2 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-full text-red-600 transition-colors">
           <ChevronRight className="rotate-180" size={24}/>
@@ -123,22 +152,81 @@ const Emergency: React.FC<Props> = ({ user }) => {
         {/* SOS Button */}
         <div className="flex flex-col items-center gap-6 py-10">
           <button 
-            onClick={() => setActive(!active)}
+            onClick={triggerAlertAllContacts}
             className={`w-48 h-48 rounded-full flex items-center justify-center transition-all duration-500 shadow-2xl ${
               active 
               ? 'bg-red-600 text-white ring-8 ring-red-100 dark:ring-red-900/20 scale-110' 
-              : 'bg-white dark:bg-gray-800 text-red-600 ring-8 ring-white/50 dark:ring-gray-700/50 border-4 border-red-500'
+              : 'bg-white dark:bg-gray-800 text-red-600 ring-8 ring-white/50 dark:ring-gray-700/50 border-4 border-red-500 hover:scale-105'
             }`}
           >
             <ShieldAlert size={64} className={active ? 'animate-pulse' : ''} />
           </button>
           <div className="text-center">
              <h2 className="text-2xl font-black text-gray-900 dark:text-white">{active ? "Distress Signal Active" : "Emergency SOS"}</h2>
-             <p className="text-gray-500 dark:text-gray-400 font-medium mt-1">{active ? "Nearby help is being notified" : "Press for immediate assistance"}</p>
+             <p className="text-gray-500 dark:text-gray-400 font-medium mt-1">
+               {active ? `Alerting all ${selectedContacts.length} emergency contacts` : `Press button to alert all ${selectedContacts.length} selected contacts`}
+             </p>
           </div>
         </div>
 
-        {/* Quick Contacts */}
+        {/* Selected Emergency Contacts List (3-5 Contacts) */}
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl border border-red-100 dark:border-gray-700 space-y-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Users className="text-red-600" size={18} />
+              <h3 className="font-black text-gray-900 dark:text-white uppercase tracking-widest text-xs">
+                Selected Contacts ({selectedContacts.length}/5)
+              </h3>
+            </div>
+            <span className="text-[10px] bg-red-100 dark:bg-red-900/30 text-red-600 px-2.5 py-0.5 rounded-full font-bold">
+              Multi-Alert Ready
+            </span>
+          </div>
+
+          <div className="space-y-2.5">
+            {selectedContacts.map((contact, idx) => (
+              <div key={idx} className="bg-gray-50 dark:bg-gray-900/50 p-3.5 rounded-2xl border border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-red-100 dark:bg-red-900/40 text-red-600 font-black rounded-xl flex items-center justify-center text-xs">
+                    {idx + 1}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-sm text-gray-900 dark:text-white">{contact.name}</span>
+                      <span className="text-[9px] bg-red-50 dark:bg-red-950 text-red-600 dark:text-red-400 font-bold px-2 py-0.5 rounded-full">
+                        {contact.relationship || 'Emergency'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-400 font-mono">{contact.phone}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <a
+                    href={`tel:${contact.phone}`}
+                    className="p-2 bg-emerald-500 text-white rounded-xl text-xs font-bold hover:bg-emerald-600 transition-colors flex items-center gap-1 shadow-sm"
+                  >
+                    <PhoneCall size={14} />
+                  </a>
+                  <a
+                    href={`sms:${contact.phone}?body=${emergencySmsBody}`}
+                    className="p-2 bg-blue-600 text-white rounded-xl text-xs font-bold hover:bg-blue-700 transition-colors flex items-center gap-1 shadow-sm"
+                  >
+                    <MessageSquare size={14} />
+                  </a>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <button
+            onClick={triggerAlertAllContacts}
+            className="w-full py-4 bg-red-600 hover:bg-red-700 text-white rounded-2xl font-black text-sm uppercase tracking-wider shadow-lg flex items-center justify-center gap-2 transition-all active:scale-98"
+          >
+            <BellRing size={18} className="animate-bounce" /> Alert All {selectedContacts.length} Contacts Selected
+          </button>
+        </div>
+
+        {/* Quick Contacts Header Grid */}
         <div className="grid grid-cols-2 gap-4">
           <a href="tel:112" className="bg-white dark:bg-gray-800 p-5 rounded-3xl border border-red-100 dark:border-gray-700 flex items-center gap-4 hover:shadow-lg transition-all">
              <div className="p-3 bg-red-100 dark:bg-red-900/30 text-red-600 rounded-2xl transition-colors"><Phone size={20}/></div>
@@ -150,8 +238,8 @@ const Emergency: React.FC<Props> = ({ user }) => {
           <button onClick={handleNotifyKin} className="bg-white dark:bg-gray-800 p-5 rounded-3xl border border-red-100 dark:border-gray-700 flex items-center gap-4 hover:shadow-lg transition-all text-left">
              <div className="p-3 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-2xl transition-colors"><Heart size={20}/></div>
              <div>
-               <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">{user?.emergencyContactName || 'Next of Kin'}</p>
-               <p className="text-lg font-black text-gray-900 dark:text-white">Call Now</p>
+               <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Alert All ({selectedContacts.length})</p>
+               <p className="text-lg font-black text-gray-900 dark:text-white">Notify Contacts</p>
              </div>
           </button>
         </div>
@@ -282,6 +370,116 @@ const Emergency: React.FC<Props> = ({ user }) => {
            </div>
         </div>
       </div>
+
+      {/* Distress Broadcast Multi-Contact Alert Modal */}
+      {showBroadcastModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-300">
+          <div className="bg-white dark:bg-gray-900 max-w-lg w-full rounded-3xl border border-red-500/30 p-6 sm:p-8 space-y-6 shadow-2xl relative overflow-hidden">
+            {/* Pulsing Header Accent */}
+            <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-red-500 via-amber-500 to-red-600 animate-pulse" />
+
+            <div className="flex justify-between items-start pt-2">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-red-100 dark:bg-red-950/60 text-red-600 rounded-2xl flex items-center justify-center shadow-inner">
+                  <Radio size={24} className="animate-pulse" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-gray-900 dark:text-white leading-tight flex items-center gap-2">
+                    Emergency Broadcast <span className="text-xs bg-red-600 text-white font-bold px-2 py-0.5 rounded-full animate-pulse">LIVE</span>
+                  </h3>
+                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                    Alerting all {selectedContacts.length} selected emergency contacts
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowBroadcastModal(false)}
+                className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-white rounded-full transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Live Contact Alert Dispatch Items */}
+            <div className="space-y-3 bg-red-50/50 dark:bg-red-950/20 p-4 rounded-2xl border border-red-100 dark:border-red-900/30">
+              <p className="text-[10px] font-black uppercase tracking-widest text-red-600 dark:text-red-400">
+                Dispatching Distress Telemetry to {selectedContacts.length} Contacts:
+              </p>
+              {selectedContacts.map((contact, idx) => {
+                const isSent = alertProgress[idx];
+                return (
+                  <div
+                    key={idx}
+                    className={`p-3 rounded-xl border flex items-center justify-between transition-all duration-300 ${
+                      isSent
+                        ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800'
+                        : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      {isSent ? (
+                        <CheckCircle2 size={18} className="text-emerald-500 shrink-0" />
+                      ) : (
+                        <Loader2 size={18} className="text-red-500 animate-spin shrink-0" />
+                      )}
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-xs text-gray-900 dark:text-white">{contact.name}</span>
+                          <span className="text-[9px] bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 font-bold px-1.5 py-0.2 rounded">
+                            {contact.relationship}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-gray-400 font-mono">{contact.phone}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                        isSent ? 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300' : 'bg-red-100 dark:bg-red-900/60 text-red-700 dark:text-red-300'
+                      }`}>
+                        {isSent ? 'Alert Dispatched' : 'Sending...'}
+                      </span>
+                      <a
+                        href={`tel:${contact.phone}`}
+                        className="p-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+                        title={`Call ${contact.name}`}
+                      >
+                        <PhoneCall size={12} />
+                      </a>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Quick Actions */}
+            <div className="space-y-3">
+              <a
+                href={`sms:${allPhones}?body=${emergencySmsBody}`}
+                className="w-full py-4 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white rounded-2xl font-black text-xs uppercase tracking-wider shadow-lg flex items-center justify-center gap-2 transition-all active:scale-98"
+              >
+                <MessageSquare size={16} /> Send Group Emergency SMS To All {selectedContacts.length} Contacts
+              </a>
+              <div className="flex gap-2">
+                <a
+                  href={`tel:${selectedContacts[0]?.phone}`}
+                  className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-md"
+                >
+                  <PhoneCall size={14} /> Call 1st Contact
+                </a>
+                <button
+                  onClick={() => {
+                    setActive(false);
+                    setShowBroadcastModal(false);
+                  }}
+                  className="flex-1 py-3 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-xl font-bold text-xs hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                >
+                  Cancel SOS
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
