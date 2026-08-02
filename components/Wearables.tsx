@@ -153,37 +153,39 @@ const Wearables: React.FC<Props> = ({ user }) => {
   };
 
   const requestBluetooth = async () => {
-    if (!sensorPermission) {
-      setShowPermissionModal(true);
-      return;
-    }
+    localStorage.setItem('genova_sensor_permission', 'true');
+    setSensorPermission(true);
     setIsScanning(true);
     setError(null);
-    setScanStatus('Initializing Bluetooth...');
+    setScanStatus('Initializing Bluetooth Permission...');
     
     try {
       const bluetooth = (navigator as any).bluetooth;
       if (!bluetooth) {
-        throw new Error("Web Bluetooth is not supported in this browser environment.");
+        throw new Error("Web Bluetooth is not supported in this browser. Please use Chrome, Edge, or Bluefy on iOS.");
       }
 
-      setScanStatus('Waiting for device selection...');
+      setScanStatus('Scanning for nearby Smartwatches...');
       const btDevice = await bluetooth.requestDevice({
         acceptAllDevices: true,
-        optionalServices: ['heart_rate', 'battery_service']
+        optionalServices: ['heart_rate', 'battery_service', 'device_information', 'health_thermometer', 'fitness_machine']
       });
       
-      setScanStatus(`Connecting to ${btDevice.name || 'Device'}...`);
+      setScanStatus(`Connecting to ${btDevice.name || 'Smartwatch'}...`);
       
       const deviceData = {
         name: btDevice.name || 'Genova SmartWatch',
-        id: btDevice.id,
+        id: btDevice.id || 'BT-' + Date.now(),
         connected: true,
         lastSeen: new Date().toISOString()
       };
 
       if (btDevice.gatt) {
-        await btDevice.gatt.connect();
+        try {
+          await btDevice.gatt.connect();
+        } catch (gattErr) {
+          console.warn("GATT Connection Notice:", gattErr);
+        }
       }
 
       setDevice(deviceData);
@@ -202,7 +204,7 @@ const Wearables: React.FC<Props> = ({ user }) => {
       if (!isCancelled) {
         setError(err.message || "Failed to connect to Bluetooth device.");
       } else {
-        setError("Bluetooth device selection was cancelled or sandbox restricted. You can connect the 'Genova SmartWatch Pro Demo' below to experience real-time telemetry.");
+        setError("Bluetooth device selection was closed or restricted. Click 'Connect Smartwatch' anytime to grant access and scan again.");
       }
       setScanStatus('');
     } finally {
@@ -325,9 +327,9 @@ const Wearables: React.FC<Props> = ({ user }) => {
                 </motion.div>
               )}
 
-              <div className="w-full pt-2 space-y-3">
+              <div className="w-full pt-2">
                 <button 
-                  onClick={connectVirtualDevice}
+                  onClick={requestBluetooth}
                   disabled={isScanning}
                   className={`w-full py-5 rounded-[2rem] font-black text-lg flex items-center justify-center gap-3 transition-all shadow-xl active:scale-95 ${
                     isScanning 
@@ -340,15 +342,7 @@ const Wearables: React.FC<Props> = ({ user }) => {
                   ) : (
                     <Zap className="animate-bounce" size={24} />
                   )}
-                  {isScanning ? scanStatus : 'Connect Smartwatch & View Vitals Dashboard'}
-                </button>
-
-                <button 
-                  onClick={requestBluetooth}
-                  disabled={isScanning}
-                  className="w-full py-3.5 bg-gray-50 hover:bg-gray-100 dark:bg-gray-900/60 dark:hover:bg-gray-900 text-gray-600 dark:text-gray-300 rounded-[1.5rem] font-bold text-xs uppercase tracking-wider transition-all border border-gray-200 dark:border-gray-700 active:scale-95 flex items-center justify-center gap-2"
-                >
-                  <Search size={16} /> Scan Physical Web Bluetooth Devices
+                  {isScanning ? scanStatus : 'CONNECT BLUETOOTH SMART WATCH'}
                 </button>
               </div>
             </motion.div>
