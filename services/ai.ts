@@ -39,15 +39,13 @@ export class AIService {
   }
 
   async *getResponseStream(
-    model: string = 'llama-3.3-70b-versatile',
+    model: string = 'openai/gpt-oss-120b',
     systemInstruction: string,
     history: Message[],
     userMessage: string,
     useSearch: boolean = false
   ) {
-    const mappedModel = (!model || model.startsWith("gemini") || model.startsWith("gpt") || model.startsWith("claude"))
-      ? "llama-3.3-70b-versatile"
-      : model;
+    const targetModel = model || 'openai/gpt-oss-120b';
 
     // 1. First choice: Secure Backend Express Proxy Event-Stream
     try {
@@ -60,7 +58,7 @@ export class AIService {
           systemInstruction,
           history,
           userMessage,
-          model: mappedModel
+          model: targetModel
         })
       });
 
@@ -69,6 +67,7 @@ export class AIService {
         const decoder = new TextDecoder();
         let buffer = "";
         
+        let receivedText = false;
         while (true) {
           const { value, done } = await reader.read();
           if (done) break;
@@ -85,15 +84,24 @@ export class AIService {
 
             try {
               const data = JSON.parse(dataStr);
+              if (data.error) {
+                throw new Error(data.error);
+              }
               if (data.text) {
+                receivedText = true;
                 yield { text: data.text, groundingMetadata: null };
               }
-            } catch (e) {
+            } catch (e: any) {
+              if (e.message && e.message.includes("API key")) {
+                throw e;
+              }
               // Ignore parser errors for stream fragments
             }
           }
         }
-        return; // Stream processed successfully
+        if (receivedText) {
+          return; // Stream processed successfully
+        }
       }
     } catch (err) {
       console.warn("Backend streaming route failed, falling back to client-side direct Groq/Gemini calls:", err);
@@ -102,29 +110,40 @@ export class AIService {
     // 2. Second choice: Direct client-side SDK integration with Groq
     const groqClient = this.getGroqClient();
     if (groqClient) {
-      try {
-        const completion = await groqClient.chat.completions.create({
-          messages: [
-            { role: "system" as const, content: systemInstruction },
-            ...history.map(h => ({
-              role: (h.role === 'model' ? 'assistant' : 'user') as 'assistant' | 'user',
-              content: h.text
-            })),
-            { role: "user" as const, content: userMessage }
-          ],
-          model: mappedModel,
-          stream: true,
-        });
+      const candidates = Array.from(new Set([
+        targetModel,
+        "openai/gpt-oss-120b",
+        "qwen/qwen3.6-27b",
+        "qwen-2.5-32b",
+        "gemma2-9b-it"
+      ]));
 
-        for await (const chunk of completion) {
-          const text = chunk.choices[0]?.delta?.content || "";
-          if (text) {
-            yield { text, groundingMetadata: null };
+      for (const candidateModel of candidates) {
+        if (candidateModel.startsWith("gemini")) continue;
+        try {
+          const completion = await groqClient.chat.completions.create({
+            messages: [
+              { role: "system" as const, content: systemInstruction },
+              ...history.map(h => ({
+                role: (h.role === 'model' ? 'assistant' : 'user') as 'assistant' | 'user',
+                content: h.text
+              })),
+              { role: "user" as const, content: userMessage }
+            ],
+            model: candidateModel,
+            stream: true,
+          });
+
+          for await (const chunk of completion) {
+            const text = chunk.choices[0]?.delta?.content || "";
+            if (text) {
+              yield { text, groundingMetadata: null };
+            }
           }
+          return;
+        } catch (groqErr) {
+          console.error(`Client side direct Groq (${candidateModel}) failed:`, groqErr);
         }
-        return;
-      } catch (groqErr) {
-        console.error("Client side direct Groq failed:", groqErr);
       }
     }
 
@@ -132,7 +151,7 @@ export class AIService {
     const gemini = this.getGemini();
     try {
       const response = await gemini.models.generateContentStream({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3.6-flash',
         contents: [
           ...history.map(h => ({
             role: h.role === 'model' ? 'model' : 'user',
@@ -190,7 +209,7 @@ export class AIService {
     try {
       const gemini = this.getGemini();
       const response = await gemini.models.generateContent({
-        model: "gemini-2.5-flash",
+        model: "gemini-3.6-flash",
         contents: `Given GPS latitude ${lat} and longitude ${lng}, return ONLY the short City, State (e.g. "Osogbo, Osun State" or "Ikeja, Lagos State"). No markdown or extra words.`
       });
       const text = response.text?.trim();
@@ -258,51 +277,94 @@ export class AIService {
       console.warn("Overpass API search failed, moving to Gemini grounding:", e);
     }
 
-    // Stage 2: Fallback or augment with Gemini Grounding / AI LLM search
+    // Stage 2: Fallback or augment with Groq / Gemini AI LLM search
     if (hospitals.length < 2) {
-      const gemini = this.getGemini();
-      try {
-        const llmResponse = await gemini.models.generateContent({
-          model: "gemini-2.5-flash",
-          contents: `Find 5 real healthcare facilities, hospitals or clinics nearest to coordinates (${lat}, ${lng}) in ${locationName}. 
-          Return ONLY a clean valid JSON object with NO extra text or markdown formatting:
-          {
-            "hospitals": [
-              { 
-                "name": "State Specialist Hospital", 
-                "address": "Hospital Road, ${locationName}", 
-                "lat": ${lat + 0.015}, 
-                "lng": ${lng + 0.012}, 
-                "specialty": "General & Emergency" 
-              }
-            ]
-          }`,
-          config: {
-            responseMimeType: "application/json"
+      let parsed: any = null;
+      
+      // Try Groq client if configured
+      const groqClient = this.getGroqClient();
+      if (groqClient) {
+        const candidateModels = ["openai/gpt-oss-120b", "qwen/qwen3.6-27b", "qwen-2.5-32b", "gemma2-9b-it"];
+        for (const modelName of candidateModels) {
+          try {
+            const completion = await groqClient.chat.completions.create({
+              model: modelName,
+              messages: [{
+                role: "user",
+                content: `Find 5 real healthcare facilities, hospitals or clinics nearest to coordinates (${lat}, ${lng}) in ${locationName}. 
+                Return ONLY a clean valid JSON object with NO extra text or markdown formatting:
+                {
+                  "hospitals": [
+                    { 
+                      "name": "State Specialist Hospital", 
+                      "address": "Hospital Road, ${locationName}", 
+                      "lat": ${lat + 0.015}, 
+                      "lng": ${lng + 0.012}, 
+                      "specialty": "General & Emergency" 
+                    }
+                  ]
+                }`
+              }],
+              response_format: { type: "json_object" }
+            });
+            parsed = safeParseJSON(completion.choices[0]?.message?.content, { hospitals: [] });
+            if (parsed && Array.isArray(parsed.hospitals) && parsed.hospitals.length > 0) {
+              break;
+            }
+          } catch (groqErr) {
+            console.warn(`[Hospital Finder] Groq ${modelName} call failed:`, groqErr);
           }
-        });
-
-        const parsed = safeParseJSON(llmResponse.text, { hospitals: [] });
-        if (parsed && Array.isArray(parsed.hospitals)) {
-          const aiHospitals = parsed.hospitals.map((h: any, i: number) => {
-            const hLat = h.lat || (lat + (i + 1) * 0.012);
-            const hLng = h.lng || (lng + (i + 1) * 0.009);
-            const distKm = calculateDistanceKm(lat, lng, hLat, hLng);
-            return {
-              name: h.name || "Medical Centre",
-              address: h.address || locationName,
-              lat: hLat,
-              lng: hLng,
-              distanceKm: distKm,
-              distance: `${distKm} km away`,
-              specialty: h.specialty || "Emergency Care",
-              uri: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${h.name} ${h.address}`)}`
-            };
-          });
-          hospitals = [...hospitals, ...aiHospitals];
         }
-      } catch (err) {
-        console.error("Gemini Hospital Finder error:", err);
+      }
+
+      // Fallback to Gemini if Groq returned nothing
+      if (!parsed || !Array.isArray(parsed.hospitals) || parsed.hospitals.length === 0) {
+        try {
+          const gemini = this.getGemini();
+          if (gemini) {
+            const llmResponse = await gemini.models.generateContent({
+              model: "gemini-3.6-flash",
+              contents: `Find 5 real healthcare facilities, hospitals or clinics nearest to coordinates (${lat}, ${lng}) in ${locationName}. 
+              Return ONLY a clean valid JSON object with NO extra text or markdown formatting:
+              {
+                "hospitals": [
+                  { 
+                    "name": "State Specialist Hospital", 
+                    "address": "Hospital Road, ${locationName}", 
+                    "lat": ${lat + 0.015}, 
+                    "lng": ${lng + 0.012}, 
+                    "specialty": "General & Emergency" 
+                  }
+                ]
+              }`,
+              config: {
+                responseMimeType: "application/json"
+              }
+            });
+            parsed = safeParseJSON(llmResponse.text, { hospitals: [] });
+          }
+        } catch (err) {
+          console.warn("Gemini Hospital Finder fallback warning:", err);
+        }
+      }
+
+      if (parsed && Array.isArray(parsed.hospitals) && parsed.hospitals.length > 0) {
+        const aiHospitals = parsed.hospitals.map((h: any, i: number) => {
+          const hLat = h.lat || (lat + (i + 1) * 0.012);
+          const hLng = h.lng || (lng + (i + 1) * 0.009);
+          const distKm = calculateDistanceKm(lat, lng, hLat, hLng);
+          return {
+            name: h.name || "Medical Centre",
+            address: h.address || locationName,
+            lat: hLat,
+            lng: hLng,
+            distanceKm: distKm,
+            distance: `${distKm} km away`,
+            specialty: h.specialty || "Emergency Care",
+            uri: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${h.name} ${h.address}`)}`
+          };
+        });
+        hospitals = [...hospitals, ...aiHospitals];
       }
     }
 
@@ -394,7 +456,7 @@ export class AIService {
     const gemini = this.getGemini();
     try {
       const response = await gemini.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3.6-flash',
         contents: [
           {
             parts: [
@@ -454,12 +516,12 @@ export class AIService {
       console.warn("Backend Biometrics Analysis Route Unavailable, falling back client-side:", err);
     }
 
-    // 2. Second Choice: Direct Groq client (Llama 70b)
+    // 2. Second Choice: Direct Groq client
     const groqClient = this.getGroqClient();
     if (groqClient) {
       try {
         const response = await groqClient.chat.completions.create({
-          model: "llama-3.3-70b-versatile",
+          model: "openai/gpt-oss-120b",
           messages: [
             {
               role: "user" as const,
@@ -487,7 +549,7 @@ export class AIService {
     const gemini = this.getGemini();
     try {
       const response = await gemini.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3.6-flash',
         contents: `Analyze this PPG (Photoplethysmogram) signal data. 
               User Profile: ${userContext}. 
               Signal Data: ${ppgSignal.slice(0, 50).join(', ')}.
@@ -526,12 +588,12 @@ export class AIService {
       console.warn("Backend Location Extraction Route Unavailable, falling back client-side:", err);
     }
 
-    // 2. Second Choice: Direct Groq client (Llama 3.3 70b)
+    // 2. Second Choice: Direct Groq client
     const groqClient = this.getGroqClient();
     if (groqClient) {
       try {
         const response = await groqClient.chat.completions.create({
-          model: "llama-3.3-70b-versatile",
+          model: "openai/gpt-oss-120b",
           messages: [
             {
               role: "user" as const,

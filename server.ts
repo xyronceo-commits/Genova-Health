@@ -2,6 +2,7 @@ import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import Groq from "groq-sdk";
+import { GoogleGenAI } from "@google/genai";
 
 async function startServer() {
   const app = express();
@@ -13,11 +14,16 @@ async function startServer() {
 
   // Initialize Groq safely
   const getGroqClient = () => {
-    const key = process.env.GROQ_API_KEY;
-    if (!key) {
-      throw new Error("GROQ_API_KEY environment variable is required on the server");
-    }
+    const key = process.env.GROQ_API_KEY || process.env.VITE_GROQ_API_KEY;
+    if (!key) return null;
     return new Groq({ apiKey: key });
+  };
+
+  // Initialize Gemini safely
+  const getGeminiClient = () => {
+    const key = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+    if (!key) return null;
+    return new GoogleGenAI({ apiKey: key });
   };
 
   // Helper for resilient JSON parsing
@@ -41,11 +47,12 @@ async function startServer() {
   app.get("/api/health", (req, res) => {
     res.json({ 
       status: "ok", 
-      groqConfigured: !!process.env.GROQ_API_KEY 
+      groqConfigured: !!(process.env.GROQ_API_KEY || process.env.VITE_GROQ_API_KEY),
+      geminiConfigured: !!(process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY)
     });
   });
 
-  // 2. Chat Streaming endpoint (SSE) using Groq
+  // 2. Chat Streaming endpoint (SSE) using Groq with Gemini fallback
   app.post("/api/chat/stream", async (req, res) => {
     const { systemInstruction, history, userMessage, model } = req.body;
 
@@ -53,40 +60,85 @@ async function startServer() {
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Connection", "keep-alive");
 
-    try {
-      const groqClient = getGroqClient();
-      const mappedModel = (!model || model.startsWith("gemini") || model.startsWith("gpt") || model.startsWith("claude"))
-        ? "llama-3.3-70b-versatile"
-        : model;
+    const requestedModel = model || "openai/gpt-oss-120b";
+    const candidateModels = Array.from(new Set([
+      requestedModel,
+      "openai/gpt-oss-120b",
+      "qwen/qwen3.6-27b",
+      "qwen-2.5-32b",
+      "gemma2-9b-it"
+    ]));
 
-      const messages: any[] = [
-        { role: "system", content: systemInstruction },
-        ...history.map((h: any) => ({
-          role: h.role === "model" ? "assistant" : "user",
-          content: h.text,
-        })),
-        { role: "user", content: userMessage },
-      ];
+    // Attempt Groq first with candidate models
+    const groqClient = getGroqClient();
+    if (groqClient) {
+      for (const targetModel of candidateModels) {
+        // Skip gemini models when calling Groq
+        if (targetModel.startsWith("gemini")) continue;
+        try {
+          const messages: any[] = [
+            { role: "system", content: systemInstruction },
+            ...(history || []).map((h: any) => ({
+              role: h.role === "model" ? "assistant" : "user",
+              content: h.text,
+            })),
+            { role: "user", content: userMessage },
+          ];
 
-      const completion = await groqClient.chat.completions.create({
-        messages,
-        model: mappedModel,
-        stream: true,
-      });
+          const completion = await groqClient.chat.completions.create({
+            messages,
+            model: targetModel,
+            stream: true,
+          });
 
-      for await (const chunk of completion) {
-        const text = chunk.choices[0]?.delta?.content || "";
-        if (text) {
-          res.write(`data: ${JSON.stringify({ text })}\n\n`);
+          for await (const chunk of completion) {
+            const text = chunk.choices[0]?.delta?.content || "";
+            if (text) {
+              res.write(`data: ${JSON.stringify({ text })}\n\n`);
+            }
+          }
+          res.write("data: [DONE]\n\n");
+          res.end();
+          return;
+        } catch (groqErr: any) {
+          console.warn(`[Server] Groq model ${targetModel} failed: ${groqErr?.message}`);
         }
       }
-      res.write("data: [DONE]\n\n");
-      res.end();
-    } catch (error: any) {
-      console.error("Groq SSE Streaming Error on Backend:", error);
-      res.write(`data: ${JSON.stringify({ error: error?.message || "Internal streaming error" })}\n\n`);
-      res.end();
     }
+
+    // Fallback to Gemini if Groq failed or key is missing
+    try {
+      const gemini = getGeminiClient();
+      if (gemini) {
+        const response = await gemini.models.generateContentStream({
+          model: "gemini-3.6-flash",
+          contents: [
+            ...(history || []).map((h: any) => ({
+              role: h.role === "model" ? "model" : "user",
+              parts: [{ text: h.text }]
+            })),
+            { role: "user", parts: [{ text: userMessage }] }
+          ],
+          config: {
+            systemInstruction: systemInstruction || undefined
+          }
+        });
+
+        for await (const chunk of response) {
+          if (chunk.text) {
+            res.write(`data: ${JSON.stringify({ text: chunk.text })}\n\n`);
+          }
+        }
+        res.write("data: [DONE]\n\n");
+        res.end();
+        return;
+      }
+    } catch (geminiErr: any) {
+      console.error("[Server] Gemini streaming failed:", geminiErr?.message);
+    }
+
+    res.write(`data: ${JSON.stringify({ error: "No working AI API key found (Groq/Gemini). Please configure GROQ_API_KEY or GEMINI_API_KEY in environment settings." })}\n\n`);
+    res.end();
   });
 
   // 3. Food Analysis endpoint using Groq Vision model
@@ -140,7 +192,7 @@ async function startServer() {
     try {
       const groqClient = getGroqClient();
       const response = await groqClient.chat.completions.create({
-        model: "llama-3.3-70b-versatile",
+        model: "openai/gpt-oss-120b",
         messages: [
           {
             role: "user",
@@ -174,7 +226,7 @@ async function startServer() {
     try {
       const groqClient = getGroqClient();
       const response = await groqClient.chat.completions.create({
-        model: "llama-3.3-70b-versatile",
+        model: "openai/gpt-oss-120b",
         messages: [
           {
             role: "user",

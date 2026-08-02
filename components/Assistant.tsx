@@ -14,6 +14,7 @@ interface Props {
 const Assistant: React.FC<Props> = ({ user }) => {
   const { type } = useParams<{ type: string }>();
   const navigate = useNavigate();
+  const [selectedModel, setSelectedModel] = useState<string>('openai/gpt-oss-120b');
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -252,7 +253,7 @@ const Assistant: React.FC<Props> = ({ user }) => {
 
     try {
       const stream = ai.getResponseStream(
-        'gemini-3.5-flash',
+        selectedModel,
         assistantConfig.prompt + `\n\nUSER MEDICAL PROFILE:\nName: ${user.fullName}\nAge: ${user.age}\nGender: ${user.gender}\nGenotype: ${user.genotype}\nBlood Group: ${user.bloodGroup}\nAllergies: ${user.allergies.join(', ') || 'None'}\nWeight: ${user.weight}kg\nHeight: ${user.height}cm\nEMERGENCY CONTACT: ${user.emergencyContactName} (${user.emergencyContactPhone})` + biometricContext,
         messages,
         messageText,
@@ -666,23 +667,28 @@ const Assistant: React.FC<Props> = ({ user }) => {
           </div>
           <div className="flex items-center gap-2 shrink-0">
              {!isLiveMode && (
-               <button 
-                 type="button"
-                 onClick={() => setUseSearch(!useSearch)}
-                 className={`p-2.5 rounded-xl transition-all ${useSearch ? 'bg-white/20 text-white' : 'text-white/40 hover:bg-white/10'}`}
-                 title="Google Search Grounding"
-               >
-                 <Globe size={20} />
-               </button>
+               <>
+                 <select
+                   value={selectedModel}
+                   onChange={(e) => setSelectedModel(e.target.value)}
+                   className="bg-white/20 hover:bg-white/30 text-white font-bold text-xs py-2 px-3 rounded-xl outline-none cursor-pointer border border-white/20 transition backdrop-blur-md max-w-[140px] sm:max-w-none truncate"
+                   title="Select Engine / Model"
+                 >
+                   <option value="openai/gpt-oss-120b" className="text-gray-900 bg-white">⚡ Groq (openai/gpt-oss-120b)</option>
+                   <option value="qwen/qwen3.6-27b" className="text-gray-900 bg-white">🧠 Groq (qwen/qwen3.6-27b)</option>
+                   <option value="gemini-3.6-flash" className="text-gray-900 bg-white">✨ Gemini 3.6 Flash</option>
+                 </select>
+
+                 <button 
+                   type="button"
+                   onClick={() => setUseSearch(!useSearch)}
+                   className={`p-2.5 rounded-xl transition-all ${useSearch ? 'bg-white/20 text-white' : 'text-white/40 hover:bg-white/10'}`}
+                   title="Google Search Grounding"
+                 >
+                   <Globe size={20} />
+                 </button>
+               </>
              )}
-             <button 
-               type="button"
-               onClick={isLiveMode ? stopLiveMode : startLiveMode}
-               className={`p-2.5 rounded-xl transition-all ${isLiveMode ? 'bg-red-500 text-white' : 'bg-white/20 text-white hover:bg-white/30'}`}
-               title="Toggle Voice Mode"
-             >
-               {isLiveMode ? <Square size={20} /> : <Volume2 size={20} />}
-             </button>
           </div>
         </header>
 
