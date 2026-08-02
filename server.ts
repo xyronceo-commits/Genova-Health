@@ -253,6 +253,96 @@ async function startServer() {
     }
   });
 
+  // 6. Smartwatch Telemetry & Health Insights endpoint using openai/gpt-oss-120b & qwen/qwen3.6-27b
+  app.post("/api/analyze-smartwatch-telemetry", async (req, res) => {
+    const { telemetryData, userContext } = req.body;
+    const prompt = `You are Genova AI Chief Clinical Intelligence Engine analyzing comprehensive live smartwatch telemetry.
+    Telemetry Data:
+    - Current Heart Rate: ${telemetryData.heartRate} BPM (Resting HR: ${telemetryData.restingHeartRate} BPM)
+    - Sleep: ${telemetryData.sleepDurationHours} hours, Quality: ${telemetryData.sleepQualityPercent}% (Deep: ${telemetryData.sleepBreakdown?.deep}, REM: ${telemetryData.sleepBreakdown?.rem}, Light: ${telemetryData.sleepBreakdown?.light}, Awake: ${telemetryData.sleepBreakdown?.awake})
+    - Activity: ${telemetryData.steps} steps, ${telemetryData.distanceKm} km, Active Cals: ${telemetryData.caloriesActive} kcal (Total: ${telemetryData.caloriesBurnedTotal} kcal)
+    - Workouts: ${JSON.stringify(telemetryData.workouts)}
+    - Blood Oxygen (SpO2): ${telemetryData.spo2Percent}%
+    - Stress Level Score: ${telemetryData.stressLevelScore} / 100
+    - Skin Temp Differential: ${telemetryData.skinTempDiffC > 0 ? '+' : ''}${telemetryData.skinTempDiffC}°C
+    - Connection/Sync Latency: ${telemetryData.syncSpeedMs} ms
+    - User Context: ${userContext || 'Standard Profile'}
+
+    Analyze ALL collected metrics together to derive trends across activity, sleep, heart rate, stress, and sync stability.
+    Calculate a Daily Health Score between 0 and 100.
+    Explain specifically what affected the score (positive factors and negative drag factors).
+    Provide the TOP THREE concrete actionable steps the user can take today to improve their score.
+
+    Return ONLY a clean JSON object with this EXACT structure:
+    {
+      "healthScore": 86,
+      "scoreExplanation": {
+        "positiveFactors": [
+          "Optimal SpO2 at 98.5% with healthy arterial oxygen saturation",
+          "Solid REM sleep duration (2h 10m) supporting cognitive recovery",
+          "Excellent step count exceeding 8,000 steps baseline"
+        ],
+        "negativeFactors": [
+          "Resting Heart Rate slightly elevated (+3 BPM vs 7-day average)",
+          "Mild autonomic stress detected post-workout (Stress 32/100)"
+        ]
+      },
+      "topActions": [
+        "Hydrate with 500ml of water with electrolytes before 8 PM to lower resting HR",
+        "Perform 10 minutes of deep diaphragmatic breathing before bedtime to decrease stress",
+        "Maintain current sleep schedule to preserve optimal REM sleep cycles"
+      ],
+      "trends": {
+        "heartRateTrend": "Resting HR is stable at 61 BPM with fast 2-minute post-workout cardiac recovery.",
+        "sleepQualityTrend": "Deep sleep accounts for 22% of total sleep, indicating strong physical tissue repair.",
+        "activityNutritionTrend": "Caloric expenditure of 2,180 kcal aligns well with active movement and distance of 6.35 km.",
+        "stressRecoveryTrend": "Sympathetic nervous system dominance spiked during midday but recovered during rest.",
+        "connectionSyncSpeed": "Smartwatch sync speed is optimal at ${telemetryData.syncSpeedMs}ms over BLE GATT telemetry."
+      },
+      "summaryInsight": "Your physiological recovery is strong with balanced sleep architecture and active cardiovascular output. Focusing on pre-sleep hydration will further lower your overnight resting heart rate."
+    }`;
+
+    const groqClient = getGroqClient();
+    if (groqClient) {
+      const candidateModels = ["openai/gpt-oss-120b", "qwen/qwen3.6-27b", "qwen-2.5-32b"];
+      for (const modelName of candidateModels) {
+        try {
+          const response = await groqClient.chat.completions.create({
+            model: modelName,
+            messages: [{ role: "user", content: prompt }],
+            response_format: { type: "json_object" }
+          });
+          const parsed = safeParseJSON(response.choices[0]?.message?.content, null);
+          if (parsed && parsed.healthScore) {
+            return res.json({ ...parsed, modelUsed: modelName });
+          }
+        } catch (err: any) {
+          console.warn(`[Server] Smartwatch analysis model ${modelName} failed:`, err?.message);
+        }
+      }
+    }
+
+    // Gemini Fallback
+    try {
+      const gemini = getGeminiClient();
+      if (gemini) {
+        const response = await gemini.models.generateContent({
+          model: "gemini-3.6-flash",
+          contents: prompt,
+          config: { responseMimeType: "application/json" }
+        });
+        const parsed = safeParseJSON(response.text, null);
+        if (parsed && parsed.healthScore) {
+          return res.json({ ...parsed, modelUsed: "gemini-3.6-flash" });
+        }
+      }
+    } catch (err: any) {
+      console.warn("[Server] Gemini smartwatch analysis failed:", err?.message);
+    }
+
+    res.status(500).json({ error: "Failed to generate AI smartwatch analysis" });
+  });
+
   // Vite integration for assets serving & hot reload proxying
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({

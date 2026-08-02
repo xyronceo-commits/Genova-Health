@@ -66,8 +66,8 @@ const Profile: React.FC<Props> = ({ user, onUpdate, onLogout, isDarkMode, toggle
     setContacts(contacts.filter((_, i) => i !== index));
   };
 
-  const confirmLogout = () => {
-    if (window.confirm("Are you sure you want to log out?")) {
+  const confirmResetAndLogout = () => {
+    if (window.confirm("Are you sure you want to completely clear all app data and start fresh? This will delete all recorded history and start a new session.")) {
       onLogout();
     }
   };
@@ -327,19 +327,19 @@ const Profile: React.FC<Props> = ({ user, onUpdate, onLogout, isDarkMode, toggle
            <h3 className="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">Danger Zone</h3>
            <div className="bg-red-50 dark:bg-red-900/10 p-6 rounded-3xl border border-red-100 dark:border-red-900/30 flex flex-col md:flex-row items-center justify-between gap-4 transition-colors">
              <div className="flex items-start gap-4 text-center md:text-left">
-               <div className="p-3 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-2xl"><Info size={24}/></div>
+               <div className="p-3 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-2xl"><Trash2 size={24}/></div>
                <div>
-                 <h4 className="font-bold text-red-900 dark:text-red-400">Clear All Health Data</h4>
-                 <p className="text-xs text-red-700 dark:text-red-500/80 mt-1">Permanently remove your profile and history from this device.</p>
+                 <h4 className="font-bold text-red-900 dark:text-red-400">Start Fresh (Clear All Recorded Data)</h4>
+                 <p className="text-xs text-red-700 dark:text-red-500/80 mt-1">Permanently remove all logs, metrics, chats, and profiles from this app to begin completely new.</p>
                </div>
              </div>
              <button 
               type="button"
-              onClick={confirmLogout}
-              className="px-6 py-3 bg-red-600 text-white rounded-xl font-bold flex items-center gap-2 hover:bg-red-700 transition-all shadow-lg shadow-red-200 dark:shadow-none"
+              onClick={confirmResetAndLogout}
+              className="px-6 py-3 bg-red-600 text-white rounded-xl font-bold flex items-center gap-2 hover:bg-red-700 transition-all shadow-lg shadow-red-200 dark:shadow-none shrink-0"
              >
-                <LogOut size={18}/>
-                Log Out
+                <Trash2 size={18}/>
+                Start Fresh / Reset
               </button>
            </div>
         </div>

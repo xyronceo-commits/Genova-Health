@@ -93,11 +93,17 @@ const App = () => {
 
   const handleLogout = () => {
     logout().catch(err => console.error("Sign-out error:", err));
-    localStorage.removeItem(STORAGE_KEYS.USER_PROFILE);
-    localStorage.removeItem(STORAGE_KEYS.HEALTH_HISTORY);
-    localStorage.removeItem(STORAGE_KEYS.WEARABLE_DEVICE);
-    localStorage.removeItem(STORAGE_KEYS.NUTRI_LOG);
+    Object.values(STORAGE_KEYS).forEach(key => {
+      localStorage.removeItem(key);
+    });
     localStorage.removeItem('genova_daily_steps');
+    localStorage.removeItem('genova_sensor_permission');
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('genova_') && key !== 'genova_theme') {
+        localStorage.removeItem(key);
+      }
+    }
     setUser(null);
   };
 

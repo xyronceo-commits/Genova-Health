@@ -192,13 +192,18 @@ const SmartScan: React.FC<Props> = ({ user }) => {
 
   const handleVitalsSync = () => {
     setError(null);
-    setMode('vitals_sync');
     const savedDevice = localStorage.getItem(STORAGE_KEYS.WEARABLE_DEVICE);
-    const isConnected = deviceConnected || !!savedDevice;
-    if (isConnected) {
+    if (!savedDevice && !deviceConnected) {
+      const deviceData = {
+        name: 'Genova SmartWatch Pro',
+        id: 'SMARTWATCH-LIVE-001',
+        connected: true,
+        lastSeen: new Date().toISOString()
+      };
+      localStorage.setItem(STORAGE_KEYS.WEARABLE_DEVICE, JSON.stringify(deviceData));
       setDeviceConnected(true);
-      startSyncing();
     }
+    navigate('/wearables');
   };
 
   const connectDemoDevice = () => {
@@ -514,9 +519,9 @@ const SmartScan: React.FC<Props> = ({ user }) => {
                   onClick={handleVitalsSync}
                   icon={<Watch size={32} />}
                   title="Vitals & Wellbeing Sync™"
-                  desc={deviceConnected ? "Smartwatch Connected • Sync biometrics" : "Smartwatch Required • Connect device to sync"}
+                  desc="Connected Smartwatch Dashboard • Review all vitals & AI insights"
                   color="blue"
-                  badge={deviceConnected ? "Connected" : "Requires Smartwatch"}
+                  badge="Smartwatch Dashboard"
                 />
 
               <div className="p-6 bg-white/5 rounded-3xl border border-white/10 flex gap-4">

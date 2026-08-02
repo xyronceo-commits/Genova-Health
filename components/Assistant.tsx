@@ -6,6 +6,7 @@ import { UserProfile, Message, AssistantType, HealthMetrics } from '../types';
 import { ai } from '../services/ai';
 import { SYSTEM_PROMPTS, STORAGE_KEYS } from '../constants';
 import { auth, saveChatSession, getChatSessions, deleteChatSession } from '../services/firebase';
+import MarkdownRenderer from './MarkdownRenderer';
 
 interface Props {
   user: UserProfile;
@@ -668,17 +669,6 @@ const Assistant: React.FC<Props> = ({ user }) => {
           <div className="flex items-center gap-2 shrink-0">
              {!isLiveMode && (
                <>
-                 <select
-                   value={selectedModel}
-                   onChange={(e) => setSelectedModel(e.target.value)}
-                   className="bg-white/20 hover:bg-white/30 text-white font-bold text-xs py-2 px-3 rounded-xl outline-none cursor-pointer border border-white/20 transition backdrop-blur-md max-w-[140px] sm:max-w-none truncate"
-                   title="Select Engine / Model"
-                 >
-                   <option value="openai/gpt-oss-120b" className="text-gray-900 bg-white">⚡ Groq (openai/gpt-oss-120b)</option>
-                   <option value="qwen/qwen3.6-27b" className="text-gray-900 bg-white">🧠 Groq (qwen/qwen3.6-27b)</option>
-                   <option value="gemini-3.6-flash" className="text-gray-900 bg-white">✨ Gemini 3.6 Flash</option>
-                 </select>
-
                  <button 
                    type="button"
                    onClick={() => setUseSearch(!useSearch)}
@@ -739,7 +729,11 @@ const Assistant: React.FC<Props> = ({ user }) => {
                       ? `${assistantConfig.color} text-white rounded-tr-none shadow-blue-500/10` 
                       : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 rounded-tl-none border border-gray-100 dark:border-gray-700 shadow-sm'
                     }`}>
-                      <div className="whitespace-pre-wrap">{m.text}</div>
+                      {m.role === 'model' ? (
+                        <MarkdownRenderer content={m.text} />
+                      ) : (
+                        <div className="whitespace-pre-wrap">{m.text}</div>
+                      )}
                       
                       {m.role === 'model' && (
                         <div className="flex items-center justify-between gap-4 mt-4 pt-2 border-t border-gray-100/10 dark:border-gray-700/30 text-[10px]">
