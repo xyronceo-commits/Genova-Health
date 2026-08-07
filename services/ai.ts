@@ -43,7 +43,8 @@ export class AIService {
     systemInstruction: string,
     history: Message[],
     userMessage: string,
-    useSearch: boolean = false
+    useSearch: boolean = false,
+    attachedImage?: { base64: string; mimeType: string }
   ) {
     const targetModel = model || 'openai/gpt-oss-120b';
 
@@ -58,7 +59,8 @@ export class AIService {
           systemInstruction,
           history,
           userMessage,
-          model: targetModel
+          model: targetModel,
+          attachedImage
         })
       });
 

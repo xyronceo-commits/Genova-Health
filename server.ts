@@ -54,35 +54,51 @@ async function startServer() {
 
   // 2. Chat Streaming endpoint (SSE) using Groq with Gemini fallback
   app.post("/api/chat/stream", async (req, res) => {
-    const { systemInstruction, history, userMessage, model } = req.body;
+    const { systemInstruction, history, userMessage, model, attachedImage } = req.body;
 
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Connection", "keep-alive");
 
-    const requestedModel = model || "openai/gpt-oss-120b";
-    const candidateModels = Array.from(new Set([
-      requestedModel,
-      "openai/gpt-oss-120b",
-      "qwen/qwen3.6-27b",
-      "qwen-2.5-32b",
-      "gemma2-9b-it"
-    ]));
+    const hasImage = !!(attachedImage && attachedImage.base64);
+
+    // If image is present, prioritize Groq vision models or fallback to Gemini
+    const requestedModel = model || (hasImage ? "llama-3.2-11b-vision-preview" : "openai/gpt-oss-120b");
+    const candidateModels = hasImage 
+      ? ["llama-3.2-11b-vision-preview", "llama-3.2-90b-vision-preview"]
+      : Array.from(new Set([
+          requestedModel,
+          "openai/gpt-oss-120b",
+          "qwen/qwen3.6-27b",
+          "qwen-2.5-32b",
+          "gemma2-9b-it"
+        ]));
 
     // Attempt Groq first with candidate models
     const groqClient = getGroqClient();
     if (groqClient) {
       for (const targetModel of candidateModels) {
-        // Skip gemini models when calling Groq
         if (targetModel.startsWith("gemini")) continue;
         try {
+          let lastUserContent: any = userMessage || "Analyze this image and explain what you see in relation to my health query.";
+          if (hasImage) {
+            const mime = attachedImage.mimeType || "image/jpeg";
+            const dataUri = attachedImage.base64.startsWith("data:")
+              ? attachedImage.base64
+              : `data:${mime};base64,${attachedImage.base64}`;
+            lastUserContent = [
+              { type: "text", text: userMessage || "Analyze this image and explain what you see in relation to my health and medical query." },
+              { type: "image_url", image_url: { url: dataUri } }
+            ];
+          }
+
           const messages: any[] = [
             { role: "system", content: systemInstruction },
             ...(history || []).map((h: any) => ({
               role: h.role === "model" ? "assistant" : "user",
               content: h.text,
             })),
-            { role: "user", content: userMessage },
+            { role: "user", content: lastUserContent },
           ];
 
           const completion = await groqClient.chat.completions.create({
@@ -110,6 +126,23 @@ async function startServer() {
     try {
       const gemini = getGeminiClient();
       if (gemini) {
+        const lastUserParts: any[] = [
+          { text: userMessage || "Analyze this image and explain what you see in relation to my health and medical query." }
+        ];
+
+        if (hasImage) {
+          const rawBase64 = attachedImage.base64.includes(",") 
+            ? attachedImage.base64.split(",")[1] 
+            : attachedImage.base64;
+          const mimeType = attachedImage.mimeType || "image/jpeg";
+          lastUserParts.push({
+            inlineData: {
+              mimeType: mimeType,
+              data: rawBase64
+            }
+          });
+        }
+
         const response = await gemini.models.generateContentStream({
           model: "gemini-3.6-flash",
           contents: [
@@ -117,7 +150,7 @@ async function startServer() {
               role: h.role === "model" ? "model" : "user",
               parts: [{ text: h.text }]
             })),
-            { role: "user", parts: [{ text: userMessage }] }
+            { role: "user", parts: lastUserParts }
           ],
           config: {
             systemInstruction: systemInstruction || undefined

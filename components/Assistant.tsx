@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Send, ArrowLeft, Bot, Mic, Speaker, Stethoscope, Utensils, Activity, Brain, ClipboardList, Pill, Baby, MicOff, Crown, Globe, ExternalLink, Volume2, Square, Loader2, Shield, History, Plus, Trash2, Copy, Check, MessageSquare, Menu, X } from 'lucide-react';
+import { Send, ArrowLeft, Bot, Mic, Speaker, Stethoscope, Utensils, Activity, Brain, ClipboardList, Pill, Baby, MicOff, Crown, Globe, ExternalLink, Volume2, Square, Loader2, Shield, History, Plus, Trash2, Copy, Check, MessageSquare, Menu, X, Image as ImageIcon, Camera } from 'lucide-react';
 import { UserProfile, Message, AssistantType, HealthMetrics } from '../types';
 import { ai } from '../services/ai';
 import { SYSTEM_PROMPTS, STORAGE_KEYS } from '../constants';
@@ -22,6 +22,48 @@ const Assistant: React.FC<Props> = ({ user }) => {
   const [isListening, setIsListening] = useState(false);
   const [useSearch, setUseSearch] = useState(true);
   const [groundingLinks, setGroundingLinks] = useState<any[]>([]);
+
+  // Image Upload State
+  const [selectedImage, setSelectedImage] = useState<{
+    base64: string;
+    mimeType: string;
+    previewUrl: string;
+    fileName: string;
+  } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert("Please select a valid image file (PNG, JPEG, WEBP).");
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      alert("Image file size should be less than 10MB.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const resultStr = reader.result as string;
+      const base64Data = resultStr.includes(',') ? resultStr.split(',')[1] : resultStr;
+      setSelectedImage({
+        base64: base64Data,
+        mimeType: file.type || 'image/jpeg',
+        previewUrl: resultStr,
+        fileName: file.name
+      });
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const removeSelectedImage = () => {
+    setSelectedImage(null);
+  };
   
   // Chat History Management States
   const [sessions, setSessions] = useState<any[]>([]);
@@ -239,12 +281,22 @@ const Assistant: React.FC<Props> = ({ user }) => {
 
   const handleSend = async (overrideInput?: string) => {
     const messageText = overrideInput || input;
-    if (!messageText.trim() || loading) return;
+    if ((!messageText.trim() && !selectedImage) || loading) return;
 
-    const userMsg: Message = { role: 'user', text: messageText, timestamp: new Date() };
+    const attachedImageObj = selectedImage ? { base64: selectedImage.base64, mimeType: selectedImage.mimeType } : undefined;
+    const imagePreviewData = selectedImage ? selectedImage.previewUrl : undefined;
+
+    const userMsg: Message = { 
+      role: 'user', 
+      text: messageText.trim() || (selectedImage ? "Please analyze this uploaded health image:" : ""), 
+      timestamp: new Date(),
+      image: imagePreviewData
+    };
+
     const updatedMessages = [...messages, userMsg];
     setMessages(updatedMessages);
     setInput('');
+    setSelectedImage(null);
     setLoading(true);
     setGroundingLinks([]);
 
@@ -257,8 +309,9 @@ const Assistant: React.FC<Props> = ({ user }) => {
         selectedModel,
         assistantConfig.prompt + `\n\nUSER MEDICAL PROFILE:\nName: ${user.fullName}\nAge: ${user.age}\nGender: ${user.gender}\nGenotype: ${user.genotype}\nBlood Group: ${user.bloodGroup}\nAllergies: ${user.allergies.join(', ') || 'None'}\nWeight: ${user.weight}kg\nHeight: ${user.height}cm\nEMERGENCY CONTACT: ${user.emergencyContactName} (${user.emergencyContactPhone})` + biometricContext,
         messages,
-        messageText,
-        useSearch
+        messageText || "Analyze this image and explain what you see in relation to my health query.",
+        useSearch,
+        attachedImageObj
       );
 
       let fullText = '';
@@ -729,6 +782,12 @@ const Assistant: React.FC<Props> = ({ user }) => {
                       ? `${assistantConfig.color} text-white rounded-tr-none shadow-blue-500/10` 
                       : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 rounded-tl-none border border-gray-100 dark:border-gray-700 shadow-sm'
                     }`}>
+                      {m.image && (
+                        <div className="mb-2 max-w-xs overflow-hidden rounded-xl border border-white/20 dark:border-gray-700 shadow-sm">
+                          <img src={m.image} alt="Uploaded medical / health image" className="w-full h-auto max-h-60 object-cover" />
+                        </div>
+                      )}
+                      
                       {m.role === 'model' ? (
                         <MarkdownRenderer content={m.text} />
                       ) : (
@@ -884,7 +943,51 @@ const Assistant: React.FC<Props> = ({ user }) => {
             </div>
 
             <div className="p-4 bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 sticky bottom-0 transition-colors shrink-0">
+              {/* Image Preview attachment badge */}
+              {selectedImage && (
+                <div className="max-w-4xl mx-auto mb-3 flex items-center justify-between p-2.5 px-3.5 bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800/80 rounded-2xl animate-in fade-in slide-in-from-bottom-2 shadow-sm">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="relative w-12 h-12 rounded-xl overflow-hidden border border-blue-300 dark:border-blue-700 shrink-0 bg-gray-100 dark:bg-gray-800">
+                      <img src={selectedImage.previewUrl} alt="Preview" className="w-full h-full object-cover" />
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-xs font-bold text-gray-900 dark:text-gray-100 truncate max-w-[240px] sm:max-w-md">{selectedImage.fileName}</span>
+                      <span className="text-[10px] text-blue-600 dark:text-blue-400 font-bold uppercase tracking-wider flex items-center gap-1">
+                        <Camera size={10} /> Image attached for AI visual analysis
+                      </span>
+                    </div>
+                  </div>
+                  <button 
+                    type="button"
+                    onClick={removeSelectedImage}
+                    className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-xl transition-all ml-2"
+                    title="Remove attached image"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+              )}
+
               <div className="flex gap-2 max-w-4xl mx-auto items-center">
+                {/* Hidden File Input */}
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  onChange={handleImageChange} 
+                  accept="image/*" 
+                  className="hidden" 
+                />
+
+                {/* Upload Image Icon Button */}
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`p-3 rounded-2xl transition-all shrink-0 ${selectedImage ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+                  title="Upload image or document photo for AI analysis"
+                >
+                  <ImageIcon size={22} />
+                </button>
+
                 <button 
                   type="button"
                   onClick={() => {
@@ -901,18 +1004,20 @@ const Assistant: React.FC<Props> = ({ user }) => {
                 >
                   {isListening ? <MicOff size={24} /> : <Mic size={24} />}
                 </button>
+
                 <input 
                   type="text" 
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-                  placeholder={assistantConfig.placeholder}
+                  placeholder={selectedImage ? "Add an optional description or ask a question about this image..." : assistantConfig.placeholder}
                   className="flex-1 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl px-5 py-3.5 focus:ring-2 focus:ring-blue-500 transition-all text-sm outline-none text-gray-900 dark:text-gray-100 shadow-inner"
                 />
+
                 <button 
                   type="button"
                   onClick={() => handleSend()}
-                  disabled={!input.trim() || loading}
+                  disabled={(!input.trim() && !selectedImage) || loading}
                   className={`${assistantConfig.color} text-white p-3.5 rounded-2xl disabled:opacity-50 transition-all active:scale-95 shadow-lg shrink-0`}
                   title="Send message"
                 >
