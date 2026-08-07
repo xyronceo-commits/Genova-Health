@@ -14,14 +14,84 @@ import Wearables from './components/Wearables';
 import Navigation from './components/Navigation';
 import Premium from './components/Premium';
 import About from './components/About';
+import Legal from './components/Legal';
 
 const App = () => {
   const [user, setUser] = React.useState<UserProfile | null>(null);
   const [loading, setLoading] = React.useState(true);
-  const [isDarkMode, setIsDarkMode] = React.useState(() => {
-    const saved = localStorage.getItem('genova_theme');
-    return saved === 'dark';
+
+  // Theme mode: 'light' | 'dark' | 'system' (device settings)
+  const [themeMode, setThemeMode] = React.useState<'light' | 'dark' | 'system'>(() => {
+    const saved = localStorage.getItem('genova_theme_mode');
+    if (saved === 'dark' || saved === 'light' || saved === 'system') return saved;
+    const legacy = localStorage.getItem('genova_theme');
+    if (legacy === 'dark' || legacy === 'light') return legacy;
+    return 'system';
   });
+
+  const [isDarkMode, setIsDarkMode] = React.useState<boolean>(() => {
+    if (themeMode === 'dark') return true;
+    if (themeMode === 'light') return false;
+    return typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  });
+
+  // Sync with device OS settings & apply dark/light classes dynamically
+  React.useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+
+    const updateTheme = () => {
+      let dark = false;
+      if (themeMode === 'dark') {
+        dark = true;
+      } else if (themeMode === 'light') {
+        dark = false;
+      } else {
+        // System / Device mode
+        dark = mediaQuery.matches;
+      }
+
+      setIsDarkMode(dark);
+      if (dark) {
+        document.documentElement.classList.add('dark');
+        document.documentElement.style.colorScheme = 'dark';
+      } else {
+        document.documentElement.classList.remove('dark');
+        document.documentElement.style.colorScheme = 'light';
+      }
+      localStorage.setItem('genova_theme_mode', themeMode);
+      localStorage.setItem('genova_theme', dark ? 'dark' : 'light');
+    };
+
+    updateTheme();
+
+    const handleDeviceThemeChange = (e: MediaQueryListEvent) => {
+      if (themeMode === 'system') {
+        const dark = e.matches;
+        setIsDarkMode(dark);
+        if (dark) {
+          document.documentElement.classList.add('dark');
+          document.documentElement.style.colorScheme = 'dark';
+        } else {
+          document.documentElement.classList.remove('dark');
+          document.documentElement.style.colorScheme = 'light';
+        }
+      }
+    };
+
+    if (mediaQuery.addEventListener) {
+      mediaQuery.addEventListener('change', handleDeviceThemeChange);
+    } else {
+      mediaQuery.addListener(handleDeviceThemeChange);
+    }
+
+    return () => {
+      if (mediaQuery.removeEventListener) {
+        mediaQuery.removeEventListener('change', handleDeviceThemeChange);
+      } else {
+        mediaQuery.removeListener(handleDeviceThemeChange);
+      }
+    };
+  }, [themeMode]);
 
   React.useEffect(() => {
     testConnection();
@@ -64,16 +134,6 @@ const App = () => {
     return () => unsubscribe();
   }, []);
 
-  React.useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('genova_theme', 'dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('genova_theme', 'light');
-    }
-  }, [isDarkMode]);
-
   const handleOnboardingComplete = (profile: UserProfile) => {
     localStorage.setItem(STORAGE_KEYS.USER_PROFILE, JSON.stringify(profile));
     setUser(profile);
@@ -100,14 +160,17 @@ const App = () => {
     localStorage.removeItem('genova_sensor_permission');
     for (let i = localStorage.length - 1; i >= 0; i--) {
       const key = localStorage.key(i);
-      if (key && key.startsWith('genova_') && key !== 'genova_theme') {
+      if (key && key.startsWith('genova_') && key !== 'genova_theme' && key !== 'genova_theme_mode') {
         localStorage.removeItem(key);
       }
     }
     setUser(null);
   };
 
-  const toggleDarkMode = () => setIsDarkMode(!isDarkMode);
+  // Toggling dark mode switches between dark and light explicitly
+  const toggleDarkMode = () => {
+    setThemeMode(prev => (prev === 'dark' ? 'light' : 'dark'));
+  };
 
   if (loading) return (
     <div className="h-screen flex items-center justify-center bg-blue-50 dark:bg-gray-900 transition-colors">
@@ -119,6 +182,19 @@ const App = () => {
     <Router>
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 pb-20 md:pb-0 md:pl-16 transition-colors font-sans">
         <Routes>
+          {/* Public / Guest Legal Routes */}
+          <Route path="/legal" element={<Legal />} />
+          <Route path="/legal/:docId" element={<Legal />} />
+          <Route path="/terms" element={<Navigate to="/legal/terms" replace />} />
+          <Route path="/privacy" element={<Navigate to="/legal/privacy" replace />} />
+          <Route path="/cookies" element={<Navigate to="/legal/cookies" replace />} />
+          <Route path="/acceptable-use" element={<Navigate to="/legal/acceptable-use" replace />} />
+          <Route path="/disclaimer" element={<Navigate to="/legal/disclaimer" replace />} />
+          <Route path="/intellectual-property" element={<Navigate to="/legal/intellectual-property" replace />} />
+          <Route path="/copyright" element={<Navigate to="/legal/copyright" replace />} />
+          <Route path="/community-guidelines" element={<Navigate to="/legal/community-guidelines" replace />} />
+          <Route path="/trust-and-safety" element={<Navigate to="/legal/trust-and-safety" replace />} />
+
           {!user ? (
             <Route path="*" element={<Onboarding onComplete={handleOnboardingComplete} />} />
           ) : (

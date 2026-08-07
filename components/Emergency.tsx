@@ -21,14 +21,12 @@ const Emergency: React.FC<Props> = ({ user }) => {
   const [extracting, setExtracting] = useState(false);
   const [locationExtracted, setLocationExtracted] = useState<any>(null);
 
-  // Selected 3 to 5 emergency contacts list
+  // Selected emergency contacts list from real user profile
   const selectedContacts: EmergencyContact[] = (user?.emergencyContacts && user.emergencyContacts.length > 0)
     ? user.emergencyContacts
-    : [
-        { name: user?.emergencyContactName || 'Dr. Sarah Alabi', phone: user?.emergencyContactPhone || '+234 802 345 6789', relationship: 'Primary Doctor' },
-        { name: 'Alex Johnson', phone: '+234 803 987 6543', relationship: 'Spouse' },
-        { name: 'Mary Johnson', phone: '+234 805 111 2222', relationship: 'Mother' },
-      ];
+    : (user?.emergencyContactName && user?.emergencyContactPhone)
+      ? [{ name: user.emergencyContactName, phone: user.emergencyContactPhone, relationship: 'Primary Contact' }]
+      : [];
 
   const [showBroadcastModal, setShowBroadcastModal] = useState(false);
   const [alertProgress, setAlertProgress] = useState<{ [key: number]: boolean }>({});

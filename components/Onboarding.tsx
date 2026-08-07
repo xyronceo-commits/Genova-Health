@@ -9,14 +9,6 @@ interface Props {
   onComplete: (profile: UserProfile) => void;
 }
 
-const DEFAULT_PRESET_CONTACTS: EmergencyContact[] = [
-  { name: 'Dr. Sarah Alabi', phone: '+234 802 345 6789', relationship: 'Primary Doctor' },
-  { name: 'Alex Johnson', phone: '+234 803 987 6543', relationship: 'Spouse' },
-  { name: 'Mary Johnson', phone: '+234 805 111 2222', relationship: 'Mother' },
-  { name: 'David Johnson', phone: '+234 807 444 5555', relationship: 'Brother' },
-  { name: 'Chief James Ade', phone: '+234 809 888 9999', relationship: 'Neighbor' }
-];
-
 const InputGroup: React.FC<{label: string, children: React.ReactNode}> = ({ label, children }) => (
   <div className="space-y-2">
     <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] ml-2">
@@ -59,11 +51,7 @@ const Onboarding = ({ onComplete }: Props) => {
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
-  const [selectedContacts, setSelectedContacts] = React.useState<EmergencyContact[]>([
-    { name: 'Dr. Sarah Alabi', phone: '+234 802 345 6789', relationship: 'Primary Doctor' },
-    { name: 'Alex Johnson', phone: '+234 803 987 6543', relationship: 'Spouse' },
-    { name: 'Mary Johnson', phone: '+234 805 111 2222', relationship: 'Mother' }
-  ]);
+  const [selectedContacts, setSelectedContacts] = React.useState<EmergencyContact[]>([]);
   const [contactPermissionGranted, setContactPermissionGranted] = React.useState(false);
   const [showAddForm, setShowAddForm] = React.useState(false);
   const [newContactName, setNewContactName] = React.useState('');
@@ -78,6 +66,13 @@ const Onboarding = ({ onComplete }: Props) => {
         emergencyContactName: selectedContacts[0].name,
         emergencyContactPhone: selectedContacts[0].phone
       }));
+    } else {
+      setProfile(prev => ({
+        ...prev,
+        emergencyContacts: [],
+        emergencyContactName: '',
+        emergencyContactPhone: ''
+      }));
     }
   }, [selectedContacts]);
 
@@ -89,26 +84,19 @@ const Onboarding = ({ onComplete }: Props) => {
         if (contacts && contacts.length > 0) {
           const imported: EmergencyContact[] = contacts.map((c: any, idx: number) => ({
             name: c.name?.[0] || `Contact ${idx + 1}`,
-            phone: c.tel?.[0] || '+234 800 000 0000',
-            relationship: idx === 0 ? 'Primary Doctor' : 'Emergency Contact'
-          }));
-          setSelectedContacts(imported.slice(0, 5));
+            phone: c.tel?.[0] || '',
+            relationship: idx === 0 ? 'Primary Contact' : 'Emergency Contact'
+          })).filter(c => c.phone);
+          if (imported.length > 0) {
+            setSelectedContacts(imported.slice(0, 5));
+          }
         }
       } catch (e) {
         console.log("Device contacts picker unavailable or dismissed.");
       }
+    } else {
+      setShowAddForm(true);
     }
-  };
-
-  const handleAddPresetContact = (preset: EmergencyContact) => {
-    if (selectedContacts.length >= 5) {
-      alert("You can select up to 5 emergency contacts maximum.");
-      return;
-    }
-    if (selectedContacts.some(c => c.phone === preset.phone)) {
-      return;
-    }
-    setSelectedContacts([...selectedContacts, preset]);
   };
 
   const handleAddCustomContact = (e: React.FormEvent) => {
@@ -469,60 +457,40 @@ const Onboarding = ({ onComplete }: Props) => {
 
                     {/* Selected Contacts List */}
                     <div className="space-y-2.5 pt-1">
-                      {selectedContacts.map((contact, idx) => (
-                        <div key={idx} className="bg-white dark:bg-gray-800 p-3.5 rounded-2xl border border-gray-100 dark:border-gray-700 flex items-center justify-between shadow-sm">
-                          <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl flex items-center justify-center font-black text-xs">
-                              {idx + 1}
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <span className="font-bold text-sm text-gray-900 dark:text-white">{contact.name}</span>
-                                <span className="text-[9px] bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 font-bold px-2 py-0.5 rounded-full">
-                                  {contact.relationship || 'Emergency'}
-                                </span>
+                      {selectedContacts.length === 0 ? (
+                        <div className="p-4 bg-white/60 dark:bg-gray-800/60 rounded-2xl border border-dashed border-gray-200 dark:border-gray-700 text-center">
+                          <Users size={20} className="mx-auto text-gray-400 mb-1" />
+                          <p className="text-xs font-bold text-gray-500 dark:text-gray-400">No contacts selected yet</p>
+                          <p className="text-[10px] text-gray-400">Click below to add your real emergency contacts.</p>
+                        </div>
+                      ) : (
+                        selectedContacts.map((contact, idx) => (
+                          <div key={idx} className="bg-white dark:bg-gray-800 p-3.5 rounded-2xl border border-gray-100 dark:border-gray-700 flex items-center justify-between shadow-sm">
+                            <div className="flex items-center gap-3">
+                              <div className="w-9 h-9 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl flex items-center justify-center font-black text-xs">
+                                {idx + 1}
                               </div>
-                              <p className="text-xs text-gray-400 font-mono">{contact.phone}</p>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-bold text-sm text-gray-900 dark:text-white">{contact.name}</span>
+                                  <span className="text-[9px] bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 font-bold px-2 py-0.5 rounded-full">
+                                    {contact.relationship || 'Emergency'}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-gray-400 font-mono">{contact.phone}</p>
+                              </div>
                             </div>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveContact(idx)}
+                              className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-xl transition-colors"
+                            >
+                              <Trash2 size={16} />
+                            </button>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveContact(idx)}
-                            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-xl transition-colors"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      ))}
+                        ))
+                      )}
                     </div>
-
-                    {/* Quick Add Preset Contacts */}
-                    {selectedContacts.length < 5 && (
-                      <div className="space-y-2 pt-2">
-                        <p className="text-[10px] font-black uppercase tracking-wider text-gray-400">Quick Pick Contacts:</p>
-                        <div className="flex flex-wrap gap-2">
-                          {DEFAULT_PRESET_CONTACTS.map((preset, pIdx) => {
-                            const isAdded = selectedContacts.some(c => c.phone === preset.phone);
-                            return (
-                              <button
-                                key={pIdx}
-                                type="button"
-                                disabled={isAdded}
-                                onClick={() => handleAddPresetContact(preset)}
-                                className={`text-xs px-3 py-1.5 rounded-xl border font-bold flex items-center gap-1.5 transition-all ${
-                                  isAdded
-                                    ? 'bg-gray-100 dark:bg-gray-800 text-gray-400 border-gray-200 dark:border-gray-700 opacity-50 cursor-not-allowed'
-                                    : 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800 hover:bg-blue-50 dark:hover:bg-blue-900/30'
-                                }`}
-                              >
-                                {isAdded ? <Check size={12} /> : <Plus size={12} />}
-                                {preset.name} ({preset.relationship})
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
 
                     {/* Custom Add Contact Button & Form */}
                     {selectedContacts.length < 5 && (

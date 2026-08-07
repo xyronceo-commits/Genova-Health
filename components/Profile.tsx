@@ -1,8 +1,8 @@
 
 import React, { useState } from 'react';
 import { UserProfile, BloodGroup, Genotype, EmergencyContact } from '../types';
-import { User, Settings, Trash2, Save, ChevronLeft, Moon, Sun, Info, Shield, LogOut, Users, Plus, UserPlus, Check } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { User, Settings, Trash2, Save, ChevronLeft, Moon, Sun, Info, Shield, LogOut, Users, Plus, UserPlus, Check, Monitor, ShieldCheck } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
 
 interface Props {
   user: UserProfile;
@@ -17,15 +17,15 @@ const Profile: React.FC<Props> = ({ user, onUpdate, onLogout, isDarkMode, toggle
   const [formData, setFormData] = useState<UserProfile>(user);
   const [saved, setSaved] = useState(false);
 
-  const [contacts, setContacts] = useState<EmergencyContact[]>(
-    user.emergencyContacts && user.emergencyContacts.length > 0
-      ? user.emergencyContacts
-      : [
-          { name: user.emergencyContactName || 'Dr. Sarah Alabi', phone: user.emergencyContactPhone || '+234 802 345 6789', relationship: 'Primary Doctor' },
-          { name: 'Alex Johnson', phone: '+234 803 987 6543', relationship: 'Spouse' },
-          { name: 'Mary Johnson', phone: '+234 805 111 2222', relationship: 'Mother' },
-        ]
-  );
+  const [contacts, setContacts] = useState<EmergencyContact[]>(() => {
+    if (user.emergencyContacts && user.emergencyContacts.length > 0) {
+      return user.emergencyContacts;
+    }
+    if (user.emergencyContactName && user.emergencyContactPhone) {
+      return [{ name: user.emergencyContactName, phone: user.emergencyContactPhone, relationship: 'Primary Contact' }];
+    }
+    return [];
+  });
   const [showAddForm, setShowAddForm] = useState(false);
   const [newName, setNewName] = useState('');
   const [newPhone, setNewPhone] = useState('');
@@ -44,6 +44,27 @@ const Profile: React.FC<Props> = ({ user, onUpdate, onLogout, isDarkMode, toggle
     setTimeout(() => setSaved(false), 2000);
   };
 
+  const handlePickDeviceContact = async () => {
+    try {
+      if ('contacts' in navigator && 'select' in window) {
+        const props = ['name', 'tel'];
+        const selected = await (navigator as any).contacts.select(props, { multiple: false });
+        if (selected && selected.length > 0) {
+          const contact = selected[0];
+          const name = contact.name?.[0] || '';
+          const phone = contact.tel?.[0] || '';
+          if (name) setNewName(name);
+          if (phone) setNewPhone(phone);
+          setShowAddForm(true);
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn("Device contacts picker closed or not supported:", e);
+    }
+    setShowAddForm(true);
+  };
+
   const handleAddContact = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newName.trim() || !newPhone.trim()) return;
@@ -59,10 +80,6 @@ const Profile: React.FC<Props> = ({ user, onUpdate, onLogout, isDarkMode, toggle
   };
 
   const handleRemoveContact = (index: number) => {
-    if (contacts.length <= 1) {
-      alert("Please keep at least 1 emergency contact in your profile.");
-      return;
-    }
     setContacts(contacts.filter((_, i) => i !== index));
   };
 
@@ -180,43 +197,60 @@ const Profile: React.FC<Props> = ({ user, onUpdate, onLogout, isDarkMode, toggle
           </div>
           
           <div className="space-y-3">
-            {contacts.map((contact, idx) => (
-              <div key={idx} className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-red-100 dark:bg-red-900/40 text-red-600 font-black rounded-xl flex items-center justify-center text-xs">
-                    {idx + 1}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-sm text-gray-900 dark:text-white">{contact.name}</span>
-                      <span className="text-[9px] bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold px-2 py-0.5 rounded-full">
-                        {contact.relationship}
-                      </span>
-                    </div>
-                    <p className="text-xs text-gray-400 font-mono">{contact.phone}</p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleRemoveContact(idx)}
-                  className="p-2 text-gray-400 hover:text-red-500 rounded-xl transition-colors"
-                >
-                  <Trash2 size={16} />
-                </button>
+            {contacts.length === 0 ? (
+              <div className="p-4 bg-gray-50 dark:bg-gray-700/30 rounded-2xl border border-dashed border-gray-200 dark:border-gray-700 text-center">
+                <Users size={24} className="mx-auto text-gray-400 mb-1" />
+                <p className="text-xs font-bold text-gray-500 dark:text-gray-400">No emergency contacts added yet.</p>
+                <p className="text-[10px] text-gray-400">Add your real contacts below to be notified during SOS alerts.</p>
               </div>
-            ))}
+            ) : (
+              contacts.map((contact, idx) => (
+                <div key={idx} className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-red-100 dark:bg-red-900/40 text-red-600 font-black rounded-xl flex items-center justify-center text-xs">
+                      {idx + 1}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-sm text-gray-900 dark:text-white">{contact.name}</span>
+                        <span className="text-[9px] bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold px-2 py-0.5 rounded-full">
+                          {contact.relationship}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-400 font-mono">{contact.phone}</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveContact(idx)}
+                    className="p-2 text-gray-400 hover:text-red-500 rounded-xl transition-colors"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              ))
+            )}
           </div>
 
           {contacts.length < 5 && (
             <div>
               {!showAddForm ? (
-                <button
-                  type="button"
-                  onClick={() => setShowAddForm(true)}
-                  className="w-full py-3 border-2 border-dashed border-red-200 dark:border-red-900/50 hover:border-red-400 text-red-600 dark:text-red-400 rounded-2xl text-xs font-bold flex items-center justify-center gap-2 transition-all"
-                >
-                  <UserPlus size={16} /> Add Another Emergency Contact ({5 - contacts.length} remaining)
-                </button>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddForm(true)}
+                    className="flex-1 py-3 border-2 border-dashed border-red-200 dark:border-red-900/50 hover:border-red-400 text-red-600 dark:text-red-400 rounded-2xl text-xs font-bold flex items-center justify-center gap-2 transition-all"
+                  >
+                    <UserPlus size={16} /> Add Real Emergency Contact ({5 - contacts.length} remaining)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handlePickDeviceContact}
+                    className="py-3 px-4 bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 hover:bg-red-100 rounded-2xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all border border-red-200 dark:border-red-900/40"
+                  >
+                    <Users size={16} /> Pick Device Contact
+                  </button>
+                </div>
               ) : (
                 <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-2xl border border-red-200 dark:border-red-800 space-y-3">
                   <h4 className="text-xs font-bold text-gray-900 dark:text-white">Add Emergency Contact</h4>
@@ -291,25 +325,112 @@ const Profile: React.FC<Props> = ({ user, onUpdate, onLogout, isDarkMode, toggle
           </div>
         </section>
 
-        {/* App Info & Privacy */}
-        <section className="bg-white dark:bg-gray-800 p-6 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm space-y-4 transition-colors">
+        {/* App Info, Theme & Legal Directory */}
+        <section className="bg-white dark:bg-gray-800 p-6 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm space-y-6 transition-colors">
           <div className="flex items-center gap-3">
-            <Info className="text-blue-600" size={20}/>
-            <h2 className="font-bold text-gray-900 dark:text-white">Application Settings</h2>
+            <Settings className="text-blue-600" size={20}/>
+            <h2 className="font-bold text-gray-900 dark:text-white">Appearance & Device System Integration</h2>
           </div>
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-2xl border border-gray-100 dark:border-gray-700">
-            <div className="text-left space-y-1">
-              <h4 className="font-bold text-gray-900 dark:text-white text-sm">Genova Health Suite</h4>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Learn about our app parameters, offline state logic, and security systems.</p>
+
+          <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-2xl border border-gray-100 dark:border-gray-700 space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="font-bold text-gray-900 dark:text-white text-sm">Theme Mode</h4>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Sync dark or light mode dynamically with your physical device settings.</p>
+              </div>
+              <span className="text-[10px] font-black uppercase tracking-wider bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 px-2.5 py-1 rounded-full">
+                {isDarkMode ? 'Dark Active' : 'Light Active'}
+              </span>
             </div>
-            <button
-              type="button"
-              onClick={() => navigate('/about')}
-              className="w-full md:w-auto px-5 py-2.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 font-black rounded-xl text-xs transition-all flex items-center justify-center gap-1.5"
-            >
-              <Info size={14} />
-              Privacy & About
-            </button>
+
+            <div className="grid grid-cols-3 gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (isDarkMode) toggleDarkMode();
+                  localStorage.setItem('genova_theme_mode', 'light');
+                }}
+                className={`py-2.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all border ${
+                  !isDarkMode 
+                    ? 'bg-blue-600 text-white border-blue-600 shadow-sm' 
+                    : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700'
+                }`}
+              >
+                <Sun size={14} /> Light
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (!isDarkMode) toggleDarkMode();
+                  localStorage.setItem('genova_theme_mode', 'dark');
+                }}
+                className={`py-2.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all border ${
+                  isDarkMode 
+                    ? 'bg-blue-600 text-white border-blue-600 shadow-sm' 
+                    : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700'
+                }`}
+              >
+                <Moon size={14} /> Dark
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  localStorage.setItem('genova_theme_mode', 'system');
+                  const isDeviceDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                  if (isDarkMode !== isDeviceDark) {
+                    toggleDarkMode();
+                  }
+                }}
+                className="py-2.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all border bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700"
+              >
+                <Monitor size={14} /> Device Sync
+              </button>
+            </div>
+          </div>
+
+          {/* Legal Pages Directory */}
+          <div className="space-y-3 pt-2 border-t border-gray-100 dark:border-gray-700">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-gray-900 dark:text-white text-sm flex items-center gap-2">
+                <ShieldCheck size={18} className="text-emerald-500" />
+                Legal & Policy Center
+              </h3>
+              <Link to="/legal" className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline">
+                View Legal Hub →
+              </Link>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+              <Link to="/legal/terms" className="p-2.5 bg-gray-50 dark:bg-gray-700/50 hover:bg-blue-50 dark:hover:bg-gray-700 rounded-xl text-gray-700 dark:text-gray-300 font-semibold border border-gray-100 dark:border-gray-700 text-center transition-all truncate">
+                Terms & Conditions
+              </Link>
+              <Link to="/legal/privacy" className="p-2.5 bg-gray-50 dark:bg-gray-700/50 hover:bg-blue-50 dark:hover:bg-gray-700 rounded-xl text-gray-700 dark:text-gray-300 font-semibold border border-gray-100 dark:border-gray-700 text-center transition-all truncate">
+                Privacy Policy
+              </Link>
+              <Link to="/legal/cookies" className="p-2.5 bg-gray-50 dark:bg-gray-700/50 hover:bg-blue-50 dark:hover:bg-gray-700 rounded-xl text-gray-700 dark:text-gray-300 font-semibold border border-gray-100 dark:border-gray-700 text-center transition-all truncate">
+                Cookie Policy
+              </Link>
+              <Link to="/legal/acceptable-use" className="p-2.5 bg-gray-50 dark:bg-gray-700/50 hover:bg-blue-50 dark:hover:bg-gray-700 rounded-xl text-gray-700 dark:text-gray-300 font-semibold border border-gray-100 dark:border-gray-700 text-center transition-all truncate">
+                Acceptable Use
+              </Link>
+              <Link to="/legal/disclaimer" className="p-2.5 bg-gray-50 dark:bg-gray-700/50 hover:bg-blue-50 dark:hover:bg-gray-700 rounded-xl text-gray-700 dark:text-gray-300 font-semibold border border-gray-100 dark:border-gray-700 text-center transition-all truncate">
+                Disclaimer
+              </Link>
+              <Link to="/legal/intellectual-property" className="p-2.5 bg-gray-50 dark:bg-gray-700/50 hover:bg-blue-50 dark:hover:bg-gray-700 rounded-xl text-gray-700 dark:text-gray-300 font-semibold border border-gray-100 dark:border-gray-700 text-center transition-all truncate">
+                IP Policy
+              </Link>
+              <Link to="/legal/copyright" className="p-2.5 bg-gray-50 dark:bg-gray-700/50 hover:bg-blue-50 dark:hover:bg-gray-700 rounded-xl text-gray-700 dark:text-gray-300 font-semibold border border-gray-100 dark:border-gray-700 text-center transition-all truncate">
+                Copyright Policy
+              </Link>
+              <Link to="/legal/community-guidelines" className="p-2.5 bg-gray-50 dark:bg-gray-700/50 hover:bg-blue-50 dark:hover:bg-gray-700 rounded-xl text-gray-700 dark:text-gray-300 font-semibold border border-gray-100 dark:border-gray-700 text-center transition-all truncate">
+                Community Guidelines
+              </Link>
+              <Link to="/legal/trust-and-safety" className="p-2.5 bg-gray-50 dark:bg-gray-700/50 hover:bg-blue-50 dark:hover:bg-gray-700 rounded-xl text-gray-700 dark:text-gray-300 font-semibold border border-gray-100 dark:border-gray-700 text-center transition-all truncate">
+                Trust & Safety
+              </Link>
+            </div>
           </div>
         </section>
 

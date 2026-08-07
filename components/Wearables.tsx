@@ -129,6 +129,16 @@ const Wearables: React.FC<Props> = ({ user }) => {
     }
   };
 
+  // Toast notification state
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' | 'error' } | null>(null);
+
+  const triggerToast = (message: string, type: 'success' | 'info' | 'error' = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => {
+      setToast(null);
+    }, 3500);
+  };
+
   const connectVirtualDevice = () => {
     if (!sensorPermission) {
       localStorage.setItem('genova_sensor_permission', 'true');
@@ -149,6 +159,7 @@ const Wearables: React.FC<Props> = ({ user }) => {
       localStorage.setItem(STORAGE_KEYS.WEARABLE_DEVICE, JSON.stringify(deviceData));
       setIsScanning(false);
       setScanStatus('');
+      triggerToast(`Bluetooth Connected: ${deviceData.name}`, 'success');
     }, 600);
   };
 
@@ -188,9 +199,20 @@ const Wearables: React.FC<Props> = ({ user }) => {
         }
       }
 
+      try {
+        btDevice.addEventListener('gattserverdisconnected', () => {
+          setDevice(null);
+          localStorage.removeItem(STORAGE_KEYS.WEARABLE_DEVICE);
+          triggerToast(`Bluetooth Disconnected: ${btDevice.name || 'Smartwatch'}`, 'info');
+        });
+      } catch (e) {
+        // Ignore event listener error if unsupported
+      }
+
       setDevice(deviceData);
       localStorage.setItem(STORAGE_KEYS.WEARABLE_DEVICE, JSON.stringify(deviceData));
       setScanStatus('');
+      triggerToast(`Bluetooth Connected: ${deviceData.name}`, 'success');
 
     } catch (err: any) {
       console.warn("Bluetooth connection attempt:", err);
@@ -203,6 +225,7 @@ const Wearables: React.FC<Props> = ({ user }) => {
 
       if (!isCancelled) {
         setError(err.message || "Failed to connect to Bluetooth device.");
+        triggerToast("Bluetooth Connection Failed", "error");
       } else {
         setError("Bluetooth device selection was closed or restricted. Click 'Connect Smartwatch' anytime to grant access and scan again.");
       }
@@ -213,13 +236,36 @@ const Wearables: React.FC<Props> = ({ user }) => {
   };
 
   const disconnect = () => {
+    const prevName = device?.name || 'SmartWatch';
     setDevice(null);
     setAiAnalysis(null);
     localStorage.removeItem(STORAGE_KEYS.WEARABLE_DEVICE);
+    triggerToast(`Bluetooth Disconnected: ${prevName}`, 'info');
   };
 
   return (
-    <div className="p-4 md:p-10 max-w-7xl mx-auto space-y-8 pb-28 md:pb-12">
+    <div className="p-4 md:p-10 max-w-7xl mx-auto space-y-8 pb-28 md:pb-12 relative">
+      {/* Toast Notification */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: -20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.95 }}
+            className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-3 rounded-2xl shadow-2xl backdrop-blur-md text-xs sm:text-sm font-black border transition-all ${
+              toast.type === 'success' 
+                ? 'bg-emerald-600/95 text-white border-emerald-400/30' 
+                : toast.type === 'info' 
+                  ? 'bg-blue-600/95 text-white border-blue-400/30' 
+                  : 'bg-rose-600/95 text-white border-rose-400/30'
+            }`}
+          >
+            <Bluetooth size={18} className="animate-pulse shrink-0" />
+            <span>{toast.message}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Top Header Navigation */}
       <motion.header 
         initial={{ opacity: 0, y: -20 }}

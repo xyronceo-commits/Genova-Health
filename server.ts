@@ -146,43 +146,152 @@ async function startServer() {
     const { base64Image, userContext } = req.body;
     try {
       const groqClient = getGroqClient();
-      const response = await groqClient.chat.completions.create({
-        model: "llama-3.2-11b-vision-preview",
-        messages: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "text",
-                text: `Identify the food in this image and provide nutritional data for a user with profile: ${userContext}. 
-                Provide estimates for calories, protein, carbs, and fat.
+      if (groqClient) {
+        const response = await groqClient.chat.completions.create({
+          model: "llama-3.2-11b-vision-preview",
+          messages: [
+            {
+              role: "user",
+              content: [
+                {
+                  type: "text",
+                  text: `Identify the food in this image and provide real-time nutritional data for a user with profile: ${userContext}. 
+                  Provide accurate estimates for calories, protein, carbs, fat, fiber, and glycemic index. Also state genotype & blood group compatibility if relevant.
+                  Return a JSON object in this exact format:
+                  {
+                    "foodName": "Identified Dish Name",
+                    "calories": 450,
+                    "protein": "20g",
+                    "carbs": "55g",
+                    "fat": "15g",
+                    "fiber": "5g",
+                    "glycemicIndex": "Low",
+                    "genotypeCompatibility": "Highly Compatible",
+                    "insight": "Personalized health advice tailored to user demographics."
+                  }`
+                },
+                {
+                  type: "image_url",
+                  image_url: {
+                    url: `data:image/jpeg;base64,${base64Image}`
+                  }
+                }
+              ]
+            }
+          ],
+          response_format: { type: "json_object" }
+        });
+
+        const parsed = safeParseJSON(response.choices[0]?.message?.content, {});
+        return res.json(parsed);
+      }
+
+      // Gemini Vision Fallback
+      const gemini = getGeminiClient();
+      if (gemini) {
+        const response = await gemini.models.generateContent({
+          model: 'gemini-3.6-flash',
+          contents: [
+            {
+              parts: [
+                { text: `Identify the food in this image and provide real-time nutritional data for a user with profile: ${userContext}. 
+                Provide accurate estimates for calories, protein, carbs, fat, fiber, and glycemic index. Also state genotype & blood group compatibility.
                 Return a JSON object in this exact format:
                 {
-                  "foodName": "Dish Name",
+                  "foodName": "Identified Dish Name",
                   "calories": 450,
                   "protein": "20g",
                   "carbs": "55g",
                   "fat": "15g",
-                  "insight": "Health advice."
-                }`
-              },
-              {
-                type: "image_url",
-                image_url: {
-                  url: `data:image/jpeg;base64,${base64Image}`
+                  "fiber": "5g",
+                  "glycemicIndex": "Low",
+                  "genotypeCompatibility": "Highly Compatible",
+                  "insight": "Personalized health advice tailored to user demographics."
+                }` },
+                {
+                  inlineData: {
+                    mimeType: "image/jpeg",
+                    data: base64Image
+                  }
                 }
-              }
-            ]
+              ]
+            }
+          ],
+          config: {
+            responseMimeType: "application/json"
           }
-        ],
-        response_format: { type: "json_object" }
-      });
+        });
+        const parsed = safeParseJSON(response.text, {});
+        return res.json(parsed);
+      }
 
-      const parsed = safeParseJSON(response.choices[0]?.message?.content, {});
-      res.json(parsed);
+      res.status(500).json({ error: "No AI service available for food analysis" });
     } catch (error: any) {
-      console.error("Groq Food Analysis Error on Backend:", error);
+      console.error("Food Analysis Error on Backend:", error);
       res.status(500).json({ error: error?.message || "Internal food analysis error" });
+    }
+  });
+
+  // 3b. Text Manual Food Query Analysis endpoint
+  app.post("/api/analyze-food-text", async (req, res) => {
+    const { query, userContext } = req.body;
+    const prompt = `You are Genova AI Clinical Nutrition Engine analyzing a real-time manual food log input.
+    User Query: "${query}".
+    User Health Profile & Demographics: ${userContext || 'Standard Profile'}.
+
+    Provide real-time nutritional analysis and calculate exact calories, protein, carbs, fat, dietary fiber, glycemic index, and genotype/blood group compatibility advice.
+    Return ONLY a clean JSON object with this EXACT structure:
+    {
+      "foodName": "Formatted Meal Name",
+      "calories": 520,
+      "protein": "24g",
+      "carbs": "62g",
+      "fat": "18g",
+      "fiber": "6g",
+      "glycemicIndex": "Medium",
+      "genotypeCompatibility": "Compatible with AA/AS & O+ Blood Group",
+      "insight": "Clinical nutritional insight tailored specifically to the meal ingredients, portion, and user health profile."
+    }`;
+
+    try {
+      const groqClient = getGroqClient();
+      if (groqClient) {
+        const candidateModels = ["openai/gpt-oss-120b", "qwen/qwen3.6-27b", "qwen-2.5-32b"];
+        for (const modelName of candidateModels) {
+          try {
+            const response = await groqClient.chat.completions.create({
+              model: modelName,
+              messages: [{ role: "user", content: prompt }],
+              response_format: { type: "json_object" }
+            });
+            const parsed = safeParseJSON(response.choices[0]?.message?.content, null);
+            if (parsed && parsed.foodName) {
+              return res.json(parsed);
+            }
+          } catch (e: any) {
+            console.warn(`[Server] Food text model ${modelName} failed:`, e?.message);
+          }
+        }
+      }
+
+      // Gemini Fallback
+      const gemini = getGeminiClient();
+      if (gemini) {
+        const response = await gemini.models.generateContent({
+          model: "gemini-3.6-flash",
+          contents: prompt,
+          config: { responseMimeType: "application/json" }
+        });
+        const parsed = safeParseJSON(response.text, null);
+        if (parsed && parsed.foodName) {
+          return res.json(parsed);
+        }
+      }
+
+      res.status(500).json({ error: "Failed to process manual food analysis" });
+    } catch (error: any) {
+      console.error("Food Text Analysis Error on Backend:", error);
+      res.status(500).json({ error: error?.message || "Internal food text analysis error" });
     }
   });
 
