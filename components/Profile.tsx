@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { UserProfile, BloodGroup, Genotype, EmergencyContact } from '../types';
 import { User, Settings, Trash2, Save, ChevronLeft, Moon, Sun, Info, Shield, LogOut, Users, Plus, UserPlus, Check, Monitor, ShieldCheck } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
+import { auth } from '../services/firebase';
 
 interface Props {
   user: UserProfile;
@@ -114,6 +115,52 @@ const Profile: React.FC<Props> = ({ user, onUpdate, onLogout, isDarkMode, toggle
       </header>
 
       <form onSubmit={handleSubmit} className="space-y-8">
+        {/* Firebase Authentication & Cloud Sync Status */}
+        <section className="bg-white dark:bg-gray-800 p-6 rounded-3xl border border-blue-100 dark:border-blue-900/40 shadow-sm space-y-4 transition-colors">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 rounded-2xl">
+                <ShieldCheck size={22} />
+              </div>
+              <div>
+                <h2 className="font-bold text-gray-900 dark:text-white">Firebase Authentication & Cloud Sync</h2>
+                <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Real-time user authentication & Firestore storage</p>
+              </div>
+            </div>
+            <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 px-3 py-1 rounded-full flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              Firebase Active
+            </span>
+          </div>
+
+          <div className="p-4 bg-gray-50 dark:bg-gray-700/40 rounded-2xl border border-gray-100 dark:border-gray-700 space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Account Identity</span>
+                <span className="text-sm font-bold text-gray-900 dark:text-white">
+                  {auth.currentUser?.email || (auth.currentUser ? `User UID: ${auth.currentUser.uid.slice(0, 10)}...` : 'Guest Local Profile')}
+                </span>
+              </div>
+              <span className="text-xs text-gray-500 dark:text-gray-400 font-mono bg-white dark:bg-gray-800 px-3 py-1 rounded-xl border border-gray-200 dark:border-gray-700 self-start sm:self-auto">
+                {auth.currentUser?.providerData[0]?.providerId === 'google.com' ? 'Google Auth' : (auth.currentUser?.email ? 'Email/Password Auth' : 'Offline / Guest Mode')}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between pt-2 border-t border-gray-200 dark:border-gray-600/50">
+              <p className="text-[11px] text-gray-500 dark:text-gray-400 font-medium">
+                {auth.currentUser ? 'Your health profile, chats & metrics are securely synced to Cloud Firestore.' : 'Sign in via Google or Email/Password to enable multi-device sync.'}
+              </p>
+              <button
+                type="button"
+                onClick={onLogout}
+                className="px-4 py-2 bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/60 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0"
+              >
+                <LogOut size={14} /> Sign Out
+              </button>
+            </div>
+          </div>
+        </section>
+
         {/* Basic Info */}
         <section className="bg-white dark:bg-gray-800 p-6 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm space-y-6 transition-colors">
           <div className="flex items-center gap-3 mb-2">

@@ -45,6 +45,21 @@
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "title", "assistantType", "messages", "updatedAt"]
+    },
+    "FoodScan": {
+      "title": "Food Scan",
+      "description": "NutriScan logged meal entry with calories and macro nutrients.",
+      "type": "object",
+      "properties": {
+        "foodName": { "type": "string" },
+        "calories": { "type": "integer" },
+        "protein": { "type": "string" },
+        "carbs": { "type": "string" },
+        "fat": { "type": "string" },
+        "insight": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["foodName", "calories", "timestamp"]
     }
   },
   "firestore": {
@@ -59,6 +74,10 @@
     "/users/{userId}/chats/{chatId}": {
       "schema": "ChatSession",
       "description": "Historical chat sessions with Genova AI assistants."
+    },
+    "/users/{userId}/foodLogs/{logId}": {
+      "schema": "FoodScan",
+      "description": "Logged NutriScan meals."
     }
   }
 }

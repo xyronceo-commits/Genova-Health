@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 240" fill="none">
+  <path d="M 32,55 C 32,55 100,42 100,42 C 100,42 168,55 168,55 C 168,110 156,155 100,198 C 44,155 32,110 32,55 Z" 
+        stroke="#1E4D7A" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+
+  <path d="M 88,32 C 70,52 70,72 100,92 C 130,112 130,132 100,152 C 70,172 70,192 88,212" 
+        stroke="#1E4D7A" stroke-width="12" stroke-linecap="round" fill="none"/>
+
+  <path d="M 112,32 C 130,52 130,72 100,92 C 70,112 70,132 100,152 C 130,172 130,192 112,212" 
+        stroke="#1E4D7A" stroke-width="12" stroke-linecap="round" fill="none"/>
+
+  <line x1="88" y1="48" x2="112" y2="48" stroke="#1E4D7A" stroke-width="8" stroke-linecap="round"/>
+
+  <line x1="86" y1="102" x2="114" y2="102" stroke="#1E4D7A" stroke-width="7" stroke-linecap="round"/>
+  <line x1="82" y1="112" x2="118" y2="112" stroke="#1E4D7A" stroke-width="7" stroke-linecap="round"/>
+  <line x1="80" y1="122" x2="120" y2="122" stroke="#1E4D7A" stroke-width="7" stroke-linecap="round"/>
+  <line x1="82" y1="132" x2="118" y2="132" stroke="#1E4D7A" stroke-width="7" stroke-linecap="round"/>
+  <line x1="86" y1="142" x2="114" y2="142" stroke="#1E4D7A" stroke-width="7" stroke-linecap="round"/>
+
+  <line x1="88" y1="196" x2="112" y2="196" stroke="#1E4D7A" stroke-width="8" stroke-linecap="round"/>
+</svg>

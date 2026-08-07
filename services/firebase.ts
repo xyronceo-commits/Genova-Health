@@ -318,3 +318,41 @@ export const deleteChatSession = async (uid: string, chatId: string) => {
     }
   }
 };
+
+// Food Scans / Meal Logs Firestore + Local Sync
+export const saveFoodScan = async (uid: string, scanData: any) => {
+  const logData = {
+    foodName: String(scanData.foodName || 'Scanned Meal'),
+    calories: Number(scanData.calories) || 0,
+    protein: String(scanData.protein || ''),
+    carbs: String(scanData.carbs || ''),
+    fat: String(scanData.fat || ''),
+    insight: String(scanData.insight || scanData.healthTip || ''),
+    timestamp: new Date().toISOString()
+  };
+
+  if (uid) {
+    try {
+      const foodCol = collection(db, 'users', uid, 'foodLogs');
+      await addDoc(foodCol, logData);
+    } catch (err) {
+      console.warn("Firestore saveFoodScan error:", err);
+    }
+  }
+};
+
+export const getFoodScans = async (uid: string, limitCount = 10) => {
+  if (uid) {
+    try {
+      const foodCol = collection(db, 'users', uid, 'foodLogs');
+      const q = query(foodCol, orderBy('timestamp', 'desc'), limit(limitCount));
+      const snapshot = await getDocs(q);
+      if (!snapshot.empty) {
+        return snapshot.docs.map(d => d.data());
+      }
+    } catch (err) {
+      console.warn("Firestore getFoodScans error:", err);
+    }
+  }
+  return [];
+};

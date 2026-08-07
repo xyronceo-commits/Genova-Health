@@ -3,6 +3,7 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { LayoutDashboard, ScanLine, MessageSquare, ShieldAlert, User, Moon, Sun, Watch, Crown, LogOut, Info } from 'lucide-react';
 import { UserProfile } from '../types';
+import { GenovaLogo } from './GenovaLogo';
 
 interface Props {
   isDarkMode: boolean;
@@ -58,7 +59,9 @@ const Navigation: React.FC<Props> = ({ isDarkMode, toggleDarkMode, user, onLogou
       {/* Desktop Sidebar */}
       <nav className="fixed left-0 top-0 bottom-0 w-16 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 hidden md:flex flex-col items-center py-4 z-50 transition-colors">
         <div className="mb-6">
-          <NavLink to="/" className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold text-lg">G</NavLink>
+          <NavLink to="/" className="w-10 h-10 p-1 bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800 rounded-xl flex items-center justify-center hover:scale-105 transition-transform" title="Genova Health">
+            <GenovaLogo className="w-8 h-8" />
+          </NavLink>
         </div>
         <div className="flex flex-col gap-3 flex-1">
           {navItems.map((item) => (

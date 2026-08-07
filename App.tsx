@@ -15,6 +15,7 @@ import Navigation from './components/Navigation';
 import Premium from './components/Premium';
 import About from './components/About';
 import Legal from './components/Legal';
+import { GenovaLogo } from './components/GenovaLogo';
 
 const App = () => {
   const [user, setUser] = React.useState<UserProfile | null>(null);
@@ -34,6 +35,32 @@ const App = () => {
     if (themeMode === 'light') return false;
     return typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches;
   });
+
+  // Sync SEO metadata & Open Graph attributes dynamically with host origin
+  React.useEffect(() => {
+    document.title = "Genova Health";
+    if (typeof window !== 'undefined' && window.location) {
+      const origin = window.location.origin;
+      const ogUrl = document.querySelector('meta[property="og:url"]');
+      if (ogUrl) ogUrl.setAttribute('content', origin + '/');
+      
+      const canonical = document.querySelector('link[rel="canonical"]');
+      if (canonical) canonical.setAttribute('href', origin + '/');
+
+      const ogImage = document.querySelector('meta[property="og:image"]');
+      if (ogImage && !ogImage.getAttribute('content')?.startsWith('http')) {
+        ogImage.setAttribute('content', `${origin}/og-image.png`);
+      }
+      const ogImageSecure = document.querySelector('meta[property="og:image:secure_url"]');
+      if (ogImageSecure && !ogImageSecure.getAttribute('content')?.startsWith('http')) {
+        ogImageSecure.setAttribute('content', `${origin}/og-image.png`);
+      }
+      const twitterImage = document.querySelector('meta[name="twitter:image"]');
+      if (twitterImage && !twitterImage.getAttribute('content')?.startsWith('http')) {
+        twitterImage.setAttribute('content', `${origin}/og-image.png`);
+      }
+    }
+  }, []);
 
   // Sync with device OS settings & apply dark/light classes dynamically
   React.useEffect(() => {
@@ -173,8 +200,9 @@ const App = () => {
   };
 
   if (loading) return (
-    <div className="h-screen flex items-center justify-center bg-blue-50 dark:bg-gray-900 transition-colors">
-      <div className="text-blue-600 font-bold text-2xl animate-pulse font-sans">Genova Health...</div>
+    <div className="h-screen flex flex-col items-center justify-center bg-blue-50 dark:bg-gray-900 transition-colors gap-4">
+      <GenovaLogo className="w-16 h-16 animate-pulse" />
+      <div className="text-blue-900 dark:text-blue-400 font-extrabold text-xl tracking-tight">Genova Health</div>
     </div>
   );
 

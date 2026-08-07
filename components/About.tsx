@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChevronLeft, Shield, Lock, FileText, Database, Heart, ArrowRight, Sparkles, AlertCircle, Award } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { GenovaLogo } from './GenovaLogo';
 
 const About: React.FC = () => {
   const navigate = useNavigate();
@@ -48,8 +49,8 @@ const About: React.FC = () => {
       <main className="max-w-3xl mx-auto px-6 py-8 space-y-12">
         {/* Hero Brand Card */}
         <section className="text-center space-y-4 py-8">
-          <div className="w-20 h-20 bg-blue-600 rounded-3xl flex items-center justify-center text-white font-black text-4xl mx-auto shadow-xl shadow-blue-500/20">
-            G
+          <div className="w-20 h-20 p-3 bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 rounded-3xl flex items-center justify-center mx-auto shadow-xl shadow-blue-500/10">
+            <GenovaLogo className="w-14 h-14" />
           </div>
           <div className="space-y-2">
             <h2 className="text-3xl font-black tracking-tight text-gray-900 dark:text-white">Genova Health</h2>

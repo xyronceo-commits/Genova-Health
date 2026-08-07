@@ -51,6 +51,12 @@ service cloud.firestore {
              data.updatedAt is string && data.updatedAt.size() <= 50;
     }
 
+    function isValidFoodScan(data) {
+      return data.foodName is string && data.foodName.size() <= 200 &&
+             data.calories is number &&
+             data.timestamp is string && data.timestamp.size() <= 50;
+    }
+
     // Collection Rules
     match /users/{userId} {
       allow get: if isOwner(userId);
@@ -66,6 +72,12 @@ service cloud.firestore {
       match /chats/{chatId} {
         allow list, get: if isOwner(userId);
         allow create, update: if isOwner(userId) && isValidChatSession(incoming());
+        allow delete: if isOwner(userId);
+      }
+
+      match /foodLogs/{logId} {
+        allow list, get: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidFoodScan(incoming());
         allow delete: if isOwner(userId);
       }
     }

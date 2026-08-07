@@ -6,7 +6,7 @@ import { Camera, Zap, ShieldCheck, X, AlertCircle, Heart, Info, Activity, Utensi
 import { UserProfile } from '../types';
 import { STORAGE_KEYS } from '../constants';
 import { ai } from '../services/ai';
-import { auth, addHealthMetric } from '../services/firebase';
+import { auth, addHealthMetric, saveFoodScan } from '../services/firebase';
 
 type ScanMode = 'choosing' | 'vitals_sync' | 'nutrition_camera';
 type NutriTab = 'camera' | 'manual';
@@ -154,6 +154,10 @@ const SmartScan: React.FC<Props> = ({ user }) => {
         streamRef.current = null;
       }
       
+      if (auth.currentUser) {
+        await saveFoodScan(auth.currentUser.uid, analysis);
+      }
+
       setResults({ type: 'nutrition', ...analysis });
     } catch (err: any) {
       console.error("Food scan error:", err);
@@ -180,6 +184,10 @@ const SmartScan: React.FC<Props> = ({ user }) => {
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
         streamRef.current = null;
+      }
+
+      if (auth.currentUser) {
+        await saveFoodScan(auth.currentUser.uid, analysis);
       }
 
       setResults({ type: 'nutrition', ...analysis });

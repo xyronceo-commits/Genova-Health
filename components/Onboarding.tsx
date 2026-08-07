@@ -4,6 +4,7 @@ import { UserProfile, BloodGroup, Genotype, EmergencyContact } from '../types';
 import { STORAGE_KEYS } from '../constants';
 import { User, ShieldCheck, ArrowRight, Dna, Sparkles, Activity, Heart, ArrowLeft, Target, Shield, Camera, Mic, MapPin, Bluetooth, Bot, Utensils, Phone, Mail, Globe, Apple, Lock, Loader2, Users, UserPlus, Trash2, Plus, Check, Contact, PhoneCall, ShieldAlert } from 'lucide-react';
 import { signInWithGoogle, auth, saveUserProfile, getUserProfile, createUserWithEmailAndPassword, signInWithEmailAndPassword } from '../services/firebase';
+import { GenovaLogo } from './GenovaLogo';
 
 interface Props {
   onComplete: (profile: UserProfile) => void;
@@ -212,8 +213,8 @@ const Onboarding = ({ onComplete }: Props) => {
             {/* STEP 1: WELCOME & VISION */}
             {step === 1 && (
               <div className="space-y-10 animate-in fade-in slide-in-from-bottom-8 duration-700 text-center">
-                <div className="inline-flex p-6 bg-blue-500/10 text-blue-600 rounded-[2.5rem] mb-4">
-                  <Sparkles size={48} strokeWidth={1.5} />
+                <div className="inline-flex p-5 bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 rounded-[2.5rem] mb-4 shadow-xl shadow-blue-500/10">
+                  <GenovaLogo className="w-16 h-16" />
                 </div>
                 <div className="space-y-4">
                   <h1 className="text-4xl md:text-5xl font-black text-gray-900 dark:text-white tracking-tighter leading-none">
