@@ -1,7 +1,10 @@
 
-import React from 'react';
-import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, ScanLine, MessageSquare, ShieldAlert, User, Moon, Sun, Watch, Crown, LogOut, Info } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
+import { 
+  LayoutDashboard, ScanLine, MessageSquare, ShieldAlert, User, 
+  Moon, Sun, Watch, Crown, LogOut, Info, Menu, X, ChevronLeft, ChevronRight, Sparkles 
+} from 'lucide-react';
 import { UserProfile } from '../types';
 import { GenovaLogo } from './GenovaLogo';
 
@@ -12,114 +15,319 @@ interface Props {
   onLogout: () => void;
 }
 
-const Navigation: React.FC<Props> = ({ isDarkMode, toggleDarkMode, user, onLogout }) => {
+export const Navigation: React.FC<Props> = ({ isDarkMode, toggleDarkMode, user, onLogout }) => {
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [isDesktopExpanded, setIsDesktopExpanded] = useState(false);
+  const location = useLocation();
+
+  // Close mobile navigation drawer whenever route changes
+  useEffect(() => {
+    setIsMobileOpen(false);
+  }, [location.pathname]);
+
+  // Handle escape key to close mobile nav
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsMobileOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   const navItems = [
-    { to: '/', icon: LayoutDashboard, label: 'Home' },
-    { to: '/scan', icon: ScanLine, label: 'Scan' },
+    { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
+    { to: '/scan', icon: ScanLine, label: 'Smart Scan' },
     { to: '/wearables', icon: Watch, label: 'Devices' },
-    { to: '/assistant/nurse', icon: MessageSquare, label: 'Nurse' },
+    { to: '/assistant/nurse', icon: MessageSquare, label: 'AI Nurse' },
     { to: '/profile', icon: User, label: 'Profile' },
   ];
 
   return (
     <>
-      {/* Mobile Bottom Nav */}
-      <nav className="fixed bottom-0 left-0 right-0 h-12 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex items-center justify-around md:hidden z-50 transition-colors px-2">
-        {navItems.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            className={({ isActive }) => 
-              `flex flex-col items-center gap-0.5 transition-colors ${
-                isActive ? 'text-blue-600' : 'text-gray-500 dark:text-gray-400'
-              }`
-            }
-          >
-            <item.icon size={18} />
-            <span className="text-[8px] font-bold tracking-tight">{item.label}</span>
-          </NavLink>
-        ))}
-
-        <NavLink
-          to="/emergency"
-          className={({ isActive }) => 
-            `flex flex-col items-center gap-0.5 transition-colors ${
-              isActive ? 'text-red-600' : 'text-red-400'
-            }`
-          }
+      {/* MOBILE: Floating Menu Toggle Button */}
+      <div className="fixed top-3 left-3 z-50 md:hidden">
+        <button
+          type="button"
+          onClick={() => setIsMobileOpen(!isMobileOpen)}
+          className="p-2.5 bg-white/90 dark:bg-gray-800/90 backdrop-blur-md border border-gray-200 dark:border-gray-700 shadow-lg rounded-2xl flex items-center justify-center text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all active:scale-95"
+          aria-label={isMobileOpen ? "Close navigation menu" : "Open navigation menu"}
+          title="Open Side Menu"
         >
-          <div className="relative">
-            <ShieldAlert size={18} />
-            <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse border border-white dark:border-gray-800"></span>
-          </div>
-          <span className="text-[8px] font-bold tracking-tight">SOS</span>
-        </NavLink>
-      </nav>
+          {isMobileOpen ? <X size={22} className="text-gray-800 dark:text-gray-100" /> : <Menu size={22} className="text-blue-600 dark:text-blue-400" />}
+        </button>
+      </div>
 
-      {/* Desktop Sidebar */}
-      <nav className="fixed left-0 top-0 bottom-0 w-16 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 hidden md:flex flex-col items-center py-4 z-50 transition-colors">
-        <div className="mb-6">
-          <NavLink to="/" className="w-10 h-10 p-1 bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800 rounded-xl flex items-center justify-center hover:scale-105 transition-transform" title="Genova Health">
-            <GenovaLogo className="w-8 h-8" />
+      {/* MOBILE: Side Navigation Backdrop Overlay */}
+      {isMobileOpen && (
+        <div 
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 md:hidden animate-in fade-in duration-200"
+          onClick={() => setIsMobileOpen(false)}
+        />
+      )}
+
+      {/* MOBILE: Slide-Over Side Navigation Drawer */}
+      <aside 
+        className={`fixed top-0 bottom-0 left-0 w-72 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 z-50 flex flex-col p-5 shadow-2xl transition-transform duration-300 ease-in-out md:hidden ${
+          isMobileOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        {/* Drawer Header */}
+        <div className="flex items-center justify-between pb-5 mb-4 border-b border-gray-100 dark:border-gray-700/60">
+          <NavLink to="/" className="flex items-center gap-3" onClick={() => setIsMobileOpen(false)}>
+            <div className="p-1.5 bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 rounded-2xl flex items-center justify-center shadow-sm">
+              <GenovaLogo className="w-8 h-8" />
+            </div>
+            <div>
+              <h2 className="font-extrabold text-lg text-gray-900 dark:text-white tracking-tight leading-none">Genova Health</h2>
+              <span className="text-[10px] text-blue-600 dark:text-blue-400 font-bold uppercase tracking-wider">AI Medical Assistant</span>
+            </div>
           </NavLink>
+
+          <button
+            onClick={() => setIsMobileOpen(false)}
+            className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            aria-label="Close menu"
+          >
+            <X size={20} />
+          </button>
         </div>
-        <div className="flex flex-col gap-3 flex-1">
+
+        {/* User Card inside Drawer */}
+        <div className="mb-5 p-3.5 bg-gray-50 dark:bg-gray-700/50 rounded-2xl border border-gray-100 dark:border-gray-700 flex items-center justify-between">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-full bg-blue-600 text-white font-black flex items-center justify-center text-sm shadow-md shrink-0">
+              {user.fullName ? user.fullName.charAt(0).toUpperCase() : 'U'}
+            </div>
+            <div className="min-w-0 flex flex-col">
+              <span className="text-xs font-bold text-gray-900 dark:text-white truncate">{user.fullName || 'User'}</span>
+              <span className="text-[10px] text-gray-500 dark:text-gray-400 font-mono truncate">{user.bloodGroup || 'A+'} • {user.genotype || 'AA'}</span>
+            </div>
+          </div>
+          {user.subscriptionStatus === 'gold' || user.subscriptionStatus === 'silver' ? (
+            <span className="px-2 py-0.5 bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-400 text-[10px] font-black rounded-lg uppercase tracking-wider border border-amber-300 dark:border-amber-800 flex items-center gap-1">
+              <Crown size={10} /> {user.subscriptionStatus.toUpperCase()}
+            </span>
+          ) : (
+            <NavLink to="/premium" onClick={() => setIsMobileOpen(false)} className="px-2 py-1 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[10px] font-bold rounded-lg shadow-sm flex items-center gap-1">
+              <Sparkles size={10} /> Upgrade
+            </NavLink>
+          )}
+        </div>
+
+        {/* Primary Navigation Links */}
+        <div className="flex-1 space-y-1.5 overflow-y-auto pr-1">
+          <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 px-3 block mb-1">Navigation</span>
+          {navItems.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              onClick={() => setIsMobileOpen(false)}
+              className={({ isActive }) => 
+                `flex items-center gap-3.5 px-4 py-3 rounded-2xl transition-all font-bold text-sm ${
+                  isActive 
+                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25' 
+                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/60 hover:text-gray-900 dark:hover:text-white'
+                }`
+              }
+            >
+              <item.icon size={20} />
+              <span>{item.label}</span>
+            </NavLink>
+          ))}
+
+          <div className="pt-3 my-2 border-t border-gray-100 dark:border-gray-700/60 space-y-1.5">
+            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 px-3 block mb-1">Emergency & Tools</span>
+            
+            <NavLink
+              to="/emergency"
+              onClick={() => setIsMobileOpen(false)}
+              className={({ isActive }) => 
+                `flex items-center gap-3.5 px-4 py-3 rounded-2xl transition-all font-bold text-sm ${
+                  isActive 
+                    ? 'bg-red-600 text-white shadow-lg shadow-red-500/25' 
+                    : 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 hover:bg-red-100 dark:hover:bg-red-900/60'
+                }`
+              }
+            >
+              <div className="relative">
+                <ShieldAlert size={20} />
+                <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse border border-white dark:border-gray-800"></span>
+              </div>
+              <div className="flex items-center justify-between flex-1">
+                <span>SOS Emergency</span>
+                <span className="text-[10px] bg-red-200 dark:bg-red-900/80 text-red-800 dark:text-red-200 px-2 py-0.5 rounded-full uppercase font-black tracking-wider">Fast</span>
+              </div>
+            </NavLink>
+
+            <NavLink
+              to="/about"
+              onClick={() => setIsMobileOpen(false)}
+              className={({ isActive }) => 
+                `flex items-center gap-3.5 px-4 py-3 rounded-2xl transition-all font-bold text-sm ${
+                  isActive 
+                    ? 'bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400' 
+                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/60'
+                }`
+              }
+            >
+              <Info size={20} />
+              <span>About & Terms</span>
+            </NavLink>
+          </div>
+        </div>
+
+        {/* Footer Controls inside Mobile Drawer */}
+        <div className="pt-4 mt-auto border-t border-gray-100 dark:border-gray-700/60 space-y-2">
+          <button
+            type="button"
+            onClick={toggleDarkMode}
+            className="w-full flex items-center justify-between px-4 py-3 rounded-2xl bg-gray-50 dark:bg-gray-700/50 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors font-bold text-sm"
+          >
+            <div className="flex items-center gap-3">
+              {isDarkMode ? <Sun size={18} className="text-amber-400" /> : <Moon size={18} className="text-indigo-600" />}
+              <span>{isDarkMode ? "Light Theme" : "Dark Theme"}</span>
+            </div>
+            <span className="text-[10px] uppercase font-mono px-2 py-0.5 bg-white dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400">
+              {isDarkMode ? "Dark" : "Light"}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setIsMobileOpen(false);
+              if (window.confirm("Are you sure you want to log out?")) {
+                onLogout();
+              }
+            }}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors font-bold text-sm"
+          >
+            <LogOut size={18} />
+            <span>Sign Out</span>
+          </button>
+        </div>
+      </aside>
+
+      {/* DESKTOP / PC: Fixed Side Navigation */}
+      <aside 
+        className={`fixed left-0 top-0 bottom-0 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 hidden md:flex flex-col z-40 transition-all duration-300 shadow-sm ${
+          isDesktopExpanded ? 'w-60' : 'w-16'
+        }`}
+      >
+        {/* Desktop Header */}
+        <div className={`p-3.5 flex items-center ${isDesktopExpanded ? 'justify-between px-4' : 'justify-center'} border-b border-gray-100 dark:border-gray-700/60`}>
+          <NavLink to="/" className="flex items-center gap-3 group" title="Genova Health">
+            <div className="p-1.5 bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 rounded-2xl flex items-center justify-center group-hover:scale-105 transition-transform shrink-0">
+              <GenovaLogo className="w-8 h-8" />
+            </div>
+            {isDesktopExpanded && (
+              <div className="min-w-0">
+                <h1 className="font-black text-sm text-gray-900 dark:text-white truncate">Genova Health</h1>
+                <p className="text-[9px] text-blue-600 dark:text-blue-400 font-bold uppercase tracking-wider truncate">Medical Portal</p>
+              </div>
+            )}
+          </NavLink>
+
+          {/* Desktop Toggle Expand/Collapse */}
+          <button
+            type="button"
+            onClick={() => setIsDesktopExpanded(!isDesktopExpanded)}
+            className="p-1.5 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/50 rounded-xl transition-all"
+            title={isDesktopExpanded ? "Collapse Sidebar" : "Expand Sidebar"}
+          >
+            {isDesktopExpanded ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
+          </button>
+        </div>
+
+        {/* Primary Desktop Nav Items */}
+        <div className="flex-1 py-4 flex flex-col gap-2 px-2 overflow-y-auto">
           {navItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
               className={({ isActive }) => 
-                `p-2.5 rounded-xl transition-all ${
-                  isActive ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600' : 'text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-600 dark:hover:text-gray-300'
-                }`
+                `flex items-center gap-3 p-3 rounded-2xl transition-all font-bold ${
+                  isActive 
+                    ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20' 
+                    : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700/60 hover:text-gray-900 dark:hover:text-white'
+                } ${!isDesktopExpanded ? 'justify-center' : ''}`
               }
-              title={item.label}
+              title={!isDesktopExpanded ? item.label : undefined}
             >
-              <item.icon size={20} />
+              <item.icon size={20} className="shrink-0" />
+              {isDesktopExpanded && <span className="text-xs truncate">{item.label}</span>}
             </NavLink>
           ))}
 
-          <NavLink
-            to="/emergency"
-            className={({ isActive }) => 
-              `p-2.5 rounded-xl transition-all ${
-                isActive ? 'bg-red-50 dark:bg-red-900/30 text-red-600' : 'text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20'
-              }`
-            }
-            title="Emergency"
-          >
-            <ShieldAlert size={20} />
-          </NavLink>
+          <div className="my-2 border-t border-gray-100 dark:border-gray-700/60 pt-2 space-y-2">
+            <NavLink
+              to="/emergency"
+              className={({ isActive }) => 
+                `flex items-center gap-3 p-3 rounded-2xl transition-all font-bold ${
+                  isActive 
+                    ? 'bg-red-600 text-white shadow-md shadow-red-500/20' 
+                    : 'text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-950/30 hover:bg-red-100 dark:hover:bg-red-900/50'
+                } ${!isDesktopExpanded ? 'justify-center' : ''}`
+              }
+              title={!isDesktopExpanded ? "SOS Emergency" : undefined}
+            >
+              <div className="relative shrink-0">
+                <ShieldAlert size={20} />
+                <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse border border-white dark:border-gray-800"></span>
+              </div>
+              {isDesktopExpanded && <span className="text-xs truncate">SOS Emergency</span>}
+            </NavLink>
+
+            <NavLink 
+              to="/about"
+              className={({ isActive }) => 
+                `flex items-center gap-3 p-3 rounded-2xl transition-all font-bold ${
+                  isActive 
+                    ? 'bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400' 
+                    : 'text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700/60 hover:text-gray-800 dark:hover:text-gray-200'
+                } ${!isDesktopExpanded ? 'justify-center' : ''}`
+              }
+              title={!isDesktopExpanded ? "About & Legal" : undefined}
+            >
+              <Info size={20} className="shrink-0" />
+              {isDesktopExpanded && <span className="text-xs truncate">About & Legal</span>}
+            </NavLink>
+          </div>
         </div>
-        <button 
-          onClick={() => {
-            if (window.confirm("Are you sure you want to log out?")) {
-              onLogout();
-            }
-          }}
-          className="p-2.5 mb-2 rounded-xl text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
-          title="Log Out"
-        >
-          <LogOut size={20} />
-        </button>
-        <NavLink 
-          to="/about"
-          className={({ isActive }) => 
-            `p-2.5 mb-2 rounded-xl transition-all ${
-              isActive ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600' : 'text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-600 dark:hover:text-gray-350'
-            }`
-          }
-          title="About & Privacy"
-        >
-          <Info size={20} />
-        </NavLink>
-        <button 
-          onClick={toggleDarkMode}
-          className="p-2.5 mb-2 rounded-xl text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all"
-        >
-          {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
-        </button>
-      </nav>
+
+        {/* Desktop Footer Actions */}
+        <div className="p-2 border-t border-gray-100 dark:border-gray-700/60 flex flex-col gap-1.5">
+          <button 
+            type="button"
+            onClick={toggleDarkMode}
+            className={`flex items-center gap-3 p-3 rounded-2xl text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700/60 transition-all font-bold ${
+              !isDesktopExpanded ? 'justify-center' : ''
+            }`}
+            title={!isDesktopExpanded ? (isDarkMode ? "Light Mode" : "Dark Mode") : undefined}
+          >
+            {isDarkMode ? <Sun size={20} className="text-amber-400 shrink-0" /> : <Moon size={20} className="text-indigo-600 shrink-0" />}
+            {isDesktopExpanded && <span className="text-xs truncate">{isDarkMode ? "Light Mode" : "Dark Mode"}</span>}
+          </button>
+
+          <button 
+            type="button"
+            onClick={() => {
+              if (window.confirm("Are you sure you want to log out?")) {
+                onLogout();
+              }
+            }}
+            className={`flex items-center gap-3 p-3 rounded-2xl text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-all font-bold ${
+              !isDesktopExpanded ? 'justify-center' : ''
+            }`}
+            title={!isDesktopExpanded ? "Log Out" : undefined}
+          >
+            <LogOut size={20} className="shrink-0" />
+            {isDesktopExpanded && <span className="text-xs truncate">Log Out</span>}
+          </button>
+        </div>
+      </aside>
     </>
   );
 };

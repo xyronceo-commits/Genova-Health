@@ -60,9 +60,13 @@ service cloud.firestore {
     // Collection Rules
     match /users/{userId} {
       allow get: if isOwner(userId);
-      allow create: if isOwner(userId) && isValidUserProfile(incoming());
+      allow create: if isOwner(userId) && isValidUserProfile(incoming()) && 
+                    (!('subscriptionStatus' in incoming()) || incoming().subscriptionStatus == 'free') &&
+                    (!('role' in incoming()) || incoming().role == 'patient');
       allow update: if isOwner(userId) && isValidUserProfile(incoming()) && 
-                    incoming().diff(existing()).affectedKeys().hasOnly(['fullName', 'age', 'gender', 'bloodGroup', 'genotype', 'height', 'weight', 'allergies', 'emergencyContactName', 'emergencyContactPhone', 'stepGoal', 'subscriptionStatus', 'updatedAt']);
+                    incoming().diff(existing()).affectedKeys().hasOnly(['fullName', 'age', 'gender', 'bloodGroup', 'genotype', 'height', 'weight', 'allergies', 'emergencyContactName', 'emergencyContactPhone', 'stepGoal', 'updatedAt']) &&
+                    (!('subscriptionStatus' in incoming()) || incoming().subscriptionStatus == existing().get('subscriptionStatus', 'free')) &&
+                    (!('role' in incoming()) || incoming().role == existing().get('role', 'patient'));
       
       match /history/{metricId} {
         allow list: if isOwner(userId);

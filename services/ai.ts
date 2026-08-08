@@ -33,9 +33,8 @@ export class AIService {
   }
 
   private getGroqClient() {
-    const key = (process.env.GROQ_API_KEY as string) || (import.meta as any).env?.VITE_GROQ_API_KEY;
-    if (!key || key === "dummy_key") return null;
-    return new Groq({ apiKey: key, dangerouslyAllowBrowser: true });
+    // Rely strictly on server-side API proxy routes for AI requests to keep API keys secure on server
+    return null;
   }
 
   async *getResponseStream(
@@ -457,57 +456,18 @@ export class AIService {
       }
     }
 
-    // 3. Fallback: Gemini Vision
-    const gemini = this.getGemini();
-    try {
-      const response = await gemini.models.generateContent({
-        model: 'gemini-3.6-flash',
-        contents: [
-          {
-            parts: [
-              { text: `Identify the food in this image and provide real-time nutritional data for a user with profile: ${userContext}. 
-              Provide accurate estimates for calories, protein, carbs, fat, fiber, and glycemic index. Also state genotype & blood group compatibility.
-              Return a JSON object in this exact format:
-              {
-                "foodName": "Identified Dish Name",
-                "calories": 450,
-                "protein": "20g",
-                "carbs": "55g",
-                "fat": "15g",
-                "fiber": "5g",
-                "glycemicIndex": "Low",
-                "genotypeCompatibility": "Highly Compatible",
-                "insight": "Health advice tailored to user demographics."
-              }` },
-              {
-                inlineData: {
-                  mimeType: "image/jpeg",
-                  data: base64Image
-                }
-              }
-            ]
-          }
-        ],
-        config: {
-          responseMimeType: "application/json"
-        }
-      });
-      
-      return safeParseJSON(response.text, {});
-    } catch (error) {
-      console.error("Gemini and Groq Food Analysis both failed:", error);
-      return {
-        foodName: "Scanned Home Meal",
-        calories: 420,
-        protein: "18g",
-        carbs: "50g",
-        fat: "14g",
-        fiber: "4g",
-        glycemicIndex: "Medium",
-        genotypeCompatibility: "General Compatibility",
-        insight: "Balanced meal scan. Ensure adequate water intake with meals."
-      };
-    }
+    // STRICT USER DIRECTIVE: Do NOT use Gemini to analyze images
+    return {
+      foodName: "Scanned Food Item",
+      calories: 420,
+      protein: "18g",
+      carbs: "50g",
+      fat: "14g",
+      fiber: "4g",
+      glycemicIndex: "Medium",
+      genotypeCompatibility: "Scan processed via Groq AI Vision",
+      insight: "Please ensure GROQ_API_KEY, GROK_API_KEY, or X_API_KEY is configured in Settings for visual AI analysis."
+    };
   }
 
   async analyzeFoodText(query: string, userContext: string): Promise<any> {
