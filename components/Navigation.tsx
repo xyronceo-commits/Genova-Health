@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, ScanLine, MessageSquare, ShieldAlert, User, 
-  Moon, Sun, Watch, Crown, LogOut, Info, Menu, X, ChevronLeft, ChevronRight, Sparkles 
+  Moon, Sun, Watch, Crown, LogOut, Info, Menu, X, ChevronLeft, ChevronRight, Sparkles, Shield
 } from 'lucide-react';
 import { UserProfile } from '../types';
 import { GenovaLogo } from './GenovaLogo';
@@ -13,9 +13,10 @@ interface Props {
   toggleDarkMode: () => void;
   user: UserProfile;
   onLogout: () => void;
+  onOpenSecureAccess: () => void;
 }
 
-export const Navigation: React.FC<Props> = ({ isDarkMode, toggleDarkMode, user, onLogout }) => {
+export const Navigation: React.FC<Props> = ({ isDarkMode, toggleDarkMode, user, onLogout, onOpenSecureAccess }) => {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isDesktopExpanded, setIsDesktopExpanded] = useState(false);
   const location = useLocation();
@@ -40,23 +41,52 @@ export const Navigation: React.FC<Props> = ({ isDarkMode, toggleDarkMode, user, 
     { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
     { to: '/scan', icon: ScanLine, label: 'Smart Scan' },
     { to: '/wearables', icon: Watch, label: 'Devices' },
-    { to: '/assistant/nurse', icon: MessageSquare, label: 'AI Nurse' },
+    { to: '/assistant/nurse', icon: MessageSquare, label: 'AI Assistant' },
     { to: '/profile', icon: User, label: 'Profile' },
   ];
 
   return (
     <>
-      {/* MOBILE: Floating Menu Toggle Button */}
-      <div className="fixed top-3 left-3 z-50 md:hidden">
-        <button
-          type="button"
-          onClick={() => setIsMobileOpen(!isMobileOpen)}
-          className="p-2.5 bg-white/90 dark:bg-gray-800/90 backdrop-blur-md border border-gray-200 dark:border-gray-700 shadow-lg rounded-2xl flex items-center justify-center text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all active:scale-95"
-          aria-label={isMobileOpen ? "Close navigation menu" : "Open navigation menu"}
-          title="Open Side Menu"
-        >
-          {isMobileOpen ? <X size={22} className="text-gray-800 dark:text-gray-100" /> : <Menu size={22} className="text-blue-600 dark:text-blue-400" />}
-        </button>
+      {/* MOBILE: Top Header Bar with Side Drawer Toggle */}
+      <div className="sticky top-0 z-40 md:hidden bg-white/95 dark:bg-gray-800/95 backdrop-blur-md border-b border-gray-200 dark:border-gray-700 px-4 py-2.5 flex items-center justify-between shadow-2xs">
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setIsMobileOpen(!isMobileOpen)}
+            className="p-2 bg-gray-100 dark:bg-gray-700/80 border border-gray-200 dark:border-gray-600 rounded-xl flex items-center justify-center text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 transition-all active:scale-95"
+            aria-label={isMobileOpen ? "Close navigation menu" : "Open navigation menu"}
+            title="Open Side Menu"
+          >
+            {isMobileOpen ? <X size={20} className="text-gray-800 dark:text-gray-100" /> : <Menu size={20} className="text-blue-600 dark:text-blue-400" />}
+          </button>
+          
+          <NavLink to="/" className="flex items-center gap-2">
+            <GenovaLogo className="w-6 h-6" />
+            <span className="font-extrabold text-sm text-gray-900 dark:text-white tracking-tight">Genova Health</span>
+          </NavLink>
+        </div>
+
+        <div className="flex items-center gap-1.5">
+          {/* Discreet Shield Icon for Secure Access */}
+          <button
+            type="button"
+            onClick={onOpenSecureAccess}
+            className="p-2 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700/60 transition-colors"
+            title="Secure access"
+            aria-label="Secure access"
+          >
+            <Shield size={18} />
+          </button>
+
+          <button
+            type="button"
+            onClick={toggleDarkMode}
+            className="p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700/60 rounded-xl transition-colors"
+            aria-label={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+          >
+            {isDarkMode ? <Sun size={18} className="text-amber-400" /> : <Moon size={18} className="text-indigo-600" />}
+          </button>
+        </div>
       </div>
 
       {/* MOBILE: Side Navigation Backdrop Overlay */}
@@ -74,18 +104,19 @@ export const Navigation: React.FC<Props> = ({ isDarkMode, toggleDarkMode, user, 
         }`}
       >
         {/* Drawer Header */}
-        <div className="flex items-center justify-between pb-5 mb-4 border-b border-gray-100 dark:border-gray-700/60">
+        <div className="flex items-center justify-between pb-4 mb-3 border-b border-gray-100 dark:border-gray-700/60">
           <NavLink to="/" className="flex items-center gap-3" onClick={() => setIsMobileOpen(false)}>
             <div className="p-1.5 bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 rounded-2xl flex items-center justify-center shadow-sm">
               <GenovaLogo className="w-8 h-8" />
             </div>
             <div>
-              <h2 className="font-extrabold text-lg text-gray-900 dark:text-white tracking-tight leading-none">Genova Health</h2>
-              <span className="text-[10px] text-blue-600 dark:text-blue-400 font-bold uppercase tracking-wider">AI Medical Assistant</span>
+              <h2 className="font-extrabold text-base text-gray-900 dark:text-white tracking-tight leading-none">Genova Health</h2>
+              <span className="text-[10px] text-blue-600 dark:text-blue-400 font-bold uppercase tracking-wider">AI Medical Companion</span>
             </div>
           </NavLink>
 
           <button
+            type="button"
             onClick={() => setIsMobileOpen(false)}
             className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             aria-label="Close menu"
@@ -94,10 +125,10 @@ export const Navigation: React.FC<Props> = ({ isDarkMode, toggleDarkMode, user, 
           </button>
         </div>
 
-        {/* User Card inside Drawer */}
-        <div className="mb-5 p-3.5 bg-gray-50 dark:bg-gray-700/50 rounded-2xl border border-gray-100 dark:border-gray-700 flex items-center justify-between">
+        {/* User Profile Card inside Mobile Side Drawer */}
+        <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-2xl border border-gray-100 dark:border-gray-700 flex items-center justify-between">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-full bg-blue-600 text-white font-black flex items-center justify-center text-sm shadow-md shrink-0">
+            <div className="w-9 h-9 rounded-full bg-blue-600 text-white font-black flex items-center justify-center text-xs shadow-md shrink-0">
               {user.fullName ? user.fullName.charAt(0).toUpperCase() : 'U'}
             </div>
             <div className="min-w-0 flex flex-col">
@@ -117,8 +148,8 @@ export const Navigation: React.FC<Props> = ({ isDarkMode, toggleDarkMode, user, 
         </div>
 
         {/* Primary Navigation Links */}
-        <div className="flex-1 space-y-1.5 overflow-y-auto pr-1">
-          <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 px-3 block mb-1">Navigation</span>
+        <div className="flex-1 space-y-1 overflow-y-auto pr-1">
+          <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 px-3 block mb-1">Side Navigation</span>
           {navItems.map((item) => (
             <NavLink
               key={item.to}
@@ -127,17 +158,17 @@ export const Navigation: React.FC<Props> = ({ isDarkMode, toggleDarkMode, user, 
               className={({ isActive }) => 
                 `flex items-center gap-3.5 px-4 py-3 rounded-2xl transition-all font-bold text-sm ${
                   isActive 
-                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25' 
+                    ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20' 
                     : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/60 hover:text-gray-900 dark:hover:text-white'
                 }`
               }
             >
-              <item.icon size={20} />
+              <item.icon size={19} />
               <span>{item.label}</span>
             </NavLink>
           ))}
 
-          <div className="pt-3 my-2 border-t border-gray-100 dark:border-gray-700/60 space-y-1.5">
+          <div className="pt-2 my-2 border-t border-gray-100 dark:border-gray-700/60 space-y-1">
             <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 px-3 block mb-1">Emergency & Tools</span>
             
             <NavLink
@@ -146,13 +177,13 @@ export const Navigation: React.FC<Props> = ({ isDarkMode, toggleDarkMode, user, 
               className={({ isActive }) => 
                 `flex items-center gap-3.5 px-4 py-3 rounded-2xl transition-all font-bold text-sm ${
                   isActive 
-                    ? 'bg-red-600 text-white shadow-lg shadow-red-500/25' 
+                    ? 'bg-red-600 text-white shadow-md shadow-red-500/20' 
                     : 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 hover:bg-red-100 dark:hover:bg-red-900/60'
                 }`
               }
             >
               <div className="relative">
-                <ShieldAlert size={20} />
+                <ShieldAlert size={19} />
                 <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse border border-white dark:border-gray-800"></span>
               </div>
               <div className="flex items-center justify-between flex-1">
@@ -172,22 +203,22 @@ export const Navigation: React.FC<Props> = ({ isDarkMode, toggleDarkMode, user, 
                 }`
               }
             >
-              <Info size={20} />
-              <span>About & Terms</span>
+              <Info size={19} />
+              <span>About & Legal</span>
             </NavLink>
           </div>
         </div>
 
         {/* Footer Controls inside Mobile Drawer */}
-        <div className="pt-4 mt-auto border-t border-gray-100 dark:border-gray-700/60 space-y-2">
+        <div className="pt-3 mt-auto border-t border-gray-100 dark:border-gray-700/60 space-y-1.5">
           <button
             type="button"
             onClick={toggleDarkMode}
-            className="w-full flex items-center justify-between px-4 py-3 rounded-2xl bg-gray-50 dark:bg-gray-700/50 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors font-bold text-sm"
+            className="w-full flex items-center justify-between px-4 py-2.5 rounded-2xl bg-gray-50 dark:bg-gray-700/50 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors font-bold text-xs"
           >
             <div className="flex items-center gap-3">
               {isDarkMode ? <Sun size={18} className="text-amber-400" /> : <Moon size={18} className="text-indigo-600" />}
-              <span>{isDarkMode ? "Light Theme" : "Dark Theme"}</span>
+              <span>{isDarkMode ? "Light Mode" : "Dark Mode"}</span>
             </div>
             <span className="text-[10px] uppercase font-mono px-2 py-0.5 bg-white dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400">
               {isDarkMode ? "Dark" : "Light"}
@@ -202,7 +233,7 @@ export const Navigation: React.FC<Props> = ({ isDarkMode, toggleDarkMode, user, 
                 onLogout();
               }
             }}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors font-bold text-sm"
+            className="w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors font-bold text-xs"
           >
             <LogOut size={18} />
             <span>Sign Out</span>
@@ -230,15 +261,30 @@ export const Navigation: React.FC<Props> = ({ isDarkMode, toggleDarkMode, user, 
             )}
           </NavLink>
 
-          {/* Desktop Toggle Expand/Collapse */}
-          <button
-            type="button"
-            onClick={() => setIsDesktopExpanded(!isDesktopExpanded)}
-            className="p-1.5 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/50 rounded-xl transition-all"
-            title={isDesktopExpanded ? "Collapse Sidebar" : "Expand Sidebar"}
-          >
-            {isDesktopExpanded ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
-          </button>
+          <div className="flex items-center gap-1">
+            {/* Discreet Shield Icon inside Sidebar Header (No floating overlay over page content!) */}
+            {isDesktopExpanded && (
+              <button
+                type="button"
+                onClick={onOpenSecureAccess}
+                className="p-1.5 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700/60 transition-colors"
+                title="Secure access"
+                aria-label="Secure access"
+              >
+                <Shield size={16} />
+              </button>
+            )}
+
+            {/* Desktop Toggle Expand/Collapse */}
+            <button
+              type="button"
+              onClick={() => setIsDesktopExpanded(!isDesktopExpanded)}
+              className="p-1.5 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/50 rounded-xl transition-all"
+              title={isDesktopExpanded ? "Collapse Sidebar" : "Expand Sidebar"}
+            >
+              {isDesktopExpanded ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
+            </button>
+          </div>
         </div>
 
         {/* Primary Desktop Nav Items */}

@@ -20,7 +20,7 @@ const Premium: React.FC<Props> = ({ user, onUpdate }) => {
   ];
 
   return (
-    <div className="min-h-screen bg-white dark:bg-gray-900 pb-20 transition-colors md:pl-16">
+    <div className="min-h-screen bg-white dark:bg-gray-900 pb-12 transition-colors">
       <header className="p-6 flex items-center justify-between sticky top-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md z-30 border-b border-gray-100 dark:border-gray-800">
         <button onClick={() => navigate(-1)} className="p-2.5 bg-gray-100 dark:bg-gray-800 rounded-2xl text-gray-700 dark:text-gray-200">
           <ChevronLeft size={20} />

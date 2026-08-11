@@ -54,10 +54,7 @@ const Wearables: React.FC<Props> = ({ user }) => {
     caloriesBurnedTotal: 2180,
     caloriesActive: 540,
     distanceKm: 6.35,
-    workouts: [
-      { name: 'Morning Cardio Run', type: 'Running', durationMins: 32, calories: 340, avgHr: 148 },
-      { name: 'Evening Resistance Training', type: 'Strength', durationMins: 45, calories: 280, avgHr: 132 }
-    ],
+    workouts: [],
     spo2Percent: 98.5,
     stressLevelScore: 24,
     skinTempDiffC: 0.2,
@@ -814,23 +811,33 @@ const Wearables: React.FC<Props> = ({ user }) => {
               </span>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {telemetry.workouts.map((workout, idx) => (
-                <div key={idx} className="p-5 bg-gray-50 dark:bg-gray-900/50 rounded-2xl border border-gray-100 dark:border-gray-700 flex items-start justify-between">
-                  <div className="space-y-1">
-                    <span className="px-2.5 py-0.5 bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300 text-[10px] font-black uppercase tracking-wider rounded-md">
-                      {workout.type}
-                    </span>
-                    <h4 className="text-base font-black text-gray-900 dark:text-white pt-1">{workout.name}</h4>
-                    <div className="flex items-center gap-4 text-xs font-bold text-gray-500 dark:text-gray-400 pt-2">
-                      <span>⏱️ {workout.durationMins} mins</span>
-                      <span>🔥 {workout.calories} kcal</span>
-                      <span>❤️ Avg {workout.avgHr} BPM</span>
+            {telemetry.workouts.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {telemetry.workouts.map((workout, idx) => (
+                  <div key={idx} className="p-5 bg-gray-50 dark:bg-gray-900/50 rounded-2xl border border-gray-100 dark:border-gray-700 flex items-start justify-between">
+                    <div className="space-y-1">
+                      <span className="px-2.5 py-0.5 bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300 text-[10px] font-black uppercase tracking-wider rounded-md">
+                        {workout.type}
+                      </span>
+                      <h4 className="text-base font-black text-gray-900 dark:text-white pt-1">{workout.name}</h4>
+                      <div className="flex items-center gap-4 text-xs font-bold text-gray-500 dark:text-gray-400 pt-2">
+                        <span>⏱️ {workout.durationMins} mins</span>
+                        <span>🔥 {workout.calories} kcal</span>
+                        <span>❤️ Avg {workout.avgHr} BPM</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-8 bg-gray-50 dark:bg-gray-900/40 rounded-2xl border border-dashed border-gray-200 dark:border-gray-700 text-center space-y-2">
+                <Dumbbell className="mx-auto text-gray-400" size={32} />
+                <p className="text-sm font-bold text-gray-700 dark:text-gray-300">No Workout Sessions Logged</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 max-w-sm mx-auto font-medium">
+                  Workout sessions will automatically appear here once recorded by your connected smartwatch or logged during live activity sessions.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* AI MULTI-METRIC TRENDS & CLINICAL INSIGHTS PANEL */}

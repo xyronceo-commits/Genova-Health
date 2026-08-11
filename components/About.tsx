@@ -1,10 +1,14 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ChevronLeft, Shield, Lock, FileText, Database, Heart, ArrowRight, Sparkles, AlertCircle, Award } from 'lucide-react';
+import { ChevronLeft, Shield, Lock, FileText, Database, Heart, ArrowRight, Sparkles, AlertCircle, Award, ShieldCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { GenovaLogo } from './GenovaLogo';
 
-const About: React.FC = () => {
+interface Props {
+  onOpenSecureAccess?: () => void;
+}
+
+const About: React.FC<Props> = ({ onOpenSecureAccess }) => {
   const navigate = useNavigate();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -34,7 +38,7 @@ const About: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-24 transition-colors md:pl-20">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-12 transition-colors">
       <header className="p-6 flex items-center justify-between sticky top-0 bg-gray-50/80 dark:bg-gray-900/80 backdrop-blur-md z-30 border-b border-gray-100 dark:border-gray-800">
         <button onClick={() => navigate(-1)} className="p-2.5 bg-white dark:bg-gray-850 hover:bg-gray-150 dark:hover:bg-gray-800 rounded-2xl transition-all shadow-sm border border-gray-100 dark:border-gray-800 text-gray-900 dark:text-white">
           <ChevronLeft size={20} />
@@ -143,6 +147,38 @@ const About: React.FC = () => {
               <ArrowRight size={16} />
             </button>
           </div>
+        </section>
+
+        {/* System Administrator Portal Access */}
+        <section className="bg-slate-900 text-white p-6 sm:p-8 rounded-3xl space-y-4 shadow-xl border border-slate-800 relative overflow-hidden">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-blue-500/20 text-blue-400 rounded-2xl border border-blue-500/30">
+                <ShieldCheck size={24} />
+              </div>
+              <div>
+                <h3 className="font-extrabold text-base sm:text-lg text-white">System Administrator Portal</h3>
+                <p className="text-xs text-slate-400 font-medium">Restricted operational controls & system diagnostics</p>
+              </div>
+            </div>
+            <span className="px-2.5 py-1 bg-blue-500/10 text-blue-400 border border-blue-500/30 rounded-xl text-[10px] font-mono font-bold uppercase tracking-wider">
+              Admin Area
+            </span>
+          </div>
+
+          <p className="text-xs sm:text-sm text-slate-300 leading-relaxed font-medium">
+            Authorized medical personnel and system administrators can authenticate here using secure credentials to monitor app status, manage server configuration, and review live health telemetry diagnostics.
+          </p>
+
+          <button
+            type="button"
+            onClick={onOpenSecureAccess}
+            className="w-full bg-blue-600 hover:bg-blue-500 text-white py-3.5 px-6 rounded-2xl font-extrabold text-sm flex items-center justify-center gap-2 transition-all shadow-lg shadow-blue-600/30 active:scale-[0.98]"
+          >
+            <Lock size={16} />
+            <span>Access Administrator Portal</span>
+            <ArrowRight size={16} />
+          </button>
         </section>
 
         {/* Disclaimer Board */}

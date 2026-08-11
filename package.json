@@ -17,6 +17,7 @@
     "groq-sdk": "^1.2.1",
     "lucide-react": "^0.562.0",
     "motion": "^12.38.0",
+    "nodemailer": "^9.0.5",
     "openai": "^6.34.0",
     "react": "18.3.1",
     "react-dom": "18.3.1",
@@ -29,6 +30,7 @@
   "devDependencies": {
     "@types/express": "^5.0.6",
     "@types/node": "^22.14.0",
+    "@types/nodemailer": "^8.0.1",
     "@vitejs/plugin-react": "^5.0.0",
     "esbuild": "^0.28.0",
     "tsx": "^4.22.4",

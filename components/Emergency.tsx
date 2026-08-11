@@ -146,7 +146,7 @@ const Emergency: React.FC<Props> = ({ user }) => {
         <div className="w-10"></div>
       </header>
 
-      <div className="max-w-xl mx-auto space-y-8 pb-20">
+      <div className="max-w-xl mx-auto space-y-8 pb-10">
         {/* SOS Button */}
         <div className="flex flex-col items-center gap-6 py-10">
           <button 

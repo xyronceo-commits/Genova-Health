@@ -55,7 +55,7 @@ const Legal: React.FC = () => {
   });
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-24 transition-colors md:pl-16">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-12 transition-colors">
       {/* Top Header */}
       <header className="p-4 md:p-6 sticky top-0 bg-white/90 dark:bg-gray-900/90 backdrop-blur-md z-30 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">

@@ -5,6 +5,7 @@ import { STORAGE_KEYS } from '../constants';
 import { User, ShieldCheck, ArrowRight, Dna, Sparkles, Activity, Heart, ArrowLeft, Target, Shield, Camera, Mic, MapPin, Bluetooth, Bot, Utensils, Phone, Mail, Globe, Apple, Lock, Loader2, Users, UserPlus, Trash2, Plus, Check, Contact, PhoneCall, ShieldAlert } from 'lucide-react';
 import { signInWithGoogle, auth, saveUserProfile, getUserProfile, createUserWithEmailAndPassword, signInWithEmailAndPassword } from '../services/firebase';
 import { GenovaLogo } from './GenovaLogo';
+import { EmailVerificationScreen } from './EmailVerificationScreen';
 
 interface Props {
   onComplete: (profile: UserProfile) => void;
@@ -51,6 +52,8 @@ const Onboarding = ({ onComplete }: Props) => {
   const [isLogin, setIsLogin] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [showVerificationScreen, setShowVerificationScreen] = React.useState(false);
+  const [pendingUid, setPendingUid] = React.useState<string | null>(null);
 
   const [selectedContacts, setSelectedContacts] = React.useState<EmergencyContact[]>([]);
   const [contactPermissionGranted, setContactPermissionGranted] = React.useState(false);
@@ -182,16 +185,32 @@ const Onboarding = ({ onComplete }: Props) => {
       let userCredential;
       if (isLogin) {
         userCredential = await signInWithEmailAndPassword(auth, email, password);
+        await handleAuthSuccess(userCredential.user.uid);
       } else {
         userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        setPendingUid(userCredential.user.uid);
+        setShowVerificationScreen(true);
       }
-      await handleAuthSuccess(userCredential.user.uid);
     } catch (err: any) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
   };
+
+  if (showVerificationScreen && pendingUid) {
+    return (
+      <EmailVerificationScreen
+        email={email}
+        userId={pendingUid}
+        onVerificationComplete={() => {
+          setShowVerificationScreen(false);
+          handleAuthSuccess(pendingUid);
+        }}
+        onCancel={() => setShowVerificationScreen(false)}
+      />
+    );
+  }
 
   const stepsCount = 6;
 

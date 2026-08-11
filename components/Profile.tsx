@@ -1,8 +1,9 @@
 
 import React, { useState } from 'react';
 import { UserProfile, BloodGroup, Genotype, EmergencyContact } from '../types';
-import { User, Settings, Trash2, Save, ChevronLeft, Moon, Sun, Info, Shield, ShieldCheck, Users, Plus, UserPlus, Check, Monitor } from 'lucide-react';
+import { User, Settings, Trash2, Save, ChevronLeft, Moon, Sun, Info, Shield, ShieldCheck, Users, Plus, UserPlus, Check, Monitor, Mail, CheckCircle2 } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
+import { EmailVerificationScreen } from './EmailVerificationScreen';
 
 interface Props {
   user: UserProfile;
@@ -27,6 +28,8 @@ const Profile: React.FC<Props> = ({ user, onUpdate, onLogout, isDarkMode, toggle
     return [];
   });
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
+  const [isEmailVerified, setIsEmailVerified] = useState(false);
   const [newName, setNewName] = useState('');
   const [newPhone, setNewPhone] = useState('');
   const [newRel, setNewRel] = useState('Family');
@@ -90,10 +93,26 @@ const Profile: React.FC<Props> = ({ user, onUpdate, onLogout, isDarkMode, toggle
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-10 max-w-3xl mx-auto space-y-8 pb-32 transition-colors">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-10 max-w-3xl mx-auto space-y-8 pb-12 transition-colors">
+      {showVerifyModal && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="w-full max-w-md">
+            <EmailVerificationScreen
+              email={user.fullName ? `${user.fullName.toLowerCase().replace(/\s+/g, '.')}@genovahealth.com` : 'user@genovahealth.com'}
+              userId={'current_user'}
+              onVerificationComplete={() => {
+                setIsEmailVerified(true);
+                setShowVerifyModal(false);
+              }}
+              onCancel={() => setShowVerifyModal(false)}
+            />
+          </div>
+        </div>
+      )}
+
       <header className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <button onClick={() => navigate('/')} className="p-2 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-full transition-colors text-gray-900 dark:text-white">
+          <button onClick={() => navigate('/')} className="p-2 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-2xl transition-colors text-gray-900 dark:text-white">
             <ChevronLeft size={24}/>
           </button>
           <h1 className="text-2xl font-black text-gray-900 dark:text-white">Health Profile</h1>
@@ -141,14 +160,38 @@ const Profile: React.FC<Props> = ({ user, onUpdate, onLogout, isDarkMode, toggle
                 <option value="female">Female</option>
               </select>
             </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase ml-1">Age</label>
-              <input 
-                type="number"
-                className="w-full bg-gray-50 dark:bg-gray-700 p-3 rounded-xl border-none outline-none focus:ring-2 focus:ring-blue-500 font-medium text-gray-900 dark:text-gray-100"
-                value={formData.age}
-                onChange={e => setFormData({...formData, age: parseInt(e.target.value)})}
-              />
+            <div className="space-y-1 md:col-span-2 pt-2 border-t border-gray-100 dark:border-gray-700/60">
+              <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase ml-1">Email Verification Security</label>
+              <div className="flex items-center justify-between p-3.5 bg-gray-50 dark:bg-gray-700/60 rounded-xl border border-gray-100 dark:border-gray-700">
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-xl ${isEmailVerified ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400' : 'bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400'}`}>
+                    <Mail size={18} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-gray-900 dark:text-white">Email Security Status</span>
+                      {isEmailVerified ? (
+                        <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 text-[10px] font-bold rounded-lg flex items-center gap-1 border border-emerald-300 dark:border-emerald-800">
+                          <CheckCircle2 size={10} /> Verified
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-400 text-[10px] font-bold rounded-lg border border-blue-300 dark:border-blue-800">
+                          Code Protected
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">Protected with 6-digit cryptographic verification code</p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setShowVerifyModal(true)}
+                  className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl transition-all shadow-2xs shrink-0"
+                >
+                  {isEmailVerified ? "Re-verify" : "Verify Email"}
+                </button>
+              </div>
             </div>
           </div>
         </section>

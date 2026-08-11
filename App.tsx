@@ -15,11 +15,41 @@ import Navigation from './components/Navigation';
 import Premium from './components/Premium';
 import About from './components/About';
 import Legal from './components/Legal';
+import { SecureAccessModal } from './components/SecureAccessModal';
+import { AdminDashboard } from './components/AdminDashboard';
 import { GenovaLogo } from './components/GenovaLogo';
 
 const App = () => {
   const [user, setUser] = React.useState<UserProfile | null>(null);
   const [loading, setLoading] = React.useState(true);
+  const [isSecureAccessOpen, setIsSecureAccessOpen] = React.useState(false);
+  const [adminToken, setAdminToken] = React.useState<string | null>(null);
+
+  // Check if admin session cookie exists on server
+  React.useEffect(() => {
+    fetch('/api/admin/verify')
+      .then(res => {
+        if (res.ok) return res.json();
+        throw new Error('Not logged in');
+      })
+      .then(data => {
+        if (data.valid) setAdminToken('cookie_session_active');
+      })
+      .catch(() => {
+        // session not active
+      });
+  }, []);
+
+  const handleAdminLoginSuccess = (token: string) => {
+    setAdminToken(token);
+    setIsSecureAccessOpen(false);
+    window.location.hash = '#/admin';
+  };
+
+  const handleAdminLogout = () => {
+    setAdminToken(null);
+    window.location.hash = '#/';
+  };
 
   // Theme mode: 'light' | 'dark' | 'system' (device settings)
   const [themeMode, setThemeMode] = React.useState<'light' | 'dark' | 'system'>(() => {
@@ -208,38 +238,65 @@ const App = () => {
 
   return (
     <Router>
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 md:pl-16 transition-colors font-sans">
-        <Routes>
-          {/* Public / Guest Legal Routes */}
-          <Route path="/legal" element={<Legal />} />
-          <Route path="/legal/:docId" element={<Legal />} />
-          <Route path="/terms" element={<Navigate to="/legal/terms" replace />} />
-          <Route path="/privacy" element={<Navigate to="/legal/privacy" replace />} />
-          <Route path="/cookies" element={<Navigate to="/legal/cookies" replace />} />
-          <Route path="/acceptable-use" element={<Navigate to="/legal/acceptable-use" replace />} />
-          <Route path="/disclaimer" element={<Navigate to="/legal/disclaimer" replace />} />
-          <Route path="/intellectual-property" element={<Navigate to="/legal/intellectual-property" replace />} />
-          <Route path="/copyright" element={<Navigate to="/legal/copyright" replace />} />
-          <Route path="/community-guidelines" element={<Navigate to="/legal/community-guidelines" replace />} />
-          <Route path="/trust-and-safety" element={<Navigate to="/legal/trust-and-safety" replace />} />
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors font-sans">
+        {user && (
+          <Navigation 
+            isDarkMode={isDarkMode} 
+            toggleDarkMode={toggleDarkMode} 
+            user={user} 
+            onLogout={handleLogout} 
+            onOpenSecureAccess={() => setIsSecureAccessOpen(true)}
+          />
+        )}
+        <div className="md:pl-16">
+          <Routes>
+            {/* Public / Guest Legal Routes */}
+            <Route path="/legal" element={<Legal />} />
+            <Route path="/legal/:docId" element={<Legal />} />
+            <Route path="/terms" element={<Navigate to="/legal/terms" replace />} />
+            <Route path="/privacy" element={<Navigate to="/legal/privacy" replace />} />
+            <Route path="/cookies" element={<Navigate to="/legal/cookies" replace />} />
+            <Route path="/acceptable-use" element={<Navigate to="/legal/acceptable-use" replace />} />
+            <Route path="/disclaimer" element={<Navigate to="/legal/disclaimer" replace />} />
+            <Route path="/intellectual-property" element={<Navigate to="/legal/intellectual-property" replace />} />
+            <Route path="/copyright" element={<Navigate to="/legal/copyright" replace />} />
+            <Route path="/community-guidelines" element={<Navigate to="/legal/community-guidelines" replace />} />
+            <Route path="/trust-and-safety" element={<Navigate to="/legal/trust-and-safety" replace />} />
 
-          {!user ? (
-            <Route path="*" element={<Onboarding onComplete={handleOnboardingComplete} />} />
-          ) : (
-            <>
-              <Route path="/" element={<Dashboard user={user} isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} />} />
-              <Route path="/scan" element={<SmartScan user={user} />} />
-              <Route path="/assistant/:type" element={<Assistant user={user} />} />
-              <Route path="/emergency" element={<Emergency user={user} />} />
-              <Route path="/wearables" element={<Wearables user={user} />} />
-              <Route path="/premium" element={<Premium user={user} onUpdate={handleUpdateUser} />} />
-              <Route path="/profile" element={<Profile user={user} onUpdate={handleUpdateUser} onLogout={handleLogout} isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} />} />
-              <Route path="/about" element={<About />} />
-              <Route path="*" element={<Navigate to="/" />} />
-            </>
-          )}
-        </Routes>
-        {user && <Navigation isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} user={user} onLogout={handleLogout} />}
+            {/* Secure Admin Route */}
+            <Route 
+              path="/admin" 
+              element={
+                adminToken ? (
+                  <AdminDashboard adminToken={adminToken} onLogout={handleAdminLogout} isDarkMode={isDarkMode} />
+                ) : (
+                  <Navigate to="/" replace />
+                )
+              } 
+            />
+
+            {!user ? (
+              <Route path="*" element={<Onboarding onComplete={handleOnboardingComplete} />} />
+            ) : (
+              <>
+                <Route path="/" element={<Dashboard user={user} isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} />} />
+                <Route path="/scan" element={<SmartScan user={user} />} />
+                <Route path="/assistant/:type" element={<Assistant user={user} />} />
+                <Route path="/emergency" element={<Emergency user={user} />} />
+                <Route path="/wearables" element={<Wearables user={user} />} />
+                <Route path="/premium" element={<Premium user={user} onUpdate={handleUpdateUser} />} />
+                <Route path="/profile" element={<Profile user={user} onUpdate={handleUpdateUser} onLogout={handleLogout} isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} />} />
+                <Route path="/about" element={<About onOpenSecureAccess={() => setIsSecureAccessOpen(true)} />} />
+                <Route path="*" element={<Navigate to="/" />} />
+              </>
+            )}
+          </Routes>
+        </div>
+        <SecureAccessModal 
+          isOpen={isSecureAccessOpen} 
+          onClose={() => setIsSecureAccessOpen(false)} 
+          onSuccess={handleAdminLoginSuccess} 
+        />
       </div>
     </Router>
   );
