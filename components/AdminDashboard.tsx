@@ -306,7 +306,7 @@ export const AdminDashboard: React.FC<Props> = ({ adminToken, onLogout, isDarkMo
           {/* User Overview Aggregate Cards */}
           <section className="space-y-3">
             <h2 className="text-sm font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-              1. User Overview
+              User Overview
             </h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
               <StatCard label="Total Users" value={stats.userOverview.totalUsers} sub="All registered" icon={<Users size={18} className="text-blue-600" />} />
@@ -321,7 +321,7 @@ export const AdminDashboard: React.FC<Props> = ({ adminToken, onLogout, isDarkMo
           {/* Health Platform Overview */}
           <section className="space-y-3">
             <h2 className="text-sm font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-              3. Health Platform Overview
+              Health Platform Overview
             </h2>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <BigMetric label="Active Users" value={stats.platformOverview.activeUsers} sub="30-day active sessions" color="bg-blue-50 dark:bg-blue-950/40 text-blue-600" />
@@ -335,7 +335,7 @@ export const AdminDashboard: React.FC<Props> = ({ adminToken, onLogout, isDarkMo
           <section className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-xs space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-sm font-bold text-gray-900 dark:text-white">6. User Growth Analytics</h3>
+                <h3 className="text-sm font-bold text-gray-900 dark:text-white">User Growth Analytics</h3>
                 <p className="text-xs text-gray-500 dark:text-gray-400">Recent user signups and active user engagement trends</p>
               </div>
             </div>
@@ -369,7 +369,7 @@ export const AdminDashboard: React.FC<Props> = ({ adminToken, onLogout, isDarkMo
         <div className="space-y-4 animate-in fade-in duration-200">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <h2 className="text-base font-extrabold text-gray-900 dark:text-white">2. User Management</h2>
+              <h2 className="text-base font-extrabold text-gray-900 dark:text-white">User Management</h2>
               <p className="text-xs text-gray-500 dark:text-gray-400">Masked user accounts for privacy-compliant operational review</p>
             </div>
 
@@ -465,7 +465,7 @@ export const AdminDashboard: React.FC<Props> = ({ adminToken, onLogout, isDarkMo
         <div className="space-y-6 animate-in fade-in duration-200">
           <section className="space-y-3">
             <h2 className="text-sm font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-              4. AI Operational Usage
+              AI Operational Usage
             </h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
               <StatCard label="Total Requests" value={stats.aiUsage.totalRequests} sub="All time queries" icon={<Brain size={18} className="text-purple-600" />} />
@@ -479,7 +479,7 @@ export const AdminDashboard: React.FC<Props> = ({ adminToken, onLogout, isDarkMo
 
           <section className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-xs space-y-4">
             <div>
-              <h3 className="text-sm font-bold text-gray-900 dark:text-white">5. Health Feature Usage Breakdown</h3>
+              <h3 className="text-sm font-bold text-gray-900 dark:text-white">Health Feature Usage Breakdown</h3>
               <p className="text-xs text-gray-500 dark:text-gray-400">Aggregated user activity across primary Genova application modules</p>
             </div>
 
@@ -511,7 +511,7 @@ export const AdminDashboard: React.FC<Props> = ({ adminToken, onLogout, isDarkMo
         <div className="space-y-6 animate-in fade-in duration-200">
           <section className="space-y-3">
             <h2 className="text-sm font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-              7. Security Overview
+              Security Overview
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <BigMetric label="Failed Login Attempts" value={stats.securitySummary.failedLoginAttempts} sub="Blocked password attempts" color="bg-red-50 dark:bg-red-950/40 text-red-600" />
@@ -564,7 +564,7 @@ export const AdminDashboard: React.FC<Props> = ({ adminToken, onLogout, isDarkMo
                 <h3 className="font-extrabold text-base text-gray-900 dark:text-white">
                   Confirm Administrative Action
                 </h3>
-                <p className="text-xs text-gray-500">8. Admin Actions Verification</p>
+                <p className="text-xs text-gray-500">Admin Actions Verification</p>
               </div>
             </div>
 
