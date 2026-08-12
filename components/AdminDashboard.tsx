@@ -70,13 +70,22 @@ interface SecurityLogItem {
 }
 
 export const AdminDashboard: React.FC<Props> = ({ adminToken, onLogout, isDarkMode }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'ai' | 'security'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'ai' | 'security' | 'push'>('overview');
   const [stats, setStats] = useState<StatsData | null>(null);
   const [users, setUsers] = useState<UserItem[]>([]);
   const [logs, setLogs] = useState<SecurityLogItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Developer FCM Push Test Form state
+  const [testUserId, setTestUserId] = useState('');
+  const [testTitle, setTestTitle] = useState('Genova Health Push Test');
+  const [testBody, setTestBody] = useState('Firebase Cloud Messaging push notification test from Genova Health Admin.');
+  const [testCategory, setTestCategory] = useState<'reminders' | 'hydration' | 'sleep' | 'wellness' | 'product_updates'>('reminders');
+  const [testRoute, setTestRoute] = useState('/scan');
+  const [testResult, setTestResult] = useState<{ success?: boolean; message?: string } | null>(null);
+  const [testLoading, setTestLoading] = useState(false);
   
   // Confirmation Modal for Disabling/Enabling Account
   const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; user: UserItem | null; targetStatus: 'active' | 'disabled' }>({
@@ -153,6 +162,53 @@ export const AdminDashboard: React.FC<Props> = ({ adminToken, onLogout, isDarkMo
       alert('We couldn\'t complete that action. Please try again.');
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  const handleSendTestPush = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!testUserId.trim()) {
+      alert("Please enter or select a Target User ID.");
+      return;
+    }
+    setTestLoading(true);
+    setTestResult(null);
+
+    try {
+      const res = await fetch('/api/admin/send-test-notification', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${adminToken}`
+        },
+        body: JSON.stringify({
+          targetUserId: testUserId.trim(),
+          title: testTitle,
+          body: testBody,
+          category: testCategory,
+          route: testRoute
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setTestResult({
+          success: true,
+          message: `Notification successfully dispatched! Sent to ${data.sentCount} active device token(s).`
+        });
+      } else {
+        setTestResult({
+          success: false,
+          message: `Delivery Notice: ${data.reason || data.error || 'No registered device tokens found for target user.'}`
+        });
+      }
+    } catch (err: any) {
+      setTestResult({
+        success: false,
+        message: `Failed to execute server request: ${err?.message || 'Network error'}`
+      });
+    } finally {
+      setTestLoading(false);
     }
   };
 
@@ -297,6 +353,18 @@ export const AdminDashboard: React.FC<Props> = ({ adminToken, onLogout, isDarkMo
         >
           <ShieldAlert size={16} />
           <span>Security Audit</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('push')}
+          className={`px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 ${
+            activeTab === 'push'
+              ? 'bg-blue-600 text-white shadow-xs'
+              : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+          }`}
+        >
+          <Radio size={16} />
+          <span>FCM Push Testing</span>
         </button>
       </div>
 
@@ -548,6 +616,148 @@ export const AdminDashboard: React.FC<Props> = ({ adminToken, onLogout, isDarkMo
                 ))
               )}
             </div>
+          </section>
+        </div>
+      )}
+
+      {/* TAB 5: FCM PUSH TESTING (DEVELOPMENT / ADMIN ONLY) */}
+      {activeTab === 'push' && (
+        <div className="space-y-6 animate-in fade-in duration-200 max-w-3xl">
+          <section className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-xs p-6 space-y-6">
+            <div className="flex items-center gap-3 border-b border-gray-100 dark:border-gray-700/80 pb-4">
+              <div className="p-3 bg-blue-50 dark:bg-blue-950/50 text-blue-600 rounded-xl">
+                <Radio size={22} />
+              </div>
+              <div>
+                <h3 className="font-extrabold text-base text-gray-900 dark:text-white">
+                  Developer Push Notification Dispatch
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Send real FCM server-side push notifications to registered user devices.
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleSendTestPush} className="space-y-5">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-700 dark:text-gray-300">
+                  Target User ID <span className="text-red-500">*</span>
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    required
+                    placeholder="Enter target Firebase UID"
+                    value={testUserId}
+                    onChange={(e) => setTestUserId(e.target.value)}
+                    className="flex-1 bg-gray-50 dark:bg-gray-700/60 border border-gray-200 dark:border-gray-600 p-3 rounded-xl text-xs font-mono text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  {users.length > 0 && (
+                    <select
+                      onChange={(e) => {
+                        if (e.target.value) setTestUserId(e.target.value);
+                      }}
+                      className="bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 p-3 rounded-xl text-xs font-bold text-gray-700 dark:text-gray-200 outline-none"
+                    >
+                      <option value="">Select registered user...</option>
+                      {users.map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {u.displayName} ({u.emailMasked})
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-700 dark:text-gray-300">
+                    Category
+                  </label>
+                  <select
+                    value={testCategory}
+                    onChange={(e) => setTestCategory(e.target.value as any)}
+                    className="w-full bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 p-3 rounded-xl text-xs font-bold text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="reminders">Health Reminders</option>
+                    <option value="hydration">Hydration Updates</option>
+                    <option value="sleep">Sleep Check-ins</option>
+                    <option value="wellness">Wellness Check-ins</option>
+                    <option value="product_updates">Product Updates</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-700 dark:text-gray-300">
+                    Deep Link Destination Route
+                  </label>
+                  <select
+                    value={testRoute}
+                    onChange={(e) => setTestRoute(e.target.value)}
+                    className="w-full bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 p-3 rounded-xl text-xs font-bold text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="/scan">NutriScan (/scan)</option>
+                    <option value="/wearables">Wearables & Sleep (/wearables)</option>
+                    <option value="/assistant">AI Wellness Assistant (/assistant)</option>
+                    <option value="/emergency">Emergency Locator (/emergency)</option>
+                    <option value="/">Home Dashboard (/)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-700 dark:text-gray-300">
+                  Notification Title
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={testTitle}
+                  onChange={(e) => setTestTitle(e.target.value)}
+                  className="w-full bg-gray-50 dark:bg-gray-700/60 border border-gray-200 dark:border-gray-600 p-3 rounded-xl text-xs font-bold text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-700 dark:text-gray-300">
+                  Notification Message Body
+                </label>
+                <textarea
+                  required
+                  rows={3}
+                  value={testBody}
+                  onChange={(e) => setTestBody(e.target.value)}
+                  className="w-full bg-gray-50 dark:bg-gray-700/60 border border-gray-200 dark:border-gray-600 p-3 rounded-xl text-xs font-medium text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={testLoading}
+                className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2"
+              >
+                <Radio size={16} className={testLoading ? 'animate-pulse' : ''} />
+                <span>{testLoading ? 'Dispatching Push Request...' : 'Send Test Push Notification'}</span>
+              </button>
+            </form>
+
+            {testResult && (
+              <div
+                className={`p-4 rounded-xl text-xs font-semibold flex items-center gap-3 border ${
+                  testResult.success
+                    ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                    : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800'
+                }`}
+              >
+                {testResult.success ? (
+                  <CheckCircle2 size={18} className="text-emerald-500 shrink-0" />
+                ) : (
+                  <AlertCircle size={18} className="text-amber-500 shrink-0" />
+                )}
+                <span>{testResult.message}</span>
+              </div>
+            )}
           </section>
         </div>
       )}

@@ -60,6 +60,59 @@
         "timestamp": { "type": "string", "format": "date-time" }
       },
       "required": ["foodName", "calories", "timestamp"]
+    },
+    "Notification": {
+      "title": "Activity Notification",
+      "description": "Real-time activity and health alert push notification.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "body": { "type": "string" },
+        "type": { "type": "string", "enum": ["vitals", "nutri", "ai", "emergency", "wearable", "system"] },
+        "read": { "type": "boolean" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "actionUrl": { "type": "string" }
+      },
+      "required": ["title", "body", "type", "read", "timestamp"]
+    },
+    "FcmToken": {
+      "title": "FCM Push Token",
+      "description": "Device Firebase Cloud Messaging registration token.",
+      "type": "object",
+      "properties": {
+        "token": { "type": "string" },
+        "deviceInfo": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["token", "updatedAt"]
+    },
+    "NotificationToken": {
+      "title": "Notification Token",
+      "description": "Multi-device FCM push registration token with platform and device metadata.",
+      "type": "object",
+      "properties": {
+        "token": { "type": "string" },
+        "platform": { "type": "string" },
+        "deviceInfo": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "enabled": { "type": "boolean" }
+      },
+      "required": ["token", "updatedAt"]
+    },
+    "NotificationPreferences": {
+      "title": "Notification Preferences",
+      "description": "User notification categories and global enable settings.",
+      "type": "object",
+      "properties": {
+        "globalEnabled": { "type": "boolean" },
+        "reminders": { "type": "boolean" },
+        "hydration": { "type": "boolean" },
+        "sleep": { "type": "boolean" },
+        "wellness": { "type": "boolean" },
+        "product_updates": { "type": "boolean" }
+      },
+      "required": ["globalEnabled", "reminders", "hydration", "sleep", "wellness", "product_updates"]
     }
   },
   "firestore": {
@@ -78,6 +131,22 @@
     "/users/{userId}/foodLogs/{logId}": {
       "schema": "FoodScan",
       "description": "Logged NutriScan meals."
+    },
+    "/users/{userId}/notifications/{notificationId}": {
+      "schema": "Notification",
+      "description": "Real-time activity push notifications for the user."
+    },
+    "/users/{userId}/fcmTokens/{tokenId}": {
+      "schema": "FcmToken",
+      "description": "Device FCM tokens for sending targeted push notifications."
+    },
+    "/users/{userId}/notificationTokens/{tokenId}": {
+      "schema": "NotificationToken",
+      "description": "Multi-device FCM tokens for the user."
+    },
+    "/users/{userId}/notificationPreferences/{prefId}": {
+      "schema": "NotificationPreferences",
+      "description": "User notification categories and preferences."
     }
   }
 }

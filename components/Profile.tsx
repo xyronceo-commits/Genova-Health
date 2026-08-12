@@ -4,6 +4,7 @@ import { UserProfile, BloodGroup, Genotype, EmergencyContact } from '../types';
 import { User, Settings, Trash2, Save, ChevronLeft, Moon, Sun, Info, Shield, ShieldCheck, Users, Plus, UserPlus, Check, Monitor, Mail, CheckCircle2 } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import { EmailVerificationScreen } from './EmailVerificationScreen';
+import { NotificationPreferencesCard } from './NotificationPreferencesCard';
 
 interface Props {
   user: UserProfile;
@@ -347,6 +348,9 @@ const Profile: React.FC<Props> = ({ user, onUpdate, onLogout, isDarkMode, toggle
             </div>
           )}
         </section>
+
+        {/* Push Notification Preferences */}
+        <NotificationPreferencesCard />
 
         {/* Fitness Goals */}
         <section className="bg-white dark:bg-gray-800 p-6 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm space-y-6 transition-colors">

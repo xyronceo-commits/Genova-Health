@@ -5,6 +5,10 @@ import Groq from "groq-sdk";
 import { GoogleGenAI } from "@google/genai";
 import nodemailer from "nodemailer";
 import crypto from "crypto";
+import { initializeApp, getApps, getApp, App } from "firebase-admin/app";
+import { getFirestore } from "firebase-admin/firestore";
+import { getMessaging } from "firebase-admin/messaging";
+import firebaseConfig from "./firebase-applet-config.json";
 
 async function startServer() {
   const app = express();
@@ -501,6 +505,179 @@ async function startServer() {
 
   app.get("/api/admin/verify", verifyAdminSession, (req: Request, res: Response) => {
     res.json({ valid: true, timestamp: new Date().toISOString() });
+  });
+
+  // ==========================================
+  // FIREBASE ADMIN & FCM NOTIFICATION SYSTEM
+  // ==========================================
+  let firebaseAdminApp: App | null = null;
+  try {
+    if (!getApps().length) {
+      firebaseAdminApp = initializeApp({
+        projectId: firebaseConfig.projectId
+      });
+    } else {
+      firebaseAdminApp = getApp();
+    }
+  } catch (err) {
+    console.warn("Firebase Admin SDK initialization notice:", err);
+  }
+
+  const getAdminDb = () => {
+    const dbId = firebaseConfig.firestoreDatabaseId || '(default)';
+    return getFirestore(firebaseAdminApp!, dbId);
+  };
+
+  interface SendNotificationOptions {
+    userId: string;
+    category: 'reminders' | 'hydration' | 'sleep' | 'wellness' | 'product_updates' | 'vitals' | 'nutri' | 'ai' | 'emergency' | 'wearable' | 'system';
+    title: string;
+    body: string;
+    route?: string;
+    entityId?: string;
+  }
+
+  const sendNotificationToUser = async (options: SendNotificationOptions): Promise<{ success: boolean; sentCount: number; failedCount: number; reason?: string }> => {
+    const { userId, category, title, body, route, entityId } = options;
+    if (!userId) return { success: false, sentCount: 0, failedCount: 0, reason: "Missing userId" };
+
+    try {
+      const db = getAdminDb();
+
+      // 1. Check user notification preferences
+      const prefSnap = await db.collection('users').doc(userId).collection('notificationPreferences').doc('settings').get();
+      if (prefSnap.exists) {
+        const prefs = prefSnap.data();
+        if (prefs?.globalEnabled === false) {
+          return { success: false, sentCount: 0, failedCount: 0, reason: "User has globally disabled notifications." };
+        }
+        if (category in prefs && prefs[category] === false) {
+          return { success: false, sentCount: 0, failedCount: 0, reason: `User has disabled notifications for category: ${category}` };
+        }
+      }
+
+      // 2. Fetch active notification tokens for multi-device support
+      const tokensSnap = await db.collection('users').doc(userId).collection('notificationTokens').where('enabled', '!=', false).get();
+      let tokenDocs = tokensSnap.docs;
+
+      // Fallback to legacy fcmTokens collection if notificationTokens is empty
+      if (tokenDocs.length === 0) {
+        const legacySnap = await db.collection('users').doc(userId).collection('fcmTokens').get();
+        tokenDocs = legacySnap.docs;
+      }
+
+      if (tokenDocs.length === 0) {
+        return { success: false, sentCount: 0, failedCount: 0, reason: "No registered FCM tokens found for user." };
+      }
+
+      // 3. Persist notification entry to user's notifications collection
+      await db.collection('users').doc(userId).collection('notifications').add({
+        title,
+        body,
+        type: category,
+        read: false,
+        timestamp: new Date().toISOString(),
+        actionUrl: route || '/'
+      });
+
+      // 4. Send FCM Push Notification to user's tokens
+      let sentCount = 0;
+      let failedCount = 0;
+
+      for (const tokenDoc of tokenDocs) {
+        const token = tokenDoc.data().token;
+        if (!token) continue;
+
+        try {
+          await getMessaging(firebaseAdminApp!).send({
+            token,
+            notification: {
+              title,
+              body
+            },
+            data: {
+              type: category || 'reminders',
+              title,
+              body,
+              route: route || '/',
+              entityId: entityId || '',
+              timestamp: new Date().toISOString()
+            },
+            webpush: {
+              fcmOptions: {
+                link: route || '/'
+              },
+              notification: {
+                title,
+                body,
+                icon: '/logo.svg',
+                badge: '/favicon.svg'
+              }
+            }
+          });
+          sentCount++;
+        } catch (fcmErr: any) {
+          failedCount++;
+          const errCode = String(fcmErr?.code || fcmErr?.message || '');
+          console.warn(`FCM send notice for token ${token.slice(0, 10)}...:`, errCode);
+
+          if (
+            errCode.includes('invalid-registration-token') ||
+            errCode.includes('registration-token-not-registered') ||
+            errCode.includes('messaging/invalid-argument')
+          ) {
+            await tokenDoc.ref.update({ enabled: false, updatedAt: new Date().toISOString() }).catch(() => {});
+          }
+        }
+      }
+
+      return { success: sentCount > 0, sentCount, failedCount };
+    } catch (err: any) {
+      console.error("sendNotificationToUser error:", err);
+      return { success: false, sentCount: 0, failedCount: 0, reason: err?.message || String(err) };
+    }
+  };
+
+  // Secure Server Route for Dispatched Notifications
+  app.post("/api/notifications/send", generalRateLimiter, async (req: Request, res: Response) => {
+    const { userId, category, title, body, route, entityId } = req.body;
+    if (!userId || !title || !body) {
+      return res.status(400).json({ error: "Missing required parameters: userId, title, body." });
+    }
+
+    const result = await sendNotificationToUser({
+      userId: sanitizeText(userId),
+      category: category || 'reminders',
+      title: sanitizeText(title),
+      body: sanitizeText(body),
+      route: route ? sanitizeText(route) : '/',
+      entityId: entityId ? sanitizeText(entityId) : ''
+    });
+
+    return res.json(result);
+  });
+
+  // Admin Development Test Notification Endpoint (Requirement 14)
+  app.post("/api/admin/send-test-notification", verifyAdminSession, async (req: Request, res: Response) => {
+    const { targetUserId, title, body, category, route } = req.body;
+    if (!targetUserId) {
+      return res.status(400).json({ error: "Missing required parameter: targetUserId." });
+    }
+
+    const result = await sendNotificationToUser({
+      userId: sanitizeText(targetUserId),
+      category: category || 'reminders',
+      title: sanitizeText(title) || 'Genova Test Notification',
+      body: sanitizeText(body) || 'Firebase Cloud Messaging notifications are working.',
+      route: route ? sanitizeText(route) : '/scan'
+    });
+
+    return res.json({
+      success: result.success,
+      sentCount: result.sentCount,
+      failedCount: result.failedCount,
+      reason: result.reason
+    });
   });
 
   app.post("/api/admin/logout", (req: Request, res: Response) => {

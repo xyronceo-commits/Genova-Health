@@ -3,7 +3,7 @@ import * as React from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { UserProfile } from './types';
 import { STORAGE_KEYS } from './constants';
-import { auth, getUserProfile, logout, saveUserProfile, testConnection, onAuthStateChanged } from './services/firebase';
+import { auth, getUserProfile, logout, saveUserProfile, testConnection, onAuthStateChanged, listenToForegroundPushMessages, deactivateFcmTokenOnLogout } from './services/firebase';
 import Dashboard from './components/Dashboard';
 import Onboarding from './components/Onboarding';
 import SmartScan from './components/SmartScan';
@@ -18,12 +18,33 @@ import Legal from './components/Legal';
 import { SecureAccessModal } from './components/SecureAccessModal';
 import { AdminDashboard } from './components/AdminDashboard';
 import { GenovaLogo } from './components/GenovaLogo';
+import { NotificationPermissionPrompt } from './components/NotificationPermissionPrompt';
 
 const App = () => {
   const [user, setUser] = React.useState<UserProfile | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [isSecureAccessOpen, setIsSecureAccessOpen] = React.useState(false);
   const [adminToken, setAdminToken] = React.useState<string | null>(null);
+  const [foregroundToast, setForegroundToast] = React.useState<{ title: string; body: string; route?: string } | null>(null);
+
+  // Listen to incoming foreground FCM push notifications
+  React.useEffect(() => {
+    let unsubscribe: (() => void) | undefined;
+    listenToForegroundPushMessages((payload) => {
+      const title = payload.notification?.title || payload.data?.title || 'Genova Activity Alert';
+      const body = payload.notification?.body || payload.data?.body || 'New activity recorded.';
+      const route = payload.data?.route || payload.data?.actionUrl || '/scan';
+      
+      setForegroundToast({ title, body, route });
+      setTimeout(() => setForegroundToast(null), 6000);
+    }).then(unsub => {
+      unsubscribe = unsub;
+    });
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, []);
 
   // Check if admin session cookie exists on server
   React.useEffect(() => {
@@ -209,6 +230,9 @@ const App = () => {
   };
 
   const handleLogout = () => {
+    if (auth.currentUser) {
+      deactivateFcmTokenOnLogout(auth.currentUser.uid).catch(() => {});
+    }
     logout().catch(err => console.error("Sign-out error:", err));
     Object.values(STORAGE_KEYS).forEach(key => {
       localStorage.removeItem(key);
@@ -297,6 +321,38 @@ const App = () => {
           onClose={() => setIsSecureAccessOpen(false)} 
           onSuccess={handleAdminLoginSuccess} 
         />
+
+        {/* Non-aggressive Notification Opt-in Prompt */}
+        {user && <NotificationPermissionPrompt userId={auth.currentUser?.uid} />}
+
+        {/* Foreground Push Notification Toast */}
+        {foregroundToast && (
+          <div className="fixed top-5 right-5 z-50 bg-white dark:bg-gray-800 border border-blue-100 dark:border-blue-900 shadow-2xl rounded-2xl p-4 max-w-sm animate-in fade-in slide-in-from-top-4 duration-300">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <span className="text-[10px] font-black uppercase text-blue-600 dark:text-blue-400 tracking-wider">Activity Notification</span>
+                <h4 className="font-bold text-sm text-gray-900 dark:text-white leading-tight">{foregroundToast.title}</h4>
+                <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">{foregroundToast.body}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setForegroundToast(null)}
+                className="text-gray-400 hover:text-gray-600 text-xs p-1"
+              >
+                ✕
+              </button>
+            </div>
+            {foregroundToast.route && (
+              <a
+                href={`#${foregroundToast.route}`}
+                onClick={() => setForegroundToast(null)}
+                className="mt-3 block text-center py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl transition-all"
+              >
+                View Activity Details
+              </a>
+            )}
+          </div>
+        )}
       </div>
     </Router>
   );

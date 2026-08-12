@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { UserProfile } from '../types';
 import { GenovaLogo } from './GenovaLogo';
+import { NotificationCenter } from './NotificationCenter';
 
 interface Props {
   isDarkMode: boolean;
@@ -67,6 +68,9 @@ export const Navigation: React.FC<Props> = ({ isDarkMode, toggleDarkMode, user, 
         </div>
 
         <div className="flex items-center gap-1.5">
+          {/* Real-time Push Notification Bell */}
+          <NotificationCenter user={user} />
+
           {/* Discreet Shield Icon for Secure Access */}
           <button
             type="button"
@@ -262,6 +266,9 @@ export const Navigation: React.FC<Props> = ({ isDarkMode, toggleDarkMode, user, 
           </NavLink>
 
           <div className="flex items-center gap-1">
+            {/* Real-time Push Notification Bell for Desktop */}
+            <NotificationCenter user={user} />
+
             {/* Discreet Shield Icon inside Sidebar Header (No floating overlay over page content!) */}
             {isDesktopExpanded && (
               <button

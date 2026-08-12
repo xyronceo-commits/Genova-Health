@@ -6,7 +6,7 @@ import { Camera, Zap, ShieldCheck, X, AlertCircle, Heart, Info, Activity, Utensi
 import { UserProfile } from '../types';
 import { STORAGE_KEYS } from '../constants';
 import { ai } from '../services/ai';
-import { auth, addHealthMetric, saveFoodScan } from '../services/firebase';
+import { auth, addHealthMetric, saveFoodScan, sendActivityNotification } from '../services/firebase';
 
 type ScanMode = 'choosing' | 'vitals_sync' | 'nutrition_camera';
 type NutriTab = 'camera' | 'manual';
@@ -156,6 +156,12 @@ const SmartScan: React.FC<Props> = ({ user }) => {
       
       if (auth.currentUser) {
         await saveFoodScan(auth.currentUser.uid, analysis);
+        await sendActivityNotification(auth.currentUser.uid, {
+          title: 'NutriScan Meal Logged',
+          body: `${analysis.foodName || 'Meal'} logged (${analysis.calories || 0} kcal). Nutritional breakdown saved.`,
+          type: 'nutri',
+          actionUrl: '/scan'
+        });
       }
 
       setResults({ type: 'nutrition', ...analysis });

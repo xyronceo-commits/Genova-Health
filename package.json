@@ -14,6 +14,7 @@
     "@google/genai": "^1.51.0",
     "express": "^5.2.1",
     "firebase": "^12.12.1",
+    "firebase-admin": "^14.2.0",
     "groq-sdk": "^1.2.1",
     "lucide-react": "^0.562.0",
     "motion": "^12.38.0",

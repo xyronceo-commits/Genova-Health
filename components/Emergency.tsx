@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { UserProfile, EmergencyContact } from '../types';
 import { STORAGE_KEYS } from '../constants';
 import { ai } from '../services/ai';
+import { auth, sendActivityNotification } from '../services/firebase';
 
 interface Props {
   user: UserProfile;
@@ -122,6 +123,15 @@ const Emergency: React.FC<Props> = ({ user }) => {
     setBroadcasting(true);
     setShowBroadcastModal(true);
     setAlertProgress({});
+
+    if (auth.currentUser?.uid) {
+      sendActivityNotification(auth.currentUser.uid, {
+        title: 'EMERGENCY SOS BROADCASTED',
+        body: `Emergency alert dispatched to ${selectedContacts.length} contacts. Live GPS coordinates broadcasted.`,
+        type: 'emergency',
+        actionUrl: '/emergency'
+      });
+    }
 
     selectedContacts.forEach((contact, idx) => {
       setTimeout(() => {

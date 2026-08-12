@@ -57,6 +57,35 @@ service cloud.firestore {
              data.timestamp is string && data.timestamp.size() <= 50;
     }
 
+    function isValidNotification(data) {
+      return data.title is string && data.title.size() <= 200 &&
+             data.body is string && data.body.size() <= 1000 &&
+             data.type is string && data.type.size() <= 50 &&
+             data.read is bool &&
+             data.timestamp is string && data.timestamp.size() <= 50;
+    }
+
+    function isValidFcmToken(data) {
+      return data.token is string && data.token.size() <= 500 &&
+             data.updatedAt is string && data.updatedAt.size() <= 50;
+    }
+
+    function isValidNotificationToken(data) {
+      return data.token is string && data.token.size() <= 500 &&
+             (data.get('platform', '') is string && data.get('platform', '').size() <= 100) &&
+             (data.get('deviceInfo', '') is string && data.get('deviceInfo', '').size() <= 300) &&
+             data.updatedAt is string && data.updatedAt.size() <= 50;
+    }
+
+    function isValidNotificationPreferences(data) {
+      return data.globalEnabled is bool &&
+             data.reminders is bool &&
+             data.hydration is bool &&
+             data.sleep is bool &&
+             data.wellness is bool &&
+             data.product_updates is bool;
+    }
+
     // Collection Rules
     match /users/{userId} {
       allow get: if isOwner(userId);
@@ -83,6 +112,26 @@ service cloud.firestore {
         allow list, get: if isOwner(userId);
         allow create: if isOwner(userId) && isValidFoodScan(incoming());
         allow delete: if isOwner(userId);
+      }
+
+      match /notifications/{notificationId} {
+        allow list, get: if isOwner(userId);
+        allow create, update, delete: if isOwner(userId) && isValidNotification(incoming());
+      }
+
+      match /fcmTokens/{tokenId} {
+        allow list, get: if isOwner(userId);
+        allow create, update, delete: if isOwner(userId) && isValidFcmToken(incoming());
+      }
+
+      match /notificationTokens/{tokenId} {
+        allow list, get: if isOwner(userId);
+        allow create, update, delete: if isOwner(userId) && isValidNotificationToken(incoming());
+      }
+
+      match /notificationPreferences/{prefId} {
+        allow list, get: if isOwner(userId);
+        allow create, update, delete: if isOwner(userId) && isValidNotificationPreferences(incoming());
       }
     }
     

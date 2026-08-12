@@ -10,6 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import { STORAGE_KEYS } from '../constants';
 import { UserProfile } from '../types';
 import { ai } from '../services/ai';
+import { auth, sendActivityNotification } from '../services/firebase';
 
 interface Props {
   user: UserProfile;
@@ -157,6 +158,15 @@ const Wearables: React.FC<Props> = ({ user }) => {
       setIsScanning(false);
       setScanStatus('');
       triggerToast(`Bluetooth Connected: ${deviceData.name}`, 'success');
+
+      if (auth.currentUser?.uid) {
+        sendActivityNotification(auth.currentUser.uid, {
+          title: 'Wearable Connected',
+          body: `${deviceData.name} paired. Live BLE GATT telemetry streaming enabled.`,
+          type: 'wearable',
+          actionUrl: '/wearables'
+        });
+      }
     }, 600);
   };
 
