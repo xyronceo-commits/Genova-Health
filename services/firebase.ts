@@ -7,6 +7,7 @@ import {
   signInWithEmailAndPassword as fbSignInWithEmail,
   createUserWithEmailAndPassword as fbCreateUserWithEmail,
   onAuthStateChanged as fbOnAuthStateChanged,
+  sendEmailVerification as fbSendEmailVerification,
   User as FirebaseUser
 } from 'firebase/auth';
 import { 
@@ -126,6 +127,22 @@ export const signInWithEmailAndPassword = async (_authInstance: any, email: stri
 
 export const createUserWithEmailAndPassword = async (_authInstance: any, email: string, pass: string) => {
   return await fbCreateUserWithEmail(auth, email, pass);
+};
+
+export const sendFirebaseEmailVerification = async (targetUser?: FirebaseUser | null): Promise<void> => {
+  const userToSend = targetUser || auth.currentUser;
+  if (!userToSend) {
+    throw new Error('No authenticated user found to send verification email.');
+  }
+  await fbSendEmailVerification(userToSend);
+};
+
+export const reloadFirebaseUser = async (): Promise<FirebaseUser | null> => {
+  if (auth.currentUser) {
+    await auth.currentUser.reload();
+    return auth.currentUser;
+  }
+  return null;
 };
 
 export const logout = async () => {

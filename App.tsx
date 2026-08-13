@@ -3,7 +3,7 @@ import * as React from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { UserProfile } from './types';
 import { STORAGE_KEYS } from './constants';
-import { auth, getUserProfile, logout, saveUserProfile, testConnection, onAuthStateChanged, listenToForegroundPushMessages, deactivateFcmTokenOnLogout } from './services/firebase';
+import { auth, getUserProfile, logout, saveUserProfile, testConnection, onAuthStateChanged, listenToForegroundPushMessages, deactivateFcmTokenOnLogout, reloadFirebaseUser } from './services/firebase';
 import Dashboard from './components/Dashboard';
 import Onboarding from './components/Onboarding';
 import SmartScan from './components/SmartScan';
@@ -19,6 +19,7 @@ import { SecureAccessModal } from './components/SecureAccessModal';
 import { AdminDashboard } from './components/AdminDashboard';
 import { GenovaLogo } from './components/GenovaLogo';
 import { NotificationPermissionPrompt } from './components/NotificationPermissionPrompt';
+import { EmailVerificationScreen } from './components/EmailVerificationScreen';
 
 const App = () => {
   const [user, setUser] = React.useState<UserProfile | null>(null);
@@ -181,29 +182,30 @@ const App = () => {
             setUser(profile as UserProfile);
             localStorage.setItem(STORAGE_KEYS.USER_PROFILE, JSON.stringify(profile));
           } else {
-            const local = localStorage.getItem(STORAGE_KEYS.USER_PROFILE);
-            if (local) {
-              setUser(JSON.parse(local));
-            } else {
-              setUser(null);
-            }
+            // Minimal profile fallback for signed-in user
+            const fallbackProfile: UserProfile = {
+              fullName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Member',
+              age: 25,
+              gender: 'male',
+              bloodGroup: 'O+' as any,
+              genotype: 'AA' as any,
+              height: 170,
+              weight: 70,
+              allergies: [],
+              emergencyContactName: '',
+              emergencyContactPhone: '',
+              stepGoal: 10000,
+              subscriptionStatus: 'gold'
+            };
+            setUser(fallbackProfile);
+            localStorage.setItem(STORAGE_KEYS.USER_PROFILE, JSON.stringify(fallbackProfile));
           }
-        } else {
-          const local = localStorage.getItem(STORAGE_KEYS.USER_PROFILE);
-          if (local) {
-            setUser(JSON.parse(local));
-          } else {
-            setUser(null);
-          }
-        }
-      } catch (err) {
-        console.error("Auth process error:", err);
-        const local = localStorage.getItem(STORAGE_KEYS.USER_PROFILE);
-        if (local) {
-          setUser(JSON.parse(local));
         } else {
           setUser(null);
         }
+      } catch (err) {
+        console.error("Auth process error:", err);
+        setUser(null);
       } finally {
         setLoading(false);
       }
@@ -259,6 +261,22 @@ const App = () => {
       <div className="text-blue-900 dark:text-blue-400 font-extrabold text-xl tracking-tight">Genova Health</div>
     </div>
   );
+
+  // Require Firebase Authentication email verification for password authenticated accounts
+  if (user && auth.currentUser && !auth.currentUser.emailVerified) {
+    return (
+      <EmailVerificationScreen
+        email={auth.currentUser.email || ''}
+        onVerificationComplete={async () => {
+          if (auth.currentUser) {
+            const profile = await getUserProfile(auth.currentUser.uid);
+            if (profile) setUser(profile as UserProfile);
+          }
+        }}
+        onCancel={handleLogout}
+      />
+    );
+  }
 
   return (
     <Router>

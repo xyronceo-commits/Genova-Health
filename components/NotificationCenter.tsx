@@ -129,11 +129,11 @@ export const NotificationCenter: React.FC<Props> = ({ user }) => {
   };
 
   return (
-    <>
+    <div className="relative inline-block">
       {/* Trigger Bell Button */}
       <button
         type="button"
-        onClick={() => setIsOpen(true)}
+        onClick={() => setIsOpen(!isOpen)}
         className="relative p-2 text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-700/60 rounded-xl transition-all"
         title="Activity Notifications"
         aria-label="Open activity notifications"
@@ -154,172 +154,283 @@ export const NotificationCenter: React.FC<Props> = ({ user }) => {
         </div>
       )}
 
-      {/* Slide-over Drawer Backdrop */}
+      {/* Conditionally rendered popup overlay */}
       {isOpen && (
-        <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 animate-in fade-in duration-200"
-          onClick={() => setIsOpen(false)}
-        />
-      )}
+        <>
+          {/* Backdrop */}
+          <div 
+            className="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 animate-in fade-in duration-150"
+            onClick={() => setIsOpen(false)}
+          />
 
-      {/* Slide-over Drawer Container */}
-      <div 
-        className={`fixed top-0 bottom-0 right-0 w-full sm:w-96 bg-white dark:bg-gray-800 z-50 shadow-2xl flex flex-col border-l border-gray-200 dark:border-gray-700 transition-transform duration-300 ease-in-out ${
-          isOpen ? 'translate-x-0' : 'translate-x-full'
-        }`}
-      >
-        {/* Drawer Header */}
-        <div className="p-4 border-b border-gray-100 dark:border-gray-700/80 flex items-center justify-between bg-gray-50/50 dark:bg-gray-900/50">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 rounded-xl">
-              <Bell size={18} />
-            </div>
-            <div>
-              <h3 className="font-extrabold text-sm text-gray-900 dark:text-white">Activity Notifications</h3>
-              <p className="text-[11px] text-gray-500 dark:text-gray-400 font-medium">Real-time Firebase push events</p>
-            </div>
-          </div>
+          {/* MOBILE: Bottom Sheet Overlay (<= 640px) */}
+          <div className="sm:hidden fixed bottom-0 inset-x-0 z-50 w-full max-h-[80vh] bg-white dark:bg-gray-800 rounded-t-3xl border-t border-gray-200 dark:border-gray-700 shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-5 duration-200">
+            {/* Sheet Handle */}
+            <div className="w-10 h-1 bg-gray-300 dark:bg-gray-600 rounded-full mx-auto my-2.5 shrink-0" />
 
-          <div className="flex items-center gap-2">
-            {unreadCount > 0 && (
-              <button
-                type="button"
-                onClick={() => markAllNotificationsAsRead(currentUserId, notifications)}
-                className="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
-                title="Mark all as read"
-              >
-                <CheckCheck size={14} /> Read all
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={() => setIsOpen(false)}
-              className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-white rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-            >
-              <X size={18} />
-            </button>
-          </div>
-        </div>
-
-        {/* Push Notification Permission Card & Test Trigger */}
-        <div className="p-4 border-b border-gray-100 dark:border-gray-700/80 bg-gradient-to-br from-blue-50 to-indigo-50/50 dark:from-blue-950/20 dark:to-indigo-950/20">
-          <div className="flex items-start justify-between gap-3">
-            <div className="space-y-1">
+            {/* Header */}
+            <div className="px-4 pb-3 border-b border-gray-100 dark:border-gray-700/80 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="text-xs font-black text-gray-900 dark:text-white">Firebase Web Push</span>
-                <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md ${
-                  permissionStatus === 'granted'
-                    ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300'
-                    : 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300'
-                }`}>
-                  {permissionStatus === 'granted' ? 'Enabled' : permissionStatus}
-                </span>
-              </div>
-              <p className="text-xs text-gray-600 dark:text-gray-300">
-                {permissionStatus === 'granted' 
-                  ? 'Active! Receiving instant background alerts for vital syncs and AI recommendations.' 
-                  : 'Enable browser permission to receive live push notifications when activities occur.'}
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-3 flex items-center gap-2">
-            {permissionStatus !== 'granted' && permissionStatus !== 'unsupported' && (
-              <button
-                type="button"
-                onClick={handleEnablePush}
-                disabled={isSubmittingPermission}
-                className="flex-1 py-2 px-3 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center justify-center gap-1.5"
-              >
-                <Sparkles size={14} /> Enable Push
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Category Filter Tabs */}
-        <div className="px-4 py-2 border-b border-gray-100 dark:border-gray-700/60 flex items-center gap-1.5 overflow-x-auto no-scrollbar bg-gray-50/30 dark:bg-gray-800/30">
-          {[
-            { id: 'all', label: 'All' },
-            { id: 'vitals', label: 'Vitals' },
-            { id: 'nutri', label: 'NutriScan' },
-            { id: 'ai', label: 'AI Advice' },
-            { id: 'emergency', label: 'Emergency' },
-            { id: 'wearable', label: 'Devices' }
-          ].map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
-                activeTab === tab.id
-                  ? 'bg-blue-600 text-white shadow-xs'
-                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Notifications Stream List */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-2.5">
-          {filteredNotifications.length > 0 ? (
-            filteredNotifications.map((notif) => (
-              <div
-                key={notif.id || notif.timestamp}
-                onClick={() => {
-                  if (notif.id) markNotificationAsRead(currentUserId, notif.id);
-                  if (notif.actionUrl) {
-                    setIsOpen(false);
-                    navigate(notif.actionUrl);
-                  }
-                }}
-                className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-start gap-3 relative group ${
-                  notif.read
-                    ? 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700/60 opacity-80'
-                    : 'bg-blue-50/60 dark:bg-blue-950/30 border-blue-100 dark:border-blue-900/50 shadow-2xs'
-                }`}
-              >
-                {!notif.read && (
-                  <span className="absolute top-3.5 right-3.5 w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
-                )}
-
-                <div className="p-2 bg-gray-100 dark:bg-gray-700 rounded-xl shrink-0 mt-0.5">
-                  {getNotificationIcon(notif.type)}
+                <div className="p-1.5 bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 rounded-lg">
+                  <Bell size={16} />
                 </div>
-
-                <div className="flex-1 min-w-0 pr-3 space-y-1">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-xs font-black text-gray-900 dark:text-white truncate">
-                      {notif.title}
-                    </h4>
-                  </div>
-
-                  <p className="text-xs text-gray-600 dark:text-gray-300 leading-snug line-clamp-2">
-                    {notif.body}
-                  </p>
-
-                  <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 block pt-0.5">
-                    {formatTimeAgo(notif.timestamp)}
+                <h3 className="font-extrabold text-sm text-gray-900 dark:text-white">Notifications</h3>
+                {unreadCount > 0 && (
+                  <span className="text-[10px] font-black bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300 px-2 py-0.5 rounded-full">
+                    {unreadCount} new
                   </span>
-                </div>
+                )}
               </div>
-            ))
-          ) : (
-            <div className="py-16 text-center space-y-3">
-              <div className="p-4 bg-gray-100 dark:bg-gray-700/50 rounded-full w-14 h-14 mx-auto flex items-center justify-center text-gray-400">
-                <Bell size={24} />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-gray-800 dark:text-gray-200">No Activity Notifications</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 max-w-xs mx-auto mt-1">
-                  When health vitals, NutriScan meals, or wearable telemetry are recorded, live push alerts will appear here.
-                </p>
+
+              <div className="flex items-center gap-2">
+                {unreadCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => markAllNotificationsAsRead(currentUserId, notifications)}
+                    className="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+                  >
+                    <CheckCheck size={14} /> Read all
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setIsOpen(false)}
+                  className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  <X size={18} />
+                </button>
               </div>
             </div>
-          )}
-        </div>
-      </div>
-    </>
+
+            {/* Compact Enable Push Banner */}
+            {permissionStatus !== 'granted' && permissionStatus !== 'unsupported' && (
+              <div className="px-4 py-2.5 bg-blue-50/80 dark:bg-blue-950/40 border-b border-blue-100 dark:border-blue-900/40 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Sparkles size={14} className="text-blue-600 dark:text-blue-400 shrink-0" />
+                  <span className="text-xs text-gray-700 dark:text-gray-200 font-medium truncate">Get live background push alerts</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleEnablePush}
+                  disabled={isSubmittingPermission}
+                  className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-2xs shrink-0 transition-all"
+                >
+                  {isSubmittingPermission ? 'Connecting...' : 'Enable'}
+                </button>
+              </div>
+            )}
+
+            {/* Category Filter Pills */}
+            <div className="px-3 py-2 border-b border-gray-100 dark:border-gray-700/60 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+              {[
+                { id: 'all', label: 'All' },
+                { id: 'vitals', label: 'Vitals' },
+                { id: 'nutri', label: 'Nutri' },
+                { id: 'ai', label: 'AI Advice' },
+                { id: 'emergency', label: 'Emergency' },
+                { id: 'wearable', label: 'Devices' }
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
+                    activeTab === tab.id
+                      ? 'bg-blue-600 text-white shadow-2xs'
+                      : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Notifications Stream List */}
+            <div className="flex-1 overflow-y-auto p-3 space-y-2 max-h-[50vh]">
+              {filteredNotifications.length > 0 ? (
+                filteredNotifications.map((notif) => (
+                  <div
+                    key={notif.id || notif.timestamp}
+                    onClick={() => {
+                      if (notif.id) markNotificationAsRead(currentUserId, notif.id);
+                      setIsOpen(false);
+                      if (notif.actionUrl) {
+                        navigate(notif.actionUrl);
+                      }
+                    }}
+                    className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-start gap-2.5 relative ${
+                      notif.read
+                        ? 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700/60 opacity-80'
+                        : 'bg-blue-50/70 dark:bg-blue-950/40 border-blue-100 dark:border-blue-900/50 shadow-2xs'
+                    }`}
+                  >
+                    {!notif.read && (
+                      <span className="absolute top-3 right-3 w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
+                    )}
+
+                    <div className="p-1.5 bg-gray-100 dark:bg-gray-700 rounded-xl shrink-0 mt-0.5">
+                      {getNotificationIcon(notif.type)}
+                    </div>
+
+                    <div className="flex-1 min-w-0 pr-2 space-y-0.5">
+                      <h4 className="text-xs font-bold text-gray-900 dark:text-white truncate">
+                        {notif.title}
+                      </h4>
+                      <p className="text-[11px] text-gray-600 dark:text-gray-300 leading-snug line-clamp-2">
+                        {notif.body}
+                      </p>
+                      <span className="text-[10px] font-medium text-gray-400 dark:text-gray-500 block">
+                        {formatTimeAgo(notif.timestamp)}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="py-10 text-center space-y-2">
+                  <div className="p-3 bg-gray-100 dark:bg-gray-700/50 rounded-full w-10 h-10 mx-auto flex items-center justify-center text-gray-400">
+                    <Bell size={20} />
+                  </div>
+                  <p className="text-xs font-bold text-gray-800 dark:text-gray-200">No notifications yet</p>
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                    Activity updates will appear here in real time.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* DESKTOP: Compact Popover Dropdown (> 640px) */}
+          <div className="hidden sm:flex fixed top-14 right-4 z-50 w-80 sm:w-96 max-h-[500px] bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-2xl flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            {/* Header */}
+            <div className="p-3.5 border-b border-gray-100 dark:border-gray-700/80 flex items-center justify-between bg-gray-50/50 dark:bg-gray-900/50">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 rounded-lg">
+                  <Bell size={16} />
+                </div>
+                <h3 className="font-extrabold text-sm text-gray-900 dark:text-white">Notifications</h3>
+                {unreadCount > 0 && (
+                  <span className="text-[10px] font-black bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300 px-2 py-0.5 rounded-full">
+                    {unreadCount} new
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2">
+                {unreadCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => markAllNotificationsAsRead(currentUserId, notifications)}
+                    className="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+                  >
+                    <CheckCheck size={14} /> Read all
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setIsOpen(false)}
+                  className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-white rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+
+            {/* Compact Enable Push Opt-in Banner */}
+            {permissionStatus !== 'granted' && permissionStatus !== 'unsupported' && (
+              <div className="px-3.5 py-2 bg-blue-50/80 dark:bg-blue-950/40 border-b border-blue-100 dark:border-blue-900/40 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Sparkles size={14} className="text-blue-600 dark:text-blue-400 shrink-0" />
+                  <span className="text-xs text-gray-700 dark:text-gray-200 font-medium truncate">Get background push alerts</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleEnablePush}
+                  disabled={isSubmittingPermission}
+                  className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-2xs shrink-0 transition-all"
+                >
+                  {isSubmittingPermission ? 'Connecting...' : 'Enable'}
+                </button>
+              </div>
+            )}
+
+            {/* Category Filter Pills */}
+            <div className="px-3 py-2 border-b border-gray-100 dark:border-gray-700/60 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+              {[
+                { id: 'all', label: 'All' },
+                { id: 'vitals', label: 'Vitals' },
+                { id: 'nutri', label: 'Nutri' },
+                { id: 'ai', label: 'AI Advice' },
+                { id: 'emergency', label: 'Emergency' },
+                { id: 'wearable', label: 'Devices' }
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
+                    activeTab === tab.id
+                      ? 'bg-blue-600 text-white shadow-2xs'
+                      : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Notifications Stream List */}
+            <div className="flex-1 overflow-y-auto p-3 space-y-2 max-h-[360px]">
+              {filteredNotifications.length > 0 ? (
+                filteredNotifications.map((notif) => (
+                  <div
+                    key={notif.id || notif.timestamp}
+                    onClick={() => {
+                      if (notif.id) markNotificationAsRead(currentUserId, notif.id);
+                      setIsOpen(false);
+                      if (notif.actionUrl) {
+                        navigate(notif.actionUrl);
+                      }
+                    }}
+                    className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-start gap-2.5 relative ${
+                      notif.read
+                        ? 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700/60 opacity-80'
+                        : 'bg-blue-50/70 dark:bg-blue-950/40 border-blue-100 dark:border-blue-900/50 shadow-2xs'
+                    }`}
+                  >
+                    {!notif.read && (
+                      <span className="absolute top-3 right-3 w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
+                    )}
+
+                    <div className="p-1.5 bg-gray-100 dark:bg-gray-700 rounded-xl shrink-0 mt-0.5">
+                      {getNotificationIcon(notif.type)}
+                    </div>
+
+                    <div className="flex-1 min-w-0 pr-2 space-y-0.5">
+                      <h4 className="text-xs font-bold text-gray-900 dark:text-white truncate">
+                        {notif.title}
+                      </h4>
+                      <p className="text-[11px] text-gray-600 dark:text-gray-300 leading-snug line-clamp-2">
+                        {notif.body}
+                      </p>
+                      <span className="text-[10px] font-medium text-gray-400 dark:text-gray-500 block">
+                        {formatTimeAgo(notif.timestamp)}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="py-12 text-center space-y-2">
+                  <div className="p-3 bg-gray-100 dark:bg-gray-700/50 rounded-full w-10 h-10 mx-auto flex items-center justify-center text-gray-400">
+                    <Bell size={20} />
+                  </div>
+                  <p className="text-xs font-bold text-gray-800 dark:text-gray-200">No notifications yet</p>
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                    Activity updates will appear here in real time.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
   );
 };

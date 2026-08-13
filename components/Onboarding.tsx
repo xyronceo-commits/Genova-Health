@@ -3,7 +3,7 @@ import * as React from 'react';
 import { UserProfile, BloodGroup, Genotype, EmergencyContact } from '../types';
 import { STORAGE_KEYS } from '../constants';
 import { User, ShieldCheck, ArrowRight, Dna, Sparkles, Activity, Heart, ArrowLeft, Target, Shield, Camera, Mic, MapPin, Bluetooth, Bot, Utensils, Phone, Mail, Globe, Apple, Lock, Loader2, Users, UserPlus, Trash2, Plus, Check, Contact, PhoneCall, ShieldAlert } from 'lucide-react';
-import { signInWithGoogle, auth, saveUserProfile, getUserProfile, createUserWithEmailAndPassword, signInWithEmailAndPassword } from '../services/firebase';
+import { signInWithGoogle, auth, saveUserProfile, getUserProfile, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendFirebaseEmailVerification } from '../services/firebase';
 import { GenovaLogo } from './GenovaLogo';
 import { EmailVerificationScreen } from './EmailVerificationScreen';
 
@@ -182,17 +182,48 @@ const Onboarding = ({ onComplete }: Props) => {
     setLoading(true);
     setError(null);
     try {
-      let userCredential;
       if (isLogin) {
-        userCredential = await signInWithEmailAndPassword(auth, email, password);
-        await handleAuthSuccess(userCredential.user.uid);
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        if (!userCredential.user.emailVerified) {
+          // Unverified email login -> prompt verification screen
+          try {
+            await sendFirebaseEmailVerification(userCredential.user);
+          } catch (e) {
+            // Ignore rate limit on resend during login
+          }
+          setPendingUid(userCredential.user.uid);
+          setShowVerificationScreen(true);
+        } else {
+          await handleAuthSuccess(userCredential.user.uid);
+        }
       } else {
-        userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        // Sign Up Flow
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        try {
+          await sendFirebaseEmailVerification(userCredential.user);
+        } catch (e) {
+          console.warn("Error sending initial verification email:", e);
+        }
+        
+        // Save user profile without marking as verified
+        const finalProfile = { ...profile, subscriptionStatus: 'gold' as const } as UserProfile;
+        await saveUserProfile(userCredential.user.uid, finalProfile);
+        
         setPendingUid(userCredential.user.uid);
         setShowVerificationScreen(true);
       }
     } catch (err: any) {
-      setError(err.message);
+      let friendlyError = err.message || 'Authentication failed.';
+      if (err.code === 'auth/email-already-in-use') {
+        friendlyError = 'An account with this email address already exists. Please login instead.';
+      } else if (err.code === 'auth/weak-password') {
+        friendlyError = 'Password should be at least 6 characters long.';
+      } else if (err.code === 'auth/invalid-email') {
+        friendlyError = 'Please enter a valid email address.';
+      } else if (err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
+        friendlyError = 'Invalid email or password. Please try again.';
+      }
+      setError(friendlyError);
     } finally {
       setLoading(false);
     }
@@ -202,7 +233,6 @@ const Onboarding = ({ onComplete }: Props) => {
     return (
       <EmailVerificationScreen
         email={email}
-        userId={pendingUid}
         onVerificationComplete={() => {
           setShowVerificationScreen(false);
           handleAuthSuccess(pendingUid);

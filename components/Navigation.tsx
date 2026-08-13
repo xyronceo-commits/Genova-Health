@@ -140,15 +140,6 @@ export const Navigation: React.FC<Props> = ({ isDarkMode, toggleDarkMode, user, 
               <span className="text-[10px] text-gray-500 dark:text-gray-400 font-mono truncate">{user.bloodGroup || 'A+'} • {user.genotype || 'AA'}</span>
             </div>
           </div>
-          {user.subscriptionStatus === 'gold' || user.subscriptionStatus === 'silver' ? (
-            <span className="px-2 py-0.5 bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-400 text-[10px] font-black rounded-lg uppercase tracking-wider border border-amber-300 dark:border-amber-800 flex items-center gap-1">
-              <Crown size={10} /> {user.subscriptionStatus.toUpperCase()}
-            </span>
-          ) : (
-            <NavLink to="/premium" onClick={() => setIsMobileOpen(false)} className="px-2 py-1 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[10px] font-bold rounded-lg shadow-sm flex items-center gap-1">
-              <Sparkles size={10} /> Upgrade
-            </NavLink>
-          )}
         </div>
 
         {/* Primary Navigation Links */}

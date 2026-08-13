@@ -5,6 +5,7 @@ import { User, Settings, Trash2, Save, ChevronLeft, Moon, Sun, Info, Shield, Shi
 import { useNavigate, Link } from 'react-router-dom';
 import { EmailVerificationScreen } from './EmailVerificationScreen';
 import { NotificationPreferencesCard } from './NotificationPreferencesCard';
+import { auth } from '../services/firebase';
 
 interface Props {
   user: UserProfile;
@@ -30,7 +31,8 @@ const Profile: React.FC<Props> = ({ user, onUpdate, onLogout, isDarkMode, toggle
   });
   const [showAddForm, setShowAddForm] = useState(false);
   const [showVerifyModal, setShowVerifyModal] = useState(false);
-  const [isEmailVerified, setIsEmailVerified] = useState(false);
+  const currentUserEmail = auth.currentUser?.email || '';
+  const isEmailVerified = Boolean(auth.currentUser?.emailVerified);
   const [newName, setNewName] = useState('');
   const [newPhone, setNewPhone] = useState('');
   const [newRel, setNewRel] = useState('Family');
@@ -96,19 +98,13 @@ const Profile: React.FC<Props> = ({ user, onUpdate, onLogout, isDarkMode, toggle
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-10 max-w-3xl mx-auto space-y-8 pb-12 transition-colors">
       {showVerifyModal && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="w-full max-w-md">
-            <EmailVerificationScreen
-              email={user.fullName ? `${user.fullName.toLowerCase().replace(/\s+/g, '.')}@genovahealth.com` : 'user@genovahealth.com'}
-              userId={'current_user'}
-              onVerificationComplete={() => {
-                setIsEmailVerified(true);
-                setShowVerifyModal(false);
-              }}
-              onCancel={() => setShowVerifyModal(false)}
-            />
-          </div>
-        </div>
+        <EmailVerificationScreen
+          email={currentUserEmail}
+          onVerificationComplete={() => {
+            setShowVerifyModal(false);
+          }}
+          onCancel={() => setShowVerifyModal(false)}
+        />
       )}
 
       <header className="flex items-center justify-between">
@@ -165,33 +161,41 @@ const Profile: React.FC<Props> = ({ user, onUpdate, onLogout, isDarkMode, toggle
               <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase ml-1">Email Verification Security</label>
               <div className="flex items-center justify-between p-3.5 bg-gray-50 dark:bg-gray-700/60 rounded-xl border border-gray-100 dark:border-gray-700">
                 <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-xl ${isEmailVerified ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400' : 'bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400'}`}>
+                  <div className={`p-2 rounded-xl ${isEmailVerified ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400' : 'bg-amber-100 text-amber-600 dark:bg-amber-950 dark:text-amber-400'}`}>
                     <Mail size={18} />
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-gray-900 dark:text-white">Email Security Status</span>
+                      <span className="text-xs font-bold text-gray-900 dark:text-white">
+                        {currentUserEmail || 'Email Verification'}
+                      </span>
                       {isEmailVerified ? (
                         <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 text-[10px] font-bold rounded-lg flex items-center gap-1 border border-emerald-300 dark:border-emerald-800">
                           <CheckCircle2 size={10} /> Verified
                         </span>
                       ) : (
-                        <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-400 text-[10px] font-bold rounded-lg border border-blue-300 dark:border-blue-800">
-                          Code Protected
+                        <span className="px-2 py-0.5 bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-400 text-[10px] font-bold rounded-lg border border-amber-300 dark:border-amber-800">
+                          Unverified
                         </span>
                       )}
                     </div>
-                    <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">Protected with 6-digit cryptographic verification code</p>
+                    <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+                      {isEmailVerified 
+                        ? "Protected with Firebase Authentication link verification" 
+                        : "Email link verification required for full access"}
+                    </p>
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => setShowVerifyModal(true)}
-                  className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl transition-all shadow-2xs shrink-0"
-                >
-                  {isEmailVerified ? "Re-verify" : "Verify Email"}
-                </button>
+                {!isEmailVerified && (
+                  <button
+                    type="button"
+                    onClick={() => setShowVerifyModal(true)}
+                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl transition-all shadow-2xs shrink-0"
+                  >
+                    Verify Email
+                  </button>
+                )}
               </div>
             </div>
           </div>
