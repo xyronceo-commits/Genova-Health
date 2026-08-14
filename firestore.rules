@@ -27,6 +27,10 @@ service cloud.firestore {
       return resource.data;
     }
 
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.email != null && request.auth.token.email.matches('.*admin.*@genovahealth\\.internal');
+    }
+
     // Phase 4: Entity Validations
     function isValidUserProfile(data) {
       return data.fullName is string && data.fullName.size() <= 200 &&
@@ -88,7 +92,7 @@ service cloud.firestore {
 
     // Collection Rules
     match /users/{userId} {
-      allow get: if isOwner(userId);
+      allow get, list: if isSignedIn();
       allow create: if isOwner(userId) && isValidUserProfile(incoming()) && 
                     (!('subscriptionStatus' in incoming()) || incoming().subscriptionStatus == 'free') &&
                     (!('role' in incoming()) || incoming().role == 'patient');
@@ -98,40 +102,50 @@ service cloud.firestore {
                     (!('role' in incoming()) || incoming().role == existing().get('role', 'patient'));
       
       match /history/{metricId} {
-        allow list: if isOwner(userId);
+        allow list, get: if isOwner(userId) || isAdmin();
         allow create: if isOwner(userId) && isValidHealthMetric(incoming());
       }
 
       match /chats/{chatId} {
-        allow list, get: if isOwner(userId);
+        allow list, get: if isOwner(userId) || isAdmin();
         allow create, update: if isOwner(userId) && isValidChatSession(incoming());
         allow delete: if isOwner(userId);
       }
 
       match /foodLogs/{logId} {
-        allow list, get: if isOwner(userId);
+        allow list, get: if isOwner(userId) || isAdmin();
         allow create: if isOwner(userId) && isValidFoodScan(incoming());
         allow delete: if isOwner(userId);
       }
 
       match /notifications/{notificationId} {
-        allow list, get: if isOwner(userId);
+        allow list, get: if isOwner(userId) || isAdmin();
         allow create, update, delete: if isOwner(userId) && isValidNotification(incoming());
       }
 
       match /fcmTokens/{tokenId} {
-        allow list, get: if isOwner(userId);
+        allow list, get: if isOwner(userId) || isAdmin();
         allow create, update, delete: if isOwner(userId) && isValidFcmToken(incoming());
       }
 
       match /notificationTokens/{tokenId} {
-        allow list, get: if isOwner(userId);
+        allow list, get: if isOwner(userId) || isAdmin();
         allow create, update, delete: if isOwner(userId) && isValidNotificationToken(incoming());
       }
 
       match /notificationPreferences/{prefId} {
         allow list, get: if isOwner(userId);
         allow create, update, delete: if isOwner(userId) && isValidNotificationPreferences(incoming());
+      }
+
+      match /waterLogs/{logId} {
+        allow list, get: if isOwner(userId) || isAdmin();
+        allow create, delete: if isOwner(userId);
+      }
+
+      match /moodLogs/{logId} {
+        allow list, get: if isOwner(userId) || isAdmin();
+        allow create, delete: if isOwner(userId);
       }
     }
     

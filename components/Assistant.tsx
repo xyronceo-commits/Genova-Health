@@ -99,7 +99,7 @@ const Assistant: React.FC<Props> = ({ user }) => {
       prompt: SYSTEM_PROMPTS.NURSE, 
       color: 'bg-blue-600', 
       icon: <Stethoscope size={24} />,
-      placeholder: 'Describe how you feel...'
+      placeholder: 'Type a message or share how you\'re doing...'
     },
     nutritionist: { 
       title: 'Genova Nutrition', 
@@ -107,7 +107,7 @@ const Assistant: React.FC<Props> = ({ user }) => {
       prompt: SYSTEM_PROMPTS.NUTRITIONIST, 
       color: 'bg-orange-500', 
       icon: <Utensils size={24} />,
-      placeholder: 'Ask about Nigerian meal plans...'
+      placeholder: 'Ask about meals, recipes, or nutrition...'
     },
     fitness: { 
       title: 'Fitness Coach', 
@@ -115,7 +115,7 @@ const Assistant: React.FC<Props> = ({ user }) => {
       prompt: SYSTEM_PROMPTS.FITNESS, 
       color: 'bg-green-600', 
       icon: <Activity size={24} />,
-      placeholder: 'Ask for a home workout...'
+      placeholder: 'Ask about workouts or activity targets...'
     },
     mental: { 
       title: 'Wellness Guide', 
@@ -123,7 +123,7 @@ const Assistant: React.FC<Props> = ({ user }) => {
       prompt: SYSTEM_PROMPTS.WELLNESS, 
       color: 'bg-purple-600', 
       icon: <Brain size={24} />,
-      placeholder: 'Talk about your mood or stress...'
+      placeholder: 'Share how you\'re feeling or talk through stress...'
     },
     symptom: { 
       title: 'Symptom Checker', 
@@ -131,7 +131,7 @@ const Assistant: React.FC<Props> = ({ user }) => {
       prompt: SYSTEM_PROMPTS.SYMPTOM_CHECKER, 
       color: 'bg-red-500', 
       icon: <ClipboardList size={24} />,
-      placeholder: 'List your symptoms (e.g. fever, headache)...'
+      placeholder: 'Tell me what you\'ve been experiencing...'
     },
     prescription: { 
       title: 'Medication Explainer', 
@@ -139,7 +139,7 @@ const Assistant: React.FC<Props> = ({ user }) => {
       prompt: SYSTEM_PROMPTS.PRESCRIPTION, 
       color: 'bg-indigo-600', 
       icon: <Pill size={24} />,
-      placeholder: 'Enter drug name (e.g. Lonart, Paracetamol)...'
+      placeholder: 'Enter a drug name or ask about medications...'
     },
     family: {
       title: 'Family Health',
@@ -147,7 +147,7 @@ const Assistant: React.FC<Props> = ({ user }) => {
       prompt: SYSTEM_PROMPTS.FAMILY,
       color: 'bg-pink-500',
       icon: <Baby size={24} />,
-      placeholder: 'Ask about baby care or growth...'
+      placeholder: 'Ask about child wellness, growth, or nutrition...'
     }
   }[type || 'nurse'] || { 
     title: 'Genova AI', 
@@ -155,7 +155,7 @@ const Assistant: React.FC<Props> = ({ user }) => {
     prompt: SYSTEM_PROMPTS.NURSE, 
     color: 'bg-blue-600', 
     icon: <Bot size={24} />,
-    placeholder: 'How can I help?'
+    placeholder: 'How can I help you today?'
   };
 
   const loadSessions = async () => {
@@ -195,13 +195,13 @@ const Assistant: React.FC<Props> = ({ user }) => {
     
     // Welcome message
     const welcomeMessages: Record<string, string> = {
-      nurse: `Hi ${user.fullName?.split(' ')[0] || 'there'}, I'm Nurse Genova. How are you feeling today?`,
-      nutritionist: `Hello! I can help you create a meal plan tailored for ${user.genotype} genotype. What's on the menu?`,
-      fitness: `Ready to get active? I can suggest exercises for your weight (${user.weight}kg) and goals.`,
-      mental: `Take a deep breath. I'm here to support your mental wellness. How's your mood?`,
-      symptom: `Let's analyze your symptoms. Please be descriptive about how you feel.`,
-      prescription: `I can explain how your medications work. Which drug are you taking?`,
-      family: `Hi! I'm here for you and your family's health. Ask me about baby growth, immunizations, or child nutrition.`
+      nurse: `Hi ${user.fullName?.split(' ')[0] || 'there'}! I'm Nurse Genova. How can I help you today?`,
+      nutritionist: `Hello! 👋 I can help you with meal ideas and nutrition tailored for your ${user.genotype} genotype. What would you like to explore today?`,
+      fitness: `Hi there! Ready to get moving? I can help with exercises suited for your goals. What would you like to work on?`,
+      mental: `Hello! I'm here to support your mental well-being and stress relief. How are you feeling today?`,
+      symptom: `Hello! 👋 If you're experiencing any health concerns or symptoms you'd like to discuss, I'm here to help talk through them.`,
+      prescription: `Hi! I can explain how medications work, including dosages and interactions. What drug or question do you have?`,
+      family: `Hi! 👋 I'm here for you and your family's health needs. Feel free to ask about baby care, immunizations, or nutrition.`
     };
 
     const initialMessage: Message = { 

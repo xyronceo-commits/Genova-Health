@@ -6,6 +6,9 @@ import { User, ShieldCheck, ArrowRight, Dna, Sparkles, Activity, Heart, ArrowLef
 import { signInWithGoogle, auth, saveUserProfile, getUserProfile, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendFirebaseEmailVerification } from '../services/firebase';
 import { GenovaLogo } from './GenovaLogo';
 import { EmailVerificationScreen } from './EmailVerificationScreen';
+import { OfflineSyncBadge } from './OfflineSyncBadge';
+import { WaterIntakeWidget } from './WaterIntakeWidget';
+import { MoodTrackerWidget } from './MoodTrackerWidget';
 
 interface Props {
   onComplete: (profile: UserProfile) => void;
@@ -256,6 +259,9 @@ const Onboarding = ({ onComplete }: Props) => {
 
       <div className="flex-1 flex flex-col items-center justify-center p-6 md:p-12 relative">
         <div className="w-full max-w-xl">
+          <div className="flex justify-end mb-3">
+            <OfflineSyncBadge />
+          </div>
           
           <div className="space-y-8">
             
@@ -626,6 +632,21 @@ const Onboarding = ({ onComplete }: Props) => {
                       ))}
                     </div>
                   </InputGroup>
+
+                  {/* Initial Health Check-In (Offline Logged & Synced) */}
+                  <div className="pt-2 border-t border-gray-100 dark:border-gray-800 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-xs font-black uppercase tracking-widest text-gray-900 dark:text-white">
+                        Initial Health Logging (Offline Cached)
+                      </h3>
+                      <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/40 px-2.5 py-0.5 rounded-full">
+                        Auto-Synced
+                      </span>
+                    </div>
+
+                    <WaterIntakeWidget uid={auth.currentUser?.uid || 'guest'} compact={true} />
+                    <MoodTrackerWidget uid={auth.currentUser?.uid || 'guest'} compact={true} />
+                  </div>
                 </div>
 
                 <div className="bg-gray-900 dark:bg-blue-900/30 p-6 rounded-[2rem] flex items-center gap-4 border border-gray-800">

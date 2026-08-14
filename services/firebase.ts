@@ -160,14 +160,175 @@ export async function testConnection() {
 }
 
 // User Profile Firestore + Local Storage Sync
+export interface OfflineQueueItem {
+  id: string;
+  type: 'WATER_LOG' | 'MOOD_LOG' | 'HEALTH_METRIC' | 'USER_PROFILE' | 'FOOD_LOG';
+  uid: string;
+  data: any;
+  timestamp: string;
+  attempts?: number;
+}
+
+export interface WaterLog {
+  id: string;
+  amountMl: number;
+  goalMl: number;
+  note?: string;
+  timestamp: string;
+  synced?: boolean;
+}
+
+export interface MoodLog {
+  id: string;
+  mood: string;
+  score: number;
+  note?: string;
+  timestamp: string;
+  synced?: boolean;
+}
+
+// Offline Queue & Sync Engine
+export const queueOfflineAction = (type: OfflineQueueItem['type'], uid: string, data: any): OfflineQueueItem => {
+  const queueItem: OfflineQueueItem = {
+    id: `sync_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+    type,
+    uid: uid || 'guest',
+    data,
+    timestamp: new Date().toISOString(),
+    attempts: 0
+  };
+
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.OFFLINE_SYNC_QUEUE);
+    const queue: OfflineQueueItem[] = raw ? JSON.parse(raw) : [];
+    queue.push(queueItem);
+    localStorage.setItem(STORAGE_KEYS.OFFLINE_SYNC_QUEUE, JSON.stringify(queue));
+    
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('genova_offline_queue_changed', { detail: { count: queue.length } }));
+    }
+  } catch (e) {
+    console.error("Failed to write to offline sync queue:", e);
+  }
+
+  return queueItem;
+};
+
+export const getOfflineQueue = (): OfflineQueueItem[] => {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.OFFLINE_SYNC_QUEUE);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    return [];
+  }
+};
+
+export const clearOfflineQueueItem = (id: string) => {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.OFFLINE_SYNC_QUEUE);
+    if (!raw) return;
+    const queue: OfflineQueueItem[] = JSON.parse(raw);
+    const updated = queue.filter(item => item.id !== id);
+    localStorage.setItem(STORAGE_KEYS.OFFLINE_SYNC_QUEUE, JSON.stringify(updated));
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('genova_offline_queue_changed', { detail: { count: updated.length } }));
+    }
+  } catch (e) {
+    console.error("Error clearing queue item:", e);
+  }
+};
+
+let isSyncingQueue = false;
+
+export const syncOfflineQueue = async (targetUid?: string): Promise<{ synced: number; remaining: number }> => {
+  if (isSyncingQueue) return { synced: 0, remaining: getOfflineQueue().length };
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    return { synced: 0, remaining: getOfflineQueue().length };
+  }
+
+  const queue = getOfflineQueue();
+  if (queue.length === 0) return { synced: 0, remaining: 0 };
+
+  isSyncingQueue = true;
+  let synced = 0;
+  const remainingItems: OfflineQueueItem[] = [];
+
+  for (const item of queue) {
+    const activeUid = item.uid || targetUid || auth.currentUser?.uid;
+    if (!activeUid) {
+      remainingItems.push(item);
+      continue;
+    }
+
+    try {
+      if (item.type === 'WATER_LOG') {
+        const waterCol = collection(db, 'users', activeUid, 'waterLogs');
+        await addDoc(waterCol, {
+          ...item.data,
+          syncedAt: new Date().toISOString()
+        });
+        synced++;
+      } else if (item.type === 'MOOD_LOG') {
+        const moodCol = collection(db, 'users', activeUid, 'moodLogs');
+        await addDoc(moodCol, {
+          ...item.data,
+          syncedAt: new Date().toISOString()
+        });
+        synced++;
+      } else if (item.type === 'HEALTH_METRIC') {
+        const historyCol = collection(db, 'users', activeUid, 'history');
+        await addDoc(historyCol, item.data);
+        synced++;
+      } else if (item.type === 'USER_PROFILE') {
+        const userDocRef = doc(db, 'users', activeUid);
+        await setDoc(userDocRef, item.data, { merge: true });
+        synced++;
+      } else if (item.type === 'FOOD_LOG') {
+        const foodCol = collection(db, 'users', activeUid, 'foodLogs');
+        await addDoc(foodCol, item.data);
+        synced++;
+      }
+    } catch (err) {
+      console.warn(`Sync queue item ${item.id} (${item.type}) failed, keeping in queue:`, err);
+      item.attempts = (item.attempts || 0) + 1;
+      remainingItems.push(item);
+    }
+  }
+
+  try {
+    localStorage.setItem(STORAGE_KEYS.OFFLINE_SYNC_QUEUE, JSON.stringify(remainingItems));
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('genova_offline_queue_changed', { detail: { count: remainingItems.length } }));
+      if (synced > 0) {
+        window.dispatchEvent(new CustomEvent('genova_sync_completed', { detail: { syncedCount: synced } }));
+      }
+    }
+  } catch (e) {
+    console.error("Error writing remaining offline queue:", e);
+  } finally {
+    isSyncingQueue = false;
+  }
+
+  return { synced, remaining: remainingItems.length };
+};
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('online', () => {
+    console.log("Device back online. Auto-syncing queued offline health entries to Firestore...");
+    syncOfflineQueue();
+  });
+}
+
+// User Profile Firestore + Local Storage Sync
 export const getUserProfile = async (uid: string) => {
   try {
-    if (uid) {
+    if (uid && typeof navigator !== 'undefined' && navigator.onLine) {
       const userDocRef = doc(db, 'users', uid);
       const snapshot = await getDoc(userDocRef);
       if (snapshot.exists()) {
         const data = snapshot.data();
         localStorage.setItem(STORAGE_KEYS.USER_PROFILE, JSON.stringify(data));
+        localStorage.setItem(`genova_profile_${uid}`, JSON.stringify(data));
         return data;
       }
     }
@@ -177,7 +338,7 @@ export const getUserProfile = async (uid: string) => {
 
   // Fallback to local storage
   try {
-    const local = localStorage.getItem(STORAGE_KEYS.USER_PROFILE);
+    const local = localStorage.getItem(`genova_profile_${uid}`) || localStorage.getItem(STORAGE_KEYS.USER_PROFILE);
     if (local) return JSON.parse(local);
   } catch (e) {
     // ignore
@@ -194,18 +355,24 @@ export const saveUserProfile = async (uid: string, profile: any) => {
   // 1. Save to local storage
   try {
     localStorage.setItem(STORAGE_KEYS.USER_PROFILE, JSON.stringify(profileWithTimestamp));
-    localStorage.setItem(`genova_profile_${uid}`, JSON.stringify(profileWithTimestamp));
+    if (uid) {
+      localStorage.setItem(`genova_profile_${uid}`, JSON.stringify(profileWithTimestamp));
+    }
   } catch (e) {
     console.error("Local profile write error:", e);
   }
 
-  // 2. Save to Firestore
-  if (uid) {
+  // 2. Queue for offline sync
+  queueOfflineAction('USER_PROFILE', uid || 'guest', profileWithTimestamp);
+
+  // 3. Save to Firestore if online
+  if (uid && typeof navigator !== 'undefined' && navigator.onLine) {
     try {
       const userDocRef = doc(db, 'users', uid);
       await setDoc(userDocRef, profileWithTimestamp, { merge: true });
+      syncOfflineQueue(uid).catch(() => {});
     } catch (err) {
-      console.warn("Firestore saveUserProfile error (saved locally):", err);
+      console.warn("Firestore saveUserProfile error (saved locally & queued for sync):", err);
     }
   }
 };
@@ -219,7 +386,7 @@ export const addHealthMetric = async (uid: string, metric: any) => {
     timestamp: new Date().toISOString()
   };
 
-  // Local storage save
+  // 1. Local storage save
   try {
     const localHist = localStorage.getItem(STORAGE_KEYS.HEALTH_HISTORY);
     const history = localHist ? JSON.parse(localHist) : [];
@@ -229,15 +396,171 @@ export const addHealthMetric = async (uid: string, metric: any) => {
     console.error("Local metric write error:", e);
   }
 
-  // Firestore save
-  if (uid) {
+  // 2. Queue for offline sync
+  queueOfflineAction('HEALTH_METRIC', uid || 'guest', newMetric);
+
+  // 3. Firestore save if online
+  if (uid && typeof navigator !== 'undefined' && navigator.onLine) {
     try {
       const historyCol = collection(db, 'users', uid, 'history');
       await addDoc(historyCol, newMetric);
+      syncOfflineQueue(uid).catch(() => {});
     } catch (err) {
-      console.warn("Firestore addHealthMetric error:", err);
+      console.warn("Firestore addHealthMetric error (saved locally & queued):", err);
     }
   }
+};
+
+// Water Log API (Local Caching + Offline Queue + Firestore Sync)
+export const addWaterLog = async (uid: string, amountMl: number, goalMl = 2500, note = '') => {
+  const newLog: WaterLog = {
+    id: `water_${Date.now()}`,
+    amountMl: Number(amountMl) || 250,
+    goalMl: Number(goalMl) || 2500,
+    note,
+    timestamp: new Date().toISOString(),
+    synced: false
+  };
+
+  // 1. Save to Local Storage Cache
+  const key = `genova_water_logs_${uid || 'guest'}`;
+  try {
+    const raw = localStorage.getItem(key) || localStorage.getItem(STORAGE_KEYS.WATER_LOGS);
+    const list: WaterLog[] = raw ? JSON.parse(raw) : [];
+    list.unshift(newLog);
+    localStorage.setItem(key, JSON.stringify(list));
+    localStorage.setItem(STORAGE_KEYS.WATER_LOGS, JSON.stringify(list));
+  } catch (e) {
+    console.error("Error writing water log to localStorage:", e);
+  }
+
+  // 2. Add to Offline Sync Queue
+  queueOfflineAction('WATER_LOG', uid || 'guest', newLog);
+
+  // 3. Attempt immediate sync if online
+  if (uid && typeof navigator !== 'undefined' && navigator.onLine) {
+    syncOfflineQueue(uid).catch(e => console.warn("Background water sync trigger err:", e));
+  }
+
+  return newLog;
+};
+
+export const getWaterLogs = async (uid: string): Promise<WaterLog[]> => {
+  const key = `genova_water_logs_${uid || 'guest'}`;
+  let localList: WaterLog[] = [];
+  try {
+    const raw = localStorage.getItem(key) || localStorage.getItem(STORAGE_KEYS.WATER_LOGS);
+    if (raw) localList = JSON.parse(raw);
+  } catch (e) {
+    // ignore
+  }
+
+  if (uid && typeof navigator !== 'undefined' && navigator.onLine) {
+    try {
+      const waterCol = collection(db, 'users', uid, 'waterLogs');
+      const q = query(waterCol, orderBy('timestamp', 'desc'), limit(50));
+      const snapshot = await getDocs(q);
+      if (!snapshot.empty) {
+        const remoteList = snapshot.docs.map(docSnap => ({
+          id: docSnap.id,
+          ...docSnap.data(),
+          synced: true
+        })) as WaterLog[];
+
+        const mergedMap = new Map<string, WaterLog>();
+        [...localList, ...remoteList].forEach(item => {
+          mergedMap.set(item.id || item.timestamp, item);
+        });
+        const mergedList = Array.from(mergedMap.values()).sort((a, b) => 
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        );
+
+        localStorage.setItem(key, JSON.stringify(mergedList));
+        localStorage.setItem(STORAGE_KEYS.WATER_LOGS, JSON.stringify(mergedList));
+        return mergedList;
+      }
+    } catch (err) {
+      console.warn("Firestore getWaterLogs error, returning cached local logs:", err);
+    }
+  }
+
+  return localList;
+};
+
+// Mood Log API (Local Caching + Offline Queue + Firestore Sync)
+export const addMoodLog = async (uid: string, mood: string, score = 3, note = '') => {
+  const newLog: MoodLog = {
+    id: `mood_${Date.now()}`,
+    mood: mood || 'Good',
+    score: Number(score) || 3,
+    note,
+    timestamp: new Date().toISOString(),
+    synced: false
+  };
+
+  // 1. Save to Local Storage Cache
+  const key = `genova_mood_logs_${uid || 'guest'}`;
+  try {
+    const raw = localStorage.getItem(key) || localStorage.getItem(STORAGE_KEYS.MOOD_LOGS);
+    const list: MoodLog[] = raw ? JSON.parse(raw) : [];
+    list.unshift(newLog);
+    localStorage.setItem(key, JSON.stringify(list));
+    localStorage.setItem(STORAGE_KEYS.MOOD_LOGS, JSON.stringify(list));
+  } catch (e) {
+    console.error("Error writing mood log to localStorage:", e);
+  }
+
+  // 2. Add to Offline Sync Queue
+  queueOfflineAction('MOOD_LOG', uid || 'guest', newLog);
+
+  // 3. Attempt immediate sync if online
+  if (uid && typeof navigator !== 'undefined' && navigator.onLine) {
+    syncOfflineQueue(uid).catch(e => console.warn("Background mood sync trigger err:", e));
+  }
+
+  return newLog;
+};
+
+export const getMoodLogs = async (uid: string): Promise<MoodLog[]> => {
+  const key = `genova_mood_logs_${uid || 'guest'}`;
+  let localList: MoodLog[] = [];
+  try {
+    const raw = localStorage.getItem(key) || localStorage.getItem(STORAGE_KEYS.MOOD_LOGS);
+    if (raw) localList = JSON.parse(raw);
+  } catch (e) {
+    // ignore
+  }
+
+  if (uid && typeof navigator !== 'undefined' && navigator.onLine) {
+    try {
+      const moodCol = collection(db, 'users', uid, 'moodLogs');
+      const q = query(moodCol, orderBy('timestamp', 'desc'), limit(50));
+      const snapshot = await getDocs(q);
+      if (!snapshot.empty) {
+        const remoteList = snapshot.docs.map(docSnap => ({
+          id: docSnap.id,
+          ...docSnap.data(),
+          synced: true
+        })) as MoodLog[];
+
+        const mergedMap = new Map<string, MoodLog>();
+        [...localList, ...remoteList].forEach(item => {
+          mergedMap.set(item.id || item.timestamp, item);
+        });
+        const mergedList = Array.from(mergedMap.values()).sort((a, b) => 
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        );
+
+        localStorage.setItem(key, JSON.stringify(mergedList));
+        localStorage.setItem(STORAGE_KEYS.MOOD_LOGS, JSON.stringify(mergedList));
+        return mergedList;
+      }
+    } catch (err) {
+      console.warn("Firestore getMoodLogs error, returning cached local logs:", err);
+    }
+  }
+
+  return localList;
 };
 
 export const getHealthHistory = async (uid: string, limitCount = 10) => {
