@@ -54,8 +54,7 @@ export const WaterIntakeWidget: React.FC<Props> = ({ uid, goalMl = 2500, compact
       const newEntry = await addWaterLog(uid, amount, currentGoalMl);
       setLogs(prev => [newEntry, ...prev]);
       
-      const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
-      const msg = isOnline ? `+${amount}ml logged & syncing to cloud!` : `+${amount}ml cached offline in localStorage!`;
+      const msg = newEntry.synced ? `+${amount}ml saved to Cloud Database!` : `+${amount}ml logged!`;
       setToastMessage(msg);
       setTimeout(() => setToastMessage(null), 3000);
       setShowCustomInput(false);
@@ -123,7 +122,7 @@ export const WaterIntakeWidget: React.FC<Props> = ({ uid, goalMl = 2500, compact
           </div>
           <div>
             <h3 className="text-sm font-bold text-gray-900 dark:text-white">Hydration Tracker</h3>
-            <p className="text-[11px] text-gray-500 dark:text-gray-400">Offline cached water intake logs</p>
+            <p className="text-[11px] text-gray-500 dark:text-gray-400">Cloud database hydration logs</p>
           </div>
         </div>
 

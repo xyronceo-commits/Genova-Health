@@ -51,8 +51,7 @@ export const MoodTrackerWidget: React.FC<Props> = ({ uid, compact = false }) => 
       const newEntry = await addMoodLog(uid, option.label, option.score, note);
       setLogs(prev => [newEntry, ...prev]);
       
-      const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
-      const msg = isOnline ? `Mood "${option.label}" logged & syncing!` : `Mood "${option.label}" cached offline in localStorage!`;
+      const msg = newEntry.synced ? `Mood "${option.label}" saved to Cloud Database!` : `Mood "${option.label}" logged!`;
       setToastMessage(msg);
       setTimeout(() => setToastMessage(null), 3000);
       setNote('');
@@ -113,7 +112,7 @@ export const MoodTrackerWidget: React.FC<Props> = ({ uid, compact = false }) => 
           </div>
           <div>
             <h3 className="text-sm font-bold text-gray-900 dark:text-white">Mental Wellbeing & Mood</h3>
-            <p className="text-[11px] text-gray-500 dark:text-gray-400">Offline cached daily mood logs</p>
+            <p className="text-[11px] text-gray-500 dark:text-gray-400">Cloud database daily mood logs</p>
           </div>
         </div>
 

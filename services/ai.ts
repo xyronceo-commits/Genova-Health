@@ -424,8 +424,9 @@ export class AIService {
               content: [
                 {
                   type: "text" as const,
-                  text: `Identify the food in this image and provide real-time nutritional data for a user with profile: ${userContext}. 
-                  Provide accurate estimates for calories, protein, carbs, fat, fiber, and glycemic index. Also state genotype & blood group compatibility.
+                  text: `Identify the food in this image and cross-reference with local Nigerian & West African dietary standards for a user with profile: ${userContext}. 
+                  Provide accurate estimates for calories, protein, carbs, fat, fiber, and glycemic index. Also state genotype & blood group compatibility if relevant.
+                  If the food is a Nigerian or West African dish (or similar staple like Jollof, Amala, Egusi, Suya, Pounded Yam, Eba, Moi Moi, Ofada, Pepper Soup, etc.), set isNigerianMeal to true and provide local dietary breakdown.
                   Return a JSON object in this exact format:
                   {
                     "foodName": "Identified Dish Name",
@@ -436,7 +437,15 @@ export class AIService {
                     "fiber": "5g",
                     "glycemicIndex": "Low",
                     "genotypeCompatibility": "Highly Compatible",
-                    "insight": "Health advice tailored to user demographics."
+                    "insight": "Health advice tailored to user demographics.",
+                    "isNigerianMeal": true,
+                    "nigerianMealDetails": {
+                      "region": "South-West / Pan-Nigerian",
+                      "localDietaryStandard": "Nutritious & Balanced",
+                      "sodiumLevel": "Moderate",
+                      "oilContent": "Moderate",
+                      "healthConditionAdvice": "Low GI, rich in lycopene from cooked tomato stew. Suitable for hypertension if salt is moderated."
+                    }
                   }`
                 },
                 {

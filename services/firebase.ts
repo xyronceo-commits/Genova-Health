@@ -347,38 +347,39 @@ export const getUserProfile = async (uid: string) => {
 };
 
 export const saveUserProfile = async (uid: string, profile: any) => {
+  const activeUid = uid || auth.currentUser?.uid;
   const profileWithTimestamp = {
     ...profile,
     updatedAt: new Date().toISOString()
   };
 
-  // 1. Save to local storage
+  // 1. Save directly to Firestore DB
+  if (activeUid) {
+    try {
+      const userDocRef = doc(db, 'users', activeUid);
+      await setDoc(userDocRef, profileWithTimestamp, { merge: true });
+    } catch (err) {
+      console.warn("Firestore saveUserProfile direct DB write error:", err);
+      queueOfflineAction('USER_PROFILE', activeUid, profileWithTimestamp);
+    }
+  } else {
+    queueOfflineAction('USER_PROFILE', 'guest', profileWithTimestamp);
+  }
+
+  // 2. Update local storage cache
   try {
     localStorage.setItem(STORAGE_KEYS.USER_PROFILE, JSON.stringify(profileWithTimestamp));
-    if (uid) {
-      localStorage.setItem(`genova_profile_${uid}`, JSON.stringify(profileWithTimestamp));
+    if (activeUid) {
+      localStorage.setItem(`genova_profile_${activeUid}`, JSON.stringify(profileWithTimestamp));
     }
   } catch (e) {
     console.error("Local profile write error:", e);
   }
-
-  // 2. Queue for offline sync
-  queueOfflineAction('USER_PROFILE', uid || 'guest', profileWithTimestamp);
-
-  // 3. Save to Firestore if online
-  if (uid && typeof navigator !== 'undefined' && navigator.onLine) {
-    try {
-      const userDocRef = doc(db, 'users', uid);
-      await setDoc(userDocRef, profileWithTimestamp, { merge: true });
-      syncOfflineQueue(uid).catch(() => {});
-    } catch (err) {
-      console.warn("Firestore saveUserProfile error (saved locally & queued for sync):", err);
-    }
-  }
 };
 
-// Health Metrics Firestore + Local Sync
+// Health Metrics Firestore + Local Cache
 export const addHealthMetric = async (uid: string, metric: any) => {
+  const activeUid = uid || auth.currentUser?.uid;
   const newMetric = {
     heartRate: Number(metric.heartRate) || 72,
     bloodPressure: String(metric.bloodPressure || metric.bp || "120/80"),
@@ -386,7 +387,20 @@ export const addHealthMetric = async (uid: string, metric: any) => {
     timestamp: new Date().toISOString()
   };
 
-  // 1. Local storage save
+  // 1. Direct DB write to Firestore
+  if (activeUid) {
+    try {
+      const historyCol = collection(db, 'users', activeUid, 'history');
+      await addDoc(historyCol, newMetric);
+    } catch (err) {
+      console.warn("Firestore addHealthMetric direct DB write error:", err);
+      queueOfflineAction('HEALTH_METRIC', activeUid, newMetric);
+    }
+  } else {
+    queueOfflineAction('HEALTH_METRIC', 'guest', newMetric);
+  }
+
+  // 2. Local storage save cache
   try {
     const localHist = localStorage.getItem(STORAGE_KEYS.HEALTH_HISTORY);
     const history = localHist ? JSON.parse(localHist) : [];
@@ -395,24 +409,11 @@ export const addHealthMetric = async (uid: string, metric: any) => {
   } catch (e) {
     console.error("Local metric write error:", e);
   }
-
-  // 2. Queue for offline sync
-  queueOfflineAction('HEALTH_METRIC', uid || 'guest', newMetric);
-
-  // 3. Firestore save if online
-  if (uid && typeof navigator !== 'undefined' && navigator.onLine) {
-    try {
-      const historyCol = collection(db, 'users', uid, 'history');
-      await addDoc(historyCol, newMetric);
-      syncOfflineQueue(uid).catch(() => {});
-    } catch (err) {
-      console.warn("Firestore addHealthMetric error (saved locally & queued):", err);
-    }
-  }
 };
 
-// Water Log API (Local Caching + Offline Queue + Firestore Sync)
+// Water Log API (Direct Firestore DB Save + Local Fallback Cache)
 export const addWaterLog = async (uid: string, amountMl: number, goalMl = 2500, note = '') => {
+  const activeUid = uid || auth.currentUser?.uid;
   const newLog: WaterLog = {
     id: `water_${Date.now()}`,
     amountMl: Number(amountMl) || 250,
@@ -422,8 +423,29 @@ export const addWaterLog = async (uid: string, amountMl: number, goalMl = 2500, 
     synced: false
   };
 
-  // 1. Save to Local Storage Cache
-  const key = `genova_water_logs_${uid || 'guest'}`;
+  // 1. Save directly to Firestore DB
+  if (activeUid) {
+    try {
+      const waterCol = collection(db, 'users', activeUid, 'waterLogs');
+      const docRef = await addDoc(waterCol, {
+        amountMl: newLog.amountMl,
+        goalMl: newLog.goalMl,
+        note: newLog.note,
+        timestamp: newLog.timestamp,
+        syncedAt: new Date().toISOString()
+      });
+      newLog.id = docRef.id;
+      newLog.synced = true;
+    } catch (err) {
+      console.warn("Firestore waterLog direct write failed, queueing offline:", err);
+      queueOfflineAction('WATER_LOG', activeUid, newLog);
+    }
+  } else {
+    queueOfflineAction('WATER_LOG', 'guest', newLog);
+  }
+
+  // 2. Save to Local Storage Cache
+  const key = `genova_water_logs_${activeUid || 'guest'}`;
   try {
     const raw = localStorage.getItem(key) || localStorage.getItem(STORAGE_KEYS.WATER_LOGS);
     const list: WaterLog[] = raw ? JSON.parse(raw) : [];
@@ -431,33 +453,20 @@ export const addWaterLog = async (uid: string, amountMl: number, goalMl = 2500, 
     localStorage.setItem(key, JSON.stringify(list));
     localStorage.setItem(STORAGE_KEYS.WATER_LOGS, JSON.stringify(list));
   } catch (e) {
-    console.error("Error writing water log to localStorage:", e);
-  }
-
-  // 2. Add to Offline Sync Queue
-  queueOfflineAction('WATER_LOG', uid || 'guest', newLog);
-
-  // 3. Attempt immediate sync if online
-  if (uid && typeof navigator !== 'undefined' && navigator.onLine) {
-    syncOfflineQueue(uid).catch(e => console.warn("Background water sync trigger err:", e));
+    console.error("Error writing water log to localStorage cache:", e);
   }
 
   return newLog;
 };
 
 export const getWaterLogs = async (uid: string): Promise<WaterLog[]> => {
-  const key = `genova_water_logs_${uid || 'guest'}`;
-  let localList: WaterLog[] = [];
-  try {
-    const raw = localStorage.getItem(key) || localStorage.getItem(STORAGE_KEYS.WATER_LOGS);
-    if (raw) localList = JSON.parse(raw);
-  } catch (e) {
-    // ignore
-  }
+  const activeUid = uid || auth.currentUser?.uid;
+  const key = `genova_water_logs_${activeUid || 'guest'}`;
 
-  if (uid && typeof navigator !== 'undefined' && navigator.onLine) {
+  // 1. Fetch directly from Firestore DB if online and authenticated
+  if (activeUid && typeof navigator !== 'undefined' && navigator.onLine) {
     try {
-      const waterCol = collection(db, 'users', uid, 'waterLogs');
+      const waterCol = collection(db, 'users', activeUid, 'waterLogs');
       const q = query(waterCol, orderBy('timestamp', 'desc'), limit(50));
       const snapshot = await getDocs(q);
       if (!snapshot.empty) {
@@ -467,28 +476,30 @@ export const getWaterLogs = async (uid: string): Promise<WaterLog[]> => {
           synced: true
         })) as WaterLog[];
 
-        const mergedMap = new Map<string, WaterLog>();
-        [...localList, ...remoteList].forEach(item => {
-          mergedMap.set(item.id || item.timestamp, item);
-        });
-        const mergedList = Array.from(mergedMap.values()).sort((a, b) => 
-          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-        );
+        try {
+          localStorage.setItem(key, JSON.stringify(remoteList));
+          localStorage.setItem(STORAGE_KEYS.WATER_LOGS, JSON.stringify(remoteList));
+        } catch (e) {}
 
-        localStorage.setItem(key, JSON.stringify(mergedList));
-        localStorage.setItem(STORAGE_KEYS.WATER_LOGS, JSON.stringify(mergedList));
-        return mergedList;
+        return remoteList;
       }
     } catch (err) {
-      console.warn("Firestore getWaterLogs error, returning cached local logs:", err);
+      console.warn("Firestore getWaterLogs error, returning cached logs:", err);
     }
   }
 
-  return localList;
+  // 2. Fallback to Local Storage Cache
+  try {
+    const raw = localStorage.getItem(key) || localStorage.getItem(STORAGE_KEYS.WATER_LOGS);
+    if (raw) return JSON.parse(raw);
+  } catch (e) {}
+
+  return [];
 };
 
-// Mood Log API (Local Caching + Offline Queue + Firestore Sync)
+// Mood Log API (Direct Firestore DB Save + Local Fallback Cache)
 export const addMoodLog = async (uid: string, mood: string, score = 3, note = '') => {
+  const activeUid = uid || auth.currentUser?.uid;
   const newLog: MoodLog = {
     id: `mood_${Date.now()}`,
     mood: mood || 'Good',
@@ -498,8 +509,29 @@ export const addMoodLog = async (uid: string, mood: string, score = 3, note = ''
     synced: false
   };
 
-  // 1. Save to Local Storage Cache
-  const key = `genova_mood_logs_${uid || 'guest'}`;
+  // 1. Save directly to Firestore DB
+  if (activeUid) {
+    try {
+      const moodCol = collection(db, 'users', activeUid, 'moodLogs');
+      const docRef = await addDoc(moodCol, {
+        mood: newLog.mood,
+        score: newLog.score,
+        note: newLog.note,
+        timestamp: newLog.timestamp,
+        syncedAt: new Date().toISOString()
+      });
+      newLog.id = docRef.id;
+      newLog.synced = true;
+    } catch (err) {
+      console.warn("Firestore moodLog direct write failed, queueing offline:", err);
+      queueOfflineAction('MOOD_LOG', activeUid, newLog);
+    }
+  } else {
+    queueOfflineAction('MOOD_LOG', 'guest', newLog);
+  }
+
+  // 2. Save to Local Storage Cache
+  const key = `genova_mood_logs_${activeUid || 'guest'}`;
   try {
     const raw = localStorage.getItem(key) || localStorage.getItem(STORAGE_KEYS.MOOD_LOGS);
     const list: MoodLog[] = raw ? JSON.parse(raw) : [];
@@ -507,33 +539,20 @@ export const addMoodLog = async (uid: string, mood: string, score = 3, note = ''
     localStorage.setItem(key, JSON.stringify(list));
     localStorage.setItem(STORAGE_KEYS.MOOD_LOGS, JSON.stringify(list));
   } catch (e) {
-    console.error("Error writing mood log to localStorage:", e);
-  }
-
-  // 2. Add to Offline Sync Queue
-  queueOfflineAction('MOOD_LOG', uid || 'guest', newLog);
-
-  // 3. Attempt immediate sync if online
-  if (uid && typeof navigator !== 'undefined' && navigator.onLine) {
-    syncOfflineQueue(uid).catch(e => console.warn("Background mood sync trigger err:", e));
+    console.error("Error writing mood log to localStorage cache:", e);
   }
 
   return newLog;
 };
 
 export const getMoodLogs = async (uid: string): Promise<MoodLog[]> => {
-  const key = `genova_mood_logs_${uid || 'guest'}`;
-  let localList: MoodLog[] = [];
-  try {
-    const raw = localStorage.getItem(key) || localStorage.getItem(STORAGE_KEYS.MOOD_LOGS);
-    if (raw) localList = JSON.parse(raw);
-  } catch (e) {
-    // ignore
-  }
+  const activeUid = uid || auth.currentUser?.uid;
+  const key = `genova_mood_logs_${activeUid || 'guest'}`;
 
-  if (uid && typeof navigator !== 'undefined' && navigator.onLine) {
+  // 1. Fetch directly from Firestore DB if online and authenticated
+  if (activeUid && typeof navigator !== 'undefined' && navigator.onLine) {
     try {
-      const moodCol = collection(db, 'users', uid, 'moodLogs');
+      const moodCol = collection(db, 'users', activeUid, 'moodLogs');
       const q = query(moodCol, orderBy('timestamp', 'desc'), limit(50));
       const snapshot = await getDocs(q);
       if (!snapshot.empty) {
@@ -543,24 +562,25 @@ export const getMoodLogs = async (uid: string): Promise<MoodLog[]> => {
           synced: true
         })) as MoodLog[];
 
-        const mergedMap = new Map<string, MoodLog>();
-        [...localList, ...remoteList].forEach(item => {
-          mergedMap.set(item.id || item.timestamp, item);
-        });
-        const mergedList = Array.from(mergedMap.values()).sort((a, b) => 
-          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-        );
+        try {
+          localStorage.setItem(key, JSON.stringify(remoteList));
+          localStorage.setItem(STORAGE_KEYS.MOOD_LOGS, JSON.stringify(remoteList));
+        } catch (e) {}
 
-        localStorage.setItem(key, JSON.stringify(mergedList));
-        localStorage.setItem(STORAGE_KEYS.MOOD_LOGS, JSON.stringify(mergedList));
-        return mergedList;
+        return remoteList;
       }
     } catch (err) {
-      console.warn("Firestore getMoodLogs error, returning cached local logs:", err);
+      console.warn("Firestore getMoodLogs error, returning cached logs:", err);
     }
   }
 
-  return localList;
+  // 2. Fallback to Local Storage Cache
+  try {
+    const raw = localStorage.getItem(key) || localStorage.getItem(STORAGE_KEYS.MOOD_LOGS);
+    if (raw) return JSON.parse(raw);
+  } catch (e) {}
+
+  return [];
 };
 
 export const getHealthHistory = async (uid: string, limitCount = 10) => {

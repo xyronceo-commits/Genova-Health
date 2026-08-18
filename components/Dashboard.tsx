@@ -189,8 +189,6 @@ const Dashboard: React.FC<Props> = ({ user, isDarkMode, toggleDarkMode }) => {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <OfflineSyncBadge />
-
           <button 
             onClick={toggleDarkMode}
             className="p-2.5 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-xs text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
@@ -428,7 +426,7 @@ const Dashboard: React.FC<Props> = ({ user, isDarkMode, toggleDarkMode }) => {
           <div className="space-y-4">
             <div className="flex items-center justify-between px-1">
               <h2 className="text-sm font-black uppercase tracking-wider text-gray-900 dark:text-white flex items-center gap-1.5">
-                <span>Daily Log (Offline)</span>
+                <span>Daily Health Log</span>
               </h2>
             </div>
 
