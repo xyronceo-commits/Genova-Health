@@ -259,9 +259,6 @@ const Onboarding = ({ onComplete }: Props) => {
 
       <div className="flex-1 flex flex-col items-center justify-center p-6 md:p-12 relative">
         <div className="w-full max-w-xl">
-          <div className="flex justify-end mb-3">
-            <OfflineSyncBadge />
-          </div>
           
           <div className="space-y-8">
             

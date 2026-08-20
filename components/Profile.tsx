@@ -169,15 +169,6 @@ const Profile: React.FC<Props> = ({ user, onUpdate, onLogout, isDarkMode, toggle
                       <span className="text-xs font-bold text-gray-900 dark:text-white">
                         {currentUserEmail || 'Email Verification'}
                       </span>
-                      {isEmailVerified ? (
-                        <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 text-[10px] font-bold rounded-lg flex items-center gap-1 border border-emerald-300 dark:border-emerald-800">
-                          <CheckCircle2 size={10} /> Verified
-                        </span>
-                      ) : (
-                        <span className="px-2 py-0.5 bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-400 text-[10px] font-bold rounded-lg border border-amber-300 dark:border-amber-800">
-                          Unverified
-                        </span>
-                      )}
                     </div>
                     <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
                       {isEmailVerified 
