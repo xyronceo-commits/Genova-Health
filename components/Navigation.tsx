@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, ScanLine, MessageSquare, ShieldAlert, User, 
-  Moon, Sun, Watch, Crown, LogOut, Info, Menu, X, ChevronLeft, ChevronRight, Sparkles, Shield
+  Moon, Sun, Watch, Crown, LogOut, Info, Menu, X, ChevronLeft, ChevronRight, Sparkles, Shield, ShieldCheck
 } from 'lucide-react';
 import { UserProfile } from '../types';
 import { GenovaLogo } from './GenovaLogo';
@@ -201,6 +201,21 @@ export const Navigation: React.FC<Props> = ({ isDarkMode, toggleDarkMode, user, 
               <Info size={17} />
               <span>About & Legal</span>
             </NavLink>
+
+            <NavLink
+              to="/admin"
+              onClick={() => setIsMobileOpen(false)}
+              className={({ isActive }) => 
+                `flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all font-bold text-xs ${
+                  isActive 
+                    ? 'bg-blue-600 text-white shadow-sm' 
+                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/60'
+                }`
+              }
+            >
+              <ShieldCheck size={17} />
+              <span>Admin Portal</span>
+            </NavLink>
           </div>
         </div>
 
@@ -337,6 +352,21 @@ export const Navigation: React.FC<Props> = ({ isDarkMode, toggleDarkMode, user, 
             >
               <Info size={20} className="shrink-0" />
               {isDesktopExpanded && <span className="text-xs truncate">About & Legal</span>}
+            </NavLink>
+
+            <NavLink 
+              to="/admin"
+              className={({ isActive }) => 
+                `flex items-center gap-3 p-3 rounded-2xl transition-all font-bold ${
+                  isActive 
+                    ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20' 
+                    : 'text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700/60 hover:text-gray-800 dark:hover:text-gray-200'
+                } ${!isDesktopExpanded ? 'justify-center' : ''}`
+              }
+              title={!isDesktopExpanded ? "Admin Portal" : undefined}
+            >
+              <ShieldCheck size={20} className="shrink-0" />
+              {isDesktopExpanded && <span className="text-xs truncate">Admin Portal</span>}
             </NavLink>
           </div>
         </div>

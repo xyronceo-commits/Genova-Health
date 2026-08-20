@@ -1,6 +1,7 @@
 
 import * as React from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { ShieldCheck, Lock, AlertCircle, Loader2 } from 'lucide-react';
 import { UserProfile } from './types';
 import { STORAGE_KEYS } from './constants';
 import { auth, getUserProfile, logout, saveUserProfile, testConnection, onAuthStateChanged, listenToForegroundPushMessages, deactivateFcmTokenOnLogout, reloadFirebaseUser } from './services/firebase';
@@ -21,11 +22,112 @@ import { GenovaLogo } from './components/GenovaLogo';
 import { NotificationPermissionPrompt } from './components/NotificationPermissionPrompt';
 import { EmailVerificationScreen } from './components/EmailVerificationScreen';
 
+const AdminRouteWrapper: React.FC<{
+  adminToken: string | null;
+  onSuccess: (token: string) => void;
+  onLogout: () => void;
+  isDarkMode: boolean;
+}> = ({ adminToken, onSuccess, onLogout, isDarkMode }) => {
+  const [password, setPassword] = React.useState('');
+  const [error, setError] = React.useState<string | null>(null);
+  const [loading, setLoading] = React.useState(false);
+
+  if (adminToken) {
+    return <AdminDashboard adminToken={adminToken} onLogout={onLogout} isDarkMode={isDarkMode} />;
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = password.trim();
+    if (!trimmed) {
+      setError('Please enter password.');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const res = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: trimmed })
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok && data.success && data.token) {
+        onSuccess(data.token);
+      } else {
+        setError('Incorrect password. Please try again.');
+      }
+    } catch (err) {
+      setError('Incorrect password or network error. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
+      <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-3xl border border-gray-200 dark:border-gray-700 shadow-2xl p-6 sm:p-8 space-y-6">
+        <div className="flex items-center gap-3">
+          <div className="p-3 bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 rounded-2xl shrink-0">
+            <ShieldCheck className="text-blue-600 dark:text-blue-400" size={28} />
+          </div>
+          <div>
+            <h2 className="text-xl font-extrabold text-gray-900 dark:text-white tracking-tight">Admin Portal Access</h2>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Restricted operational metrics & management</p>
+          </div>
+        </div>
+
+        {error && (
+          <div className="p-3.5 bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-900/50 rounded-2xl flex items-center gap-2.5 text-xs font-semibold text-red-700 dark:text-red-300">
+            <AlertCircle size={18} className="shrink-0 text-red-500" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-xs font-bold uppercase text-gray-600 dark:text-gray-300 tracking-wider mb-2">
+              Admin Password
+            </label>
+            <div className="relative">
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter password"
+                autoFocus
+                required
+                className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700/60 border border-gray-200 dark:border-gray-600 rounded-2xl text-sm font-medium text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+              />
+              <Lock size={18} className="absolute right-4 top-3.5 text-gray-400 pointer-events-none" />
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading || !password}
+            className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-extrabold text-sm rounded-2xl shadow-md transition-all flex items-center justify-center gap-2 active:scale-95"
+          >
+            {loading ? <Loader2 size={18} className="animate-spin" /> : null}
+            <span>Unlock Admin Access</span>
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+};
+
 const App = () => {
   const [user, setUser] = React.useState<UserProfile | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [isSecureAccessOpen, setIsSecureAccessOpen] = React.useState(false);
-  const [adminToken, setAdminToken] = React.useState<string | null>(null);
+  const [adminToken, setAdminToken] = React.useState<string | null>(() => {
+    return localStorage.getItem('genova_admin_token') || null;
+  });
   const [foregroundToast, setForegroundToast] = React.useState<{ title: string; body: string; route?: string } | null>(null);
 
   // Listen to incoming foreground FCM push notifications
@@ -49,27 +151,34 @@ const App = () => {
 
   // Check if admin session cookie exists on server
   React.useEffect(() => {
-    fetch('/api/admin/verify')
+    const savedToken = localStorage.getItem('genova_admin_token');
+    const headers: Record<string, string> = {};
+    if (savedToken) headers['Authorization'] = `Bearer ${savedToken}`;
+
+    fetch('/api/admin/verify', { headers })
       .then(res => {
         if (res.ok) return res.json();
         throw new Error('Not logged in');
       })
       .then(data => {
-        if (data.valid) setAdminToken('cookie_session_active');
+        if (data.valid && savedToken) setAdminToken(savedToken);
+        else if (data.valid) setAdminToken('cookie_session_active');
       })
       .catch(() => {
-        // session not active
+        if (!savedToken) setAdminToken(null);
       });
   }, []);
 
   const handleAdminLoginSuccess = (token: string) => {
     setAdminToken(token);
+    localStorage.setItem('genova_admin_token', token);
     setIsSecureAccessOpen(false);
     window.location.hash = '#/admin';
   };
 
   const handleAdminLogout = () => {
     setAdminToken(null);
+    localStorage.removeItem('genova_admin_token');
     window.location.hash = '#/';
   };
 
@@ -309,11 +418,12 @@ const App = () => {
             <Route 
               path="/admin" 
               element={
-                adminToken ? (
-                  <AdminDashboard adminToken={adminToken} onLogout={handleAdminLogout} isDarkMode={isDarkMode} />
-                ) : (
-                  <Navigate to="/" replace />
-                )
+                <AdminRouteWrapper 
+                  adminToken={adminToken} 
+                  onSuccess={handleAdminLoginSuccess} 
+                  onLogout={handleAdminLogout} 
+                  isDarkMode={isDarkMode} 
+                />
               } 
             />
 
