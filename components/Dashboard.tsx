@@ -173,47 +173,47 @@ const Dashboard: React.FC<Props> = ({ user, isDarkMode, toggleDarkMode }) => {
   const chartData = generateBiometricTrendData(history);
 
   return (
-    <div className="p-4 sm:p-6 lg:p-10 max-w-6xl mx-auto space-y-8 animate-in fade-in duration-500">
+    <div className="p-3.5 sm:p-6 lg:p-10 max-w-6xl mx-auto space-y-5 sm:space-y-8 animate-in fade-in duration-500">
       {/* Header & Context */}
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-gray-100 dark:border-gray-800">
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 pb-2 border-b border-gray-100 dark:border-gray-800">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight flex flex-wrap items-center gap-2">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight flex flex-wrap items-center gap-2">
             <span>{getGreeting()}, {user.fullName?.split(' ')[0] || 'Friend'}</span>
-            <span className="text-xs sm:text-sm font-bold text-blue-600 dark:text-blue-400 font-mono bg-blue-50 dark:bg-blue-950/60 px-2.5 py-1 rounded-xl border border-blue-100 dark:border-blue-900/50">
+            <span className="text-[11px] sm:text-xs font-bold text-blue-600 dark:text-blue-400 font-mono bg-blue-50 dark:bg-blue-950/60 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-xl border border-blue-100 dark:border-blue-900/50">
               {user.bloodGroup || 'A+'} • {user.genotype || 'AA'}
             </span>
           </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 font-medium mt-1">
+          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 font-medium mt-0.5">
             Here is your daily health overview and personalized recommendation.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2.5">
           <button 
             onClick={toggleDarkMode}
-            className="p-2.5 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-xs text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
+            className="p-2 sm:p-2.5 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-2xs text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
             title="Toggle theme mode"
           >
-            {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
+            {isDarkMode ? <Sun size={17} /> : <Moon size={17} />}
           </button>
 
-          <div className="bg-white dark:bg-gray-800 px-3.5 py-2 rounded-xl border border-gray-200 dark:border-gray-700 shadow-xs flex items-center gap-2 text-xs font-semibold text-gray-700 dark:text-gray-300">
-            <MapPin size={15} className="text-blue-600 shrink-0" />
-            <span className="truncate max-w-[160px]">{location}</span>
+          <div className="bg-white dark:bg-gray-800 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl border border-gray-200 dark:border-gray-700 shadow-2xs flex items-center gap-2 text-xs font-semibold text-gray-700 dark:text-gray-300">
+            <MapPin size={14} className="text-blue-600 shrink-0" />
+            <span className="truncate max-w-[140px] sm:max-w-[160px]">{location}</span>
           </div>
         </div>
       </header>
 
       {/* Main Grid: 8 Columns Main Content + 4 Columns Right Side Panel */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-8 items-start">
         
         {/* Left Column (8/12): Primary Telemetry & Hero */}
-        <div className="lg:col-span-8 space-y-8">
+        <div className="lg:col-span-8 space-y-5 sm:space-y-8">
           
           {/* Hero Health Snapshot Card */}
-          <section className="bg-gradient-to-br from-blue-600 via-indigo-600 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-md relative overflow-hidden">
-            <div className="relative z-10 space-y-4 max-w-xl">
-              <h2 className="text-xl sm:text-2xl font-black tracking-tight leading-snug">
+          <section className="bg-gradient-to-br from-blue-600 via-indigo-600 to-slate-900 rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 text-white shadow-md relative overflow-hidden">
+            <div className="relative z-10 space-y-3 sm:space-y-4 max-w-xl">
+              <h2 className="text-lg sm:text-2xl font-black tracking-tight leading-snug">
                 "Your physiological recovery is balanced today."
               </h2>
 
@@ -221,20 +221,20 @@ const Dashboard: React.FC<Props> = ({ user, isDarkMode, toggleDarkMode }) => {
                 Biometric telemetry indicates normal resting heart rate and active recovery. Keep staying hydrated and aim for your daily step goal.
               </p>
 
-              <div className="flex flex-wrap items-center gap-3 pt-2">
+              <div className="flex flex-wrap items-center gap-2.5 pt-1">
                 <button
                   onClick={() => navigate('/scan')}
-                  className="px-4 py-2 bg-white text-blue-900 font-bold text-xs rounded-xl hover:bg-blue-50 transition-all shadow-sm flex items-center gap-2 active:scale-95"
+                  className="px-3.5 py-2 bg-white text-blue-900 font-bold text-xs rounded-xl hover:bg-blue-50 transition-all shadow-2xs flex items-center gap-2 active:scale-95"
                 >
-                  <Activity size={15} />
+                  <Activity size={14} />
                   <span>Start Health Scan</span>
                 </button>
 
                 <button
                   onClick={() => navigate('/assistant/nurse')}
-                  className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white font-bold text-xs rounded-xl transition-all border border-white/20 flex items-center gap-2 active:scale-95"
+                  className="px-3.5 py-2 bg-white/10 hover:bg-white/20 text-white font-bold text-xs rounded-xl transition-all border border-white/20 flex items-center gap-2 active:scale-95"
                 >
-                  <Brain size={15} />
+                  <Brain size={14} />
                   <span>Ask AI Nurse</span>
                 </button>
 
@@ -253,13 +253,13 @@ const Dashboard: React.FC<Props> = ({ user, isDarkMode, toggleDarkMode }) => {
               </div>
             </div>
 
-            <Watch className="absolute -right-6 -bottom-6 w-52 h-52 text-white/5 pointer-events-none" />
+            <Watch className="absolute -right-6 -bottom-6 w-40 sm:w-52 h-40 sm:h-52 text-white/5 pointer-events-none" />
           </section>
 
           {/* Key Health Metrics Grid */}
-          <section className="space-y-4">
+          <section className="space-y-3 sm:space-y-4">
             <div className="flex items-center justify-between px-1">
-              <h2 className="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2">
+              <h2 className="text-sm sm:text-base font-bold text-gray-900 dark:text-white flex items-center gap-2">
                 <span>Key Biometrics</span>
               </h2>
 
@@ -272,7 +272,7 @@ const Dashboard: React.FC<Props> = ({ user, isDarkMode, toggleDarkMode }) => {
               </button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-2 gap-2.5 sm:gap-4">
               <MetricCard 
                 title="Heart Rate" 
                 value={lastMetric?.heartRate ? `${lastMetric.heartRate} BPM` : '72 BPM'} 

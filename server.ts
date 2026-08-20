@@ -444,38 +444,19 @@ async function startServer() {
     const clientIp = (req.headers["x-forwarded-for"] as string || req.socket.remoteAddress || "127.0.0.1").split(",")[0].trim();
     const now = Date.now();
 
-    // Rate Limiting & Lockout Check
-    const attemptRecord = adminFailedAttempts.get(clientIp);
-    if (attemptRecord && attemptRecord.lockUntil > now) {
-      logSecurityEvent("RATE_LIMITED", clientIp, "Admin login blocked due to rate limit lockout");
-      return res.status(429).json({ error: "Too many attempts. Please try again later." });
-    }
-
-    const password = typeof req.body.password === "string" ? req.body.password : "";
+    const password = typeof req.body.password === "string" ? req.body.password.trim() : "";
     const expectedPassword = process.env.GENOVA_ADMIN_PASSWORD || "Genova_Health_5500234";
 
     if (password !== expectedPassword) {
-      const currentCount = (attemptRecord?.count || 0) + 1;
-      let lockUntil = 0;
-      if (currentCount >= 5) {
-        lockUntil = now + 15 * 60 * 1000; // 15-minute lockout
-        logSecurityEvent("RATE_LIMITED", clientIp, `IP locked out after ${currentCount} failed attempts`);
-      } else {
-        logSecurityEvent("LOGIN_FAILED", clientIp, "Invalid password attempt");
-      }
-      adminFailedAttempts.set(clientIp, { count: currentCount, lockUntil });
-
-      if (lockUntil > now) {
-        return res.status(429).json({ error: "Too many attempts. Please try again later." });
-      }
-      return res.status(401).json({ error: "Invalid credentials." });
+      logSecurityEvent("LOGIN_FAILED", clientIp, "Invalid password attempt");
+      return res.status(401).json({ error: "Invalid password." });
     }
 
     // Success! Reset failed attempts
     adminFailedAttempts.delete(clientIp);
 
     const token = `admin_sess_${Date.now()}_${Math.random().toString(36).substring(2)}${Math.random().toString(36).substring(2)}`;
-    const expiresAt = now + 2 * 60 * 60 * 1000; // 2 hours
+    const expiresAt = now + 24 * 60 * 60 * 1000; // 24 hours session for seamless access
 
     adminSessions.set(token, {
       token,
@@ -491,7 +472,7 @@ async function startServer() {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
-      maxAge: 2 * 60 * 60 * 1000
+      maxAge: 24 * 60 * 60 * 1000
     });
 
     return res.json({

@@ -378,16 +378,16 @@ const SmartScan: React.FC<Props> = ({ user }) => {
   });
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white pt-20 pb-28 px-4 flex flex-col items-center">
-      <div className="w-full max-w-2xl space-y-8">
+    <div className="min-h-screen bg-gray-950 text-white pt-4 sm:pt-16 pb-20 sm:pb-28 px-3 sm:px-4 flex flex-col items-center">
+      <div className="w-full max-w-2xl space-y-5 sm:space-y-8">
         
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <span className="text-xs font-black uppercase tracking-[0.2em] text-orange-400 flex items-center gap-2">
-              <Sparkles size={14} /> Genova AI Diagnostic Engine
+            <span className="text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] text-orange-400 flex items-center gap-1.5">
+              <Sparkles size={13} /> Genova AI Diagnostic Engine
             </span>
-            <h1 className="text-3xl font-black tracking-tight text-white mt-1">SmartScan & Vitals</h1>
+            <h1 className="text-xl sm:text-3xl font-black tracking-tight text-white mt-0.5">SmartScan & Vitals</h1>
           </div>
 
           <div className="flex items-center gap-2">
@@ -417,7 +417,6 @@ const SmartScan: React.FC<Props> = ({ user }) => {
                 title="NutriScan AI Plate Analyzer"
                 desc="Real-time meal recognition, local Nigerian dishes & calorie counter"
                 color="orange"
-                count={`${scanCount.nutri} today`}
               />
 
               <ScanModeButton 
@@ -435,7 +434,6 @@ const SmartScan: React.FC<Props> = ({ user }) => {
                 title="Wearable Vitals Telemetry Sync"
                 desc="Fetch HR, SpO2, BP & Temp directly from paired smartwatch/ring"
                 color="blue"
-                badge={deviceConnected ? "Connected" : "No Device"}
               />
             </motion.div>
           )}
@@ -917,25 +915,25 @@ const ScanModeButton: React.FC<{onClick: () => void, icon: React.ReactNode, titl
 
   return (
     <motion.button 
-      whileHover={{ y: -4, scale: 1.02 }}
+      whileHover={{ y: -2, scale: 1.01 }}
       whileTap={{ scale: 0.98 }}
       onClick={onClick}
-      className={`w-full p-8 ${colors[color]} border rounded-[3rem] text-left transition-all group flex items-center justify-between`}
+      className={`w-full p-4 sm:p-6 md:p-8 ${colors[color]} border rounded-2xl sm:rounded-[3rem] text-left transition-all group flex items-center justify-between`}
     >
-      <div className="flex gap-6 items-center">
-        <div className={`w-16 h-16 ${iconColors[color]} rounded-3xl flex items-center justify-center shadow-2xl group-hover:rotate-6 transition-transform`}>
+      <div className="flex gap-3.5 sm:gap-6 items-center">
+        <div className={`w-12 h-12 sm:w-16 sm:h-16 ${iconColors[color]} rounded-2xl sm:rounded-3xl flex items-center justify-center shadow-lg group-hover:rotate-6 transition-transform shrink-0`}>
           {icon}
         </div>
         <div>
-          <h3 className="text-xl font-bold flex items-center gap-2">
+          <h3 className="text-sm sm:text-xl font-bold flex flex-wrap items-center gap-1.5 sm:gap-2">
             {title} 
-            {count && <span className="text-[10px] bg-white/10 px-2 py-0.5 rounded-full font-black">{count}</span>}
-            {badge && <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-black uppercase tracking-wider ${badge === 'Connected' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'}`}>{badge}</span>}
+            {count && <span className="text-[9px] sm:text-[10px] bg-white/10 px-2 py-0.5 rounded-full font-black">{count}</span>}
+            {badge && <span className={`text-[9px] sm:text-[10px] px-2 py-0.5 rounded-full font-black uppercase tracking-wider ${badge === 'Connected' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'}`}>{badge}</span>}
           </h3>
-          <p className="text-sm text-gray-400 font-medium">{desc}</p>
+          <p className="text-xs sm:text-sm text-gray-400 font-medium leading-tight mt-0.5">{desc}</p>
         </div>
       </div>
-      <ChevronRight className="text-gray-600 group-hover:text-white transition-colors" />
+      <ChevronRight className="text-gray-600 group-hover:text-white transition-colors shrink-0" size={18} />
     </motion.button>
   );
 };

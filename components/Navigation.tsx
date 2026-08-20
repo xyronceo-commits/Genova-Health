@@ -103,36 +103,36 @@ export const Navigation: React.FC<Props> = ({ isDarkMode, toggleDarkMode, user, 
 
       {/* MOBILE: Slide-Over Side Navigation Drawer */}
       <aside 
-        className={`fixed top-0 bottom-0 left-0 w-72 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 z-50 flex flex-col p-5 shadow-2xl transition-transform duration-300 ease-in-out md:hidden ${
+        className={`fixed top-0 bottom-0 left-0 w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 z-50 flex flex-col p-4 shadow-2xl transition-transform duration-300 ease-in-out md:hidden ${
           isMobileOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         {/* Drawer Header */}
-        <div className="flex items-center justify-between pb-4 mb-3 border-b border-gray-100 dark:border-gray-700/60">
-          <NavLink to="/" className="flex items-center gap-3" onClick={() => setIsMobileOpen(false)}>
-            <div className="p-1.5 bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 rounded-2xl flex items-center justify-center shadow-sm">
-              <GenovaLogo className="w-8 h-8" />
+        <div className="flex items-center justify-between pb-3 mb-2.5 border-b border-gray-100 dark:border-gray-700/60">
+          <NavLink to="/" className="flex items-center gap-2.5" onClick={() => setIsMobileOpen(false)}>
+            <div className="p-1 bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 rounded-xl flex items-center justify-center shadow-2xs">
+              <GenovaLogo className="w-6 h-6" />
             </div>
             <div>
-              <h2 className="font-extrabold text-base text-gray-900 dark:text-white tracking-tight leading-none">Genova Health</h2>
-              <span className="text-[10px] text-blue-600 dark:text-blue-400 font-bold uppercase tracking-wider">AI Medical Companion</span>
+              <h2 className="font-extrabold text-sm text-gray-900 dark:text-white tracking-tight leading-none">Genova Health</h2>
+              <span className="text-[9px] text-blue-600 dark:text-blue-400 font-bold uppercase tracking-wider">AI Medical Portal</span>
             </div>
           </NavLink>
 
           <button
             type="button"
             onClick={() => setIsMobileOpen(false)}
-            className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             aria-label="Close menu"
           >
-            <X size={20} />
+            <X size={18} />
           </button>
         </div>
 
         {/* User Profile Card inside Mobile Side Drawer */}
-        <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-2xl border border-gray-100 dark:border-gray-700 flex items-center justify-between">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-9 h-9 rounded-full bg-blue-600 text-white font-black flex items-center justify-center text-xs shadow-md shrink-0">
+        <div className="mb-3 p-2.5 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-100 dark:border-gray-700 flex items-center justify-between">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-full bg-blue-600 text-white font-black flex items-center justify-center text-xs shadow-xs shrink-0">
               {user.fullName ? user.fullName.charAt(0).toUpperCase() : 'U'}
             </div>
             <div className="min-w-0 flex flex-col">
@@ -143,47 +143,47 @@ export const Navigation: React.FC<Props> = ({ isDarkMode, toggleDarkMode, user, 
         </div>
 
         {/* Primary Navigation Links */}
-        <div className="flex-1 space-y-1 overflow-y-auto pr-1">
-          <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 px-3 block mb-1">Side Navigation</span>
+        <div className="flex-1 space-y-1 overflow-y-auto pr-0.5 custom-scrollbar">
+          <span className="text-[9px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 px-2.5 block mb-1">Menu</span>
           {navItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
               onClick={() => setIsMobileOpen(false)}
               className={({ isActive }) => 
-                `flex items-center gap-3.5 px-4 py-3 rounded-2xl transition-all font-bold text-sm ${
+                `flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all font-bold text-xs ${
                   isActive 
-                    ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20' 
+                    ? 'bg-blue-600 text-white shadow-xs shadow-blue-500/20' 
                     : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/60 hover:text-gray-900 dark:hover:text-white'
                 }`
               }
             >
-              <item.icon size={19} />
+              <item.icon size={17} />
               <span>{item.label}</span>
             </NavLink>
           ))}
 
           <div className="pt-2 my-2 border-t border-gray-100 dark:border-gray-700/60 space-y-1">
-            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 px-3 block mb-1">Emergency & Tools</span>
+            <span className="text-[9px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 px-2.5 block mb-1">Emergency & Tools</span>
             
             <NavLink
               to="/emergency"
               onClick={() => setIsMobileOpen(false)}
               className={({ isActive }) => 
-                `flex items-center gap-3.5 px-4 py-3 rounded-2xl transition-all font-bold text-sm ${
+                `flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all font-bold text-xs ${
                   isActive 
-                    ? 'bg-red-600 text-white shadow-md shadow-red-500/20' 
+                    ? 'bg-red-600 text-white shadow-xs shadow-red-500/20' 
                     : 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 hover:bg-red-100 dark:hover:bg-red-900/60'
                 }`
               }
             >
               <div className="relative">
-                <ShieldAlert size={19} />
+                <ShieldAlert size={17} />
                 <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse border border-white dark:border-gray-800"></span>
               </div>
               <div className="flex items-center justify-between flex-1">
                 <span>SOS Emergency</span>
-                <span className="text-[10px] bg-red-200 dark:bg-red-900/80 text-red-800 dark:text-red-200 px-2 py-0.5 rounded-full uppercase font-black tracking-wider">Fast</span>
+                <span className="text-[9px] bg-red-200 dark:bg-red-900/80 text-red-800 dark:text-red-200 px-1.5 py-0.2 rounded-md uppercase font-black tracking-wider">Fast</span>
               </div>
             </NavLink>
 
@@ -191,14 +191,14 @@ export const Navigation: React.FC<Props> = ({ isDarkMode, toggleDarkMode, user, 
               to="/about"
               onClick={() => setIsMobileOpen(false)}
               className={({ isActive }) => 
-                `flex items-center gap-3.5 px-4 py-3 rounded-2xl transition-all font-bold text-sm ${
+                `flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all font-bold text-xs ${
                   isActive 
                     ? 'bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400' 
                     : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/60'
                 }`
               }
             >
-              <Info size={19} />
+              <Info size={17} />
               <span>About & Legal</span>
             </NavLink>
           </div>
@@ -372,6 +372,26 @@ export const Navigation: React.FC<Props> = ({ isDarkMode, toggleDarkMode, user, 
           </button>
         </div>
       </aside>
+
+      {/* MOBILE: Bottom Fixed Navigation Bar */}
+      <nav className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-white/95 dark:bg-gray-800/95 backdrop-blur-md border-t border-gray-200 dark:border-gray-700/80 px-2 py-1.5 flex justify-around items-center shadow-lg">
+        {navItems.map((item) => (
+          <NavLink
+            key={item.to}
+            to={item.to}
+            className={({ isActive }) =>
+              `flex flex-col items-center justify-center gap-0.5 py-1 px-2.5 rounded-xl transition-all ${
+                isActive
+                  ? 'text-blue-600 dark:text-blue-400 font-extrabold scale-105'
+                  : 'text-gray-500 dark:text-gray-400 font-medium hover:text-gray-900 dark:hover:text-white'
+              }`
+            }
+          >
+            <item.icon size={20} />
+            <span className="text-[10px] tracking-tight">{item.label}</span>
+          </NavLink>
+        ))}
+      </nav>
     </>
   );
 };

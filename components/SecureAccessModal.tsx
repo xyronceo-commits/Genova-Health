@@ -16,7 +16,8 @@ export const SecureAccessModal: React.FC<Props> = ({ isOpen, onClose, onSuccess 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!password.trim()) {
+    const trimmedPass = password.trim();
+    if (!trimmedPass) {
       setError('Please enter password.');
       return;
     }
@@ -28,16 +29,18 @@ export const SecureAccessModal: React.FC<Props> = ({ isOpen, onClose, onSuccess 
       const response = await fetch('/api/admin/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ password: trimmedPass }),
       });
 
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        if (response.status === 429) {
-          setError(data.error || 'Too many attempts. Please try again later.');
+        if (response.status === 401) {
+          setError('Incorrect password. Please try again.');
+        } else if (response.status === 429) {
+          setError(data.error || 'Too many attempts. Please try again.');
         } else {
-          setError(data.error || 'Incorrect password.');
+          setError(data.error || 'Authentication error. Please check your password.');
         }
         setLoading(false);
         return;
@@ -48,10 +51,10 @@ export const SecureAccessModal: React.FC<Props> = ({ isOpen, onClose, onSuccess 
         setError(null);
         onSuccess(data.token);
       } else {
-        setError('Authentication failed. Please try again.');
+        setError('Authentication failed. Please check your password.');
       }
     } catch (err) {
-      setError('Connection error. Please try again.');
+      setError('Incorrect password or network glitch. Please retry.');
     } finally {
       setLoading(false);
     }

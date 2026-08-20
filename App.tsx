@@ -280,7 +280,7 @@ const App = () => {
 
   return (
     <Router>
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors font-sans">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors font-sans overflow-x-hidden">
         {user && (
           <Navigation 
             isDarkMode={isDarkMode} 
@@ -290,7 +290,7 @@ const App = () => {
             onOpenSecureAccess={() => setIsSecureAccessOpen(true)}
           />
         )}
-        <div className="md:pl-16">
+        <div className="md:pl-16 pb-16 md:pb-0">
           <Routes>
             {/* Public / Guest Legal Routes */}
             <Route path="/legal" element={<Legal />} />
