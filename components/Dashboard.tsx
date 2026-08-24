@@ -173,11 +173,11 @@ const Dashboard: React.FC<Props> = ({ user, isDarkMode, toggleDarkMode }) => {
   const chartData = generateBiometricTrendData(history);
 
   return (
-    <div className="p-3.5 sm:p-6 lg:p-10 max-w-6xl mx-auto space-y-5 sm:space-y-8 animate-in fade-in duration-500">
+    <div className="p-3 sm:p-6 lg:p-10 max-w-6xl mx-auto space-y-4 sm:space-y-8 animate-in fade-in duration-500">
       {/* Header & Context */}
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 pb-2 border-b border-gray-100 dark:border-gray-800">
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 pb-2.5 border-b border-gray-100 dark:border-gray-800">
         <div>
-          <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight flex flex-wrap items-center gap-2">
+          <h1 className="text-lg sm:text-2xl md:text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight flex flex-wrap items-center gap-2">
             <span>{getGreeting()}, {user.fullName?.split(' ')[0] || 'Friend'}</span>
             <span className="text-[11px] sm:text-xs font-bold text-blue-600 dark:text-blue-400 font-mono bg-blue-50 dark:bg-blue-950/60 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-xl border border-blue-100 dark:border-blue-900/50">
               {user.bloodGroup || 'A+'} • {user.genotype || 'AA'}
@@ -188,16 +188,16 @@ const Dashboard: React.FC<Props> = ({ user, isDarkMode, toggleDarkMode }) => {
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2">
           <button 
             onClick={toggleDarkMode}
-            className="p-2 sm:p-2.5 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-2xs text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
+            className="p-2 sm:p-2.5 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-2xs text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all active:scale-95"
             title="Toggle theme mode"
           >
             {isDarkMode ? <Sun size={17} /> : <Moon size={17} />}
           </button>
 
-          <div className="bg-white dark:bg-gray-800 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl border border-gray-200 dark:border-gray-700 shadow-2xs flex items-center gap-2 text-xs font-semibold text-gray-700 dark:text-gray-300">
+          <div className="bg-white dark:bg-gray-800 px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 shadow-2xs flex items-center gap-2 text-xs font-semibold text-gray-700 dark:text-gray-300">
             <MapPin size={14} className="text-blue-600 shrink-0" />
             <span className="truncate max-w-[140px] sm:max-w-[160px]">{location}</span>
           </div>
@@ -205,15 +205,15 @@ const Dashboard: React.FC<Props> = ({ user, isDarkMode, toggleDarkMode }) => {
       </header>
 
       {/* Main Grid: 8 Columns Main Content + 4 Columns Right Side Panel */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-8 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-8 items-start">
         
         {/* Left Column (8/12): Primary Telemetry & Hero */}
-        <div className="lg:col-span-8 space-y-5 sm:space-y-8">
+        <div className="lg:col-span-8 space-y-4 sm:space-y-8">
           
           {/* Hero Health Snapshot Card */}
           <section className="bg-gradient-to-br from-blue-600 via-indigo-600 to-slate-900 rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 text-white shadow-md relative overflow-hidden">
             <div className="relative z-10 space-y-3 sm:space-y-4 max-w-xl">
-              <h2 className="text-lg sm:text-2xl font-black tracking-tight leading-snug">
+              <h2 className="text-base sm:text-2xl font-black tracking-tight leading-snug">
                 "Your physiological recovery is balanced today."
               </h2>
 
@@ -221,31 +221,31 @@ const Dashboard: React.FC<Props> = ({ user, isDarkMode, toggleDarkMode }) => {
                 Biometric telemetry indicates normal resting heart rate and active recovery. Keep staying hydrated and aim for your daily step goal.
               </p>
 
-              <div className="flex flex-wrap items-center gap-2.5 pt-1">
+              <div className="flex flex-wrap items-center gap-2 pt-1">
                 <button
                   onClick={() => navigate('/scan')}
-                  className="px-3.5 py-2 bg-white text-blue-900 font-bold text-xs rounded-xl hover:bg-blue-50 transition-all shadow-2xs flex items-center gap-2 active:scale-95"
+                  className="px-3.5 py-2.5 bg-white text-blue-900 font-bold text-xs rounded-xl hover:bg-blue-50 transition-all shadow-2xs flex items-center gap-2 active:scale-95"
                 >
-                  <Activity size={14} />
+                  <Activity size={15} />
                   <span>Start Health Scan</span>
                 </button>
 
                 <button
                   onClick={() => navigate('/assistant/nurse')}
-                  className="px-3.5 py-2 bg-white/10 hover:bg-white/20 text-white font-bold text-xs rounded-xl transition-all border border-white/20 flex items-center gap-2 active:scale-95"
+                  className="px-3.5 py-2.5 bg-white/10 hover:bg-white/20 text-white font-bold text-xs rounded-xl transition-all border border-white/20 flex items-center gap-2 active:scale-95"
                 >
-                  <Brain size={14} />
+                  <Brain size={15} />
                   <span>Ask AI Nurse</span>
                 </button>
 
                 {syncedDevice?.connected ? (
-                  <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-300 bg-emerald-950/40 px-3 py-1.5 rounded-xl border border-emerald-500/30">
+                  <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-300 bg-emerald-950/40 px-3 py-2 rounded-xl border border-emerald-500/30">
                     <CheckCircle2 size={13} /> Synced with {syncedDevice.name}
                   </span>
                 ) : (
                   <button
                     onClick={() => navigate('/wearables')}
-                    className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-200 hover:text-white underline underline-offset-4"
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-200 hover:text-white underline underline-offset-4 py-1"
                   >
                     <Watch size={14} /> Connect Smartwatch
                   </button>
@@ -253,11 +253,11 @@ const Dashboard: React.FC<Props> = ({ user, isDarkMode, toggleDarkMode }) => {
               </div>
             </div>
 
-            <Watch className="absolute -right-6 -bottom-6 w-40 sm:w-52 h-40 sm:h-52 text-white/5 pointer-events-none" />
+            <Watch className="absolute -right-6 -bottom-6 w-36 sm:w-52 h-36 sm:h-52 text-white/5 pointer-events-none" />
           </section>
 
           {/* Key Health Metrics Grid */}
-          <section className="space-y-3 sm:space-y-4">
+          <section className="space-y-3">
             <div className="flex items-center justify-between px-1">
               <h2 className="text-sm sm:text-base font-bold text-gray-900 dark:text-white flex items-center gap-2">
                 <span>Key Biometrics</span>
@@ -265,14 +265,14 @@ const Dashboard: React.FC<Props> = ({ user, isDarkMode, toggleDarkMode }) => {
 
               <button
                 onClick={() => setShowDetailedTrends(!showDetailedTrends)}
-                className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+                className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 py-1"
               >
                 {showDetailedTrends ? "Hide Analytics" : "View 7-Day Trends"}
                 <ChevronRight size={14} className={`transition-transform ${showDetailedTrends ? 'rotate-90' : ''}`} />
               </button>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-2 gap-2.5 sm:gap-4">
+            <div className="grid grid-cols-2 gap-2.5 sm:gap-4">
               <MetricCard 
                 title="Heart Rate" 
                 value={lastMetric?.heartRate ? `${lastMetric.heartRate} BPM` : '72 BPM'} 
@@ -283,9 +283,9 @@ const Dashboard: React.FC<Props> = ({ user, isDarkMode, toggleDarkMode }) => {
               />
               
               {/* Step Counter Card */}
-              <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-100 dark:border-gray-700/80 shadow-xs space-y-3">
+              <div className="bg-white dark:bg-gray-800 p-3.5 sm:p-5 rounded-2xl border border-gray-100 dark:border-gray-700/80 shadow-xs space-y-2.5">
                 <div className="flex justify-between items-start">
-                  <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400">
+                  <div className="p-2 sm:p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400">
                     <Footprints size={18} />
                   </div>
                   <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-md">
@@ -294,10 +294,10 @@ const Dashboard: React.FC<Props> = ({ user, isDarkMode, toggleDarkMode }) => {
                 </div>
 
                 <div>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Daily Steps</p>
-                  <p className="text-xl font-black text-gray-900 dark:text-white flex items-baseline gap-1.5 mt-0.5">
+                  <p className="text-[10px] sm:text-[11px] font-bold text-gray-400 uppercase tracking-wider">Daily Steps</p>
+                  <p className="text-base sm:text-xl font-black text-gray-900 dark:text-white flex items-baseline gap-1 mt-0.5 truncate">
                     {steps.toLocaleString()}
-                    <span className="text-xs text-gray-400 font-normal">/ {stepGoal.toLocaleString()}</span>
+                    <span className="text-[11px] text-gray-400 font-normal truncate">/ {stepGoal.toLocaleString()}</span>
                   </p>
                   <div className="w-full bg-gray-100 dark:bg-gray-700 h-1.5 rounded-full mt-2 overflow-hidden">
                     <div 
@@ -496,33 +496,33 @@ const Dashboard: React.FC<Props> = ({ user, isDarkMode, toggleDarkMode }) => {
 };
 
 const MetricCard: React.FC<{title: string, value: string, sub: string, icon: React.ReactNode, trend: string, color: string}> = ({ title, value, sub, icon, trend, color }) => (
-  <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-100 dark:border-gray-700/80 shadow-xs space-y-3">
+  <div className="bg-white dark:bg-gray-800 p-3.5 sm:p-5 rounded-2xl border border-gray-100 dark:border-gray-700/80 shadow-xs space-y-2.5">
     <div className="flex justify-between items-start">
-      <div className={`p-2.5 rounded-xl ${color}`}>{icon}</div>
+      <div className={`p-2 sm:p-2.5 rounded-xl ${color}`}>{icon}</div>
       <span className="text-[10px] font-bold text-gray-400 tracking-tight bg-gray-50 dark:bg-gray-700 px-2 py-0.5 rounded">{trend}</span>
     </div>
     <div>
-      <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">{title}</p>
-      <p className="text-xl font-black text-gray-900 dark:text-white mt-0.5">{value}</p>
-      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 font-medium">{sub}</p>
+      <p className="text-[10px] sm:text-[11px] font-bold text-gray-400 uppercase tracking-wider">{title}</p>
+      <p className="text-base sm:text-xl font-black text-gray-900 dark:text-white mt-0.5 truncate">{value}</p>
+      <p className="text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 mt-1 font-medium leading-tight line-clamp-1">{sub}</p>
     </div>
   </div>
 );
 
 const CoachLink: React.FC<{name: string, sub: string, icon: React.ReactNode, to: string, color: string, bg: string}> = ({ name, sub, icon, to, color, bg }) => (
-  <Link to={to} className="flex items-center justify-between p-3.5 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-800 shadow-xs transition-all group">
-    <div className="flex items-center gap-3">
+  <Link to={to} className="flex items-center justify-between p-3 sm:p-4 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-800 shadow-xs transition-all group active:scale-[0.98]">
+    <div className="flex items-center gap-3 min-w-0">
       <div className={`w-10 h-10 ${bg} ${color} rounded-xl flex items-center justify-center shrink-0`}>
         {icon}
       </div>
-      <div>
-        <h4 className="font-bold text-xs text-gray-900 dark:text-white group-hover:text-blue-600 transition-colors">
+      <div className="min-w-0">
+        <h4 className="font-bold text-xs sm:text-sm text-gray-900 dark:text-white group-hover:text-blue-600 transition-colors truncate">
           {name}
         </h4>
-        <p className="text-[11px] font-medium text-gray-500 dark:text-gray-400">{sub}</p>
+        <p className="text-[11px] font-medium text-gray-500 dark:text-gray-400 truncate">{sub}</p>
       </div>
     </div>
-    <ChevronRight className="text-gray-300 dark:text-gray-600 group-hover:text-blue-600 transition-transform group-hover:translate-x-0.5" size={16} />
+    <ChevronRight className="text-gray-300 dark:text-gray-600 group-hover:text-blue-600 transition-transform group-hover:translate-x-0.5 shrink-0" size={16} />
   </Link>
 );
 
