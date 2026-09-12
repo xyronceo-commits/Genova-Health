@@ -8,6 +8,7 @@ import crypto from "crypto";
 import { initializeApp, getApps, getApp, App } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import { getMessaging } from "firebase-admin/messaging";
+import { getAuth as getAdminAuth } from "firebase-admin/auth";
 import { initializeApp as initWebApp } from "firebase/app";
 import { getAuth as getWebAuth, signInWithEmailAndPassword as webSignIn, createUserWithEmailAndPassword as webCreateUser } from "firebase/auth";
 import { initializeFirestore as initWebFirestore, collection, getDocs, doc, setDoc, deleteDoc } from "firebase/firestore";
@@ -572,6 +573,26 @@ async function startServer() {
     const dbId = firebaseConfig.firestoreDatabaseId || '(default)';
     return getFirestore(firebaseAdminApp!, dbId);
   };
+
+  interface AuthenticatedRequest extends Request {
+    verifiedUid?: string;
+  }
+
+  async function requireVerifiedUser(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({ error: "Missing or invalid Authorization header." });
+    }
+    const idToken = authHeader.substring(7);
+    try {
+      const decoded = await getAdminAuth(firebaseAdminApp!).verifyIdToken(idToken);
+      req.verifiedUid = decoded.uid;
+      next();
+    } catch (err) {
+      console.error("ID token verification failed:", err);
+      return res.status(401).json({ error: "Invalid or expired authentication token." });
+    }
+  }
 
   interface SendNotificationOptions {
     userId: string;
@@ -1541,10 +1562,11 @@ async function startServer() {
   });
 
   // 9. Live Emergency Location Tracking routes
-  app.post("/api/emergency/update-location", generalRateLimiter, async (req: Request, res: Response) => {
-    const { userId, latitude, longitude, accuracy, timestamp } = req.body;
+  app.post("/api/emergency/update-location", generalRateLimiter, requireVerifiedUser, async (req: AuthenticatedRequest, res: Response) => {
+    const { latitude, longitude, accuracy, timestamp } = req.body;
+    const userId = req.verifiedUid;
     if (!userId || typeof latitude !== "number" || typeof longitude !== "number") {
-      return res.status(400).json({ error: "userId, latitude, and longitude are required." });
+      return res.status(400).json({ error: "latitude and longitude are required." });
     }
     try {
       await setDoc(doc(webDb, "activeEmergencies", userId), {
@@ -1560,8 +1582,8 @@ async function startServer() {
     }
   });
 
-  app.post("/api/emergency/end", generalRateLimiter, async (req: Request, res: Response) => {
-    const { userId } = req.body;
+  app.post("/api/emergency/end", generalRateLimiter, requireVerifiedUser, async (req: AuthenticatedRequest, res: Response) => {
+    const userId = req.verifiedUid;
     if (!userId) return res.status(400).json({ error: "userId is required." });
     try {
       await deleteDoc(doc(webDb, "activeEmergencies", userId));

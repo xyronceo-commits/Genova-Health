@@ -118,22 +118,26 @@ const Emergency: React.FC<Props> = ({ user }) => {
   // 2. Debounced live location updates to backend (every 5 seconds max)
   const lastPushedRef = useRef<number>(0);
   useEffect(() => {
-    const currentUserId = auth.currentUser?.uid || (user as any)?.id;
-    if (isTracking && liveLocation && currentUserId) {
+    const currentUser = auth.currentUser;
+    if (isTracking && liveLocation && currentUser) {
       const now = Date.now();
       if (now - lastPushedRef.current >= 5000) {
         lastPushedRef.current = now;
-        fetch('/api/emergency/update-location', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userId: currentUserId,
-            latitude: liveLocation.latitude,
-            longitude: liveLocation.longitude,
-            accuracy: liveLocation.accuracy,
-            timestamp: liveLocation.timestamp
-          })
-        }).catch(err => console.error('Error updating live location on server:', err));
+        currentUser.getIdToken().then(idToken => {
+          fetch('/api/emergency/update-location', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${idToken}`
+            },
+            body: JSON.stringify({
+              latitude: liveLocation.latitude,
+              longitude: liveLocation.longitude,
+              accuracy: liveLocation.accuracy,
+              timestamp: liveLocation.timestamp
+            })
+          }).catch(err => console.error('Error updating live location on server:', err));
+        }).catch(err => console.error('Error getting ID token:', err));
       }
     }
   }, [isTracking, liveLocation]);
@@ -176,13 +180,16 @@ const Emergency: React.FC<Props> = ({ user }) => {
     setShowBroadcastModal(false);
     stopTracking();
 
-    const userId = auth.currentUser?.uid || (user as any)?.id;
-    if (userId) {
+    const currentUser = auth.currentUser;
+    if (currentUser) {
       try {
+        const idToken = await currentUser.getIdToken();
         await fetch('/api/emergency/end', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId })
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${idToken}`
+          }
         });
       } catch (err) {
         console.error('Error ending emergency session:', err);
