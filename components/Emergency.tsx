@@ -1,11 +1,13 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Phone, MapPin, ShieldAlert, Heart, ChevronRight, AlertTriangle, Navigation, Loader2, Sparkles, ExternalLink, Users, Send, CheckCircle2, Radio, BellRing, PhoneCall, MessageSquare, AlertOctagon, X, ShieldCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { UserProfile, EmergencyContact } from '../types';
 import { STORAGE_KEYS } from '../constants';
 import { ai } from '../services/ai';
 import { auth, sendActivityNotification } from '../services/firebase';
+import { useGeolocation } from '../hooks/useGeolocation';
+import { useLiveLocationTracking } from '../hooks/useLiveLocationTracking';
 
 interface Props {
   user: UserProfile;
@@ -21,6 +23,9 @@ const Emergency: React.FC<Props> = ({ user }) => {
   const [customAddress, setCustomAddress] = useState('');
   const [extracting, setExtracting] = useState(false);
   const [locationExtracted, setLocationExtracted] = useState<any>(null);
+
+  const { location: geoInitialLocation, error: geoError, loading: geoLoading, requestLocation } = useGeolocation();
+  const { location: liveLocation, error: liveLocationError, isTracking, startTracking, stopTracking } = useLiveLocationTracking();
 
   // Selected emergency contacts list from real user profile
   const selectedContacts: EmergencyContact[] = (user?.emergencyContacts && user.emergencyContacts.length > 0)
@@ -65,53 +70,73 @@ const Emergency: React.FC<Props> = ({ user }) => {
     }
   };
 
+  // 1. Initial position fetch via useGeolocation
   useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        async (pos) => {
-          try {
-            const { latitude, longitude } = pos.coords;
-            const placeName = await ai.reverseGeocode(latitude, longitude);
-            if (placeName && !customAddress) {
-              setCustomAddress(placeName);
-            }
-            const result = await ai.findHospitals(latitude, longitude, placeName);
-            const realHospitals = (result.hospitals || []).map((h: any) => ({
-              ...h,
-              uri: h.uri || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(h.name + (h.address ? ' ' + h.address : ''))}`
-            }));
-            
-            setHospitals(realHospitals.length > 0 ? realHospitals.slice(0, 5) : [
-              { name: 'State General Hospital', address: placeName || 'Osogbo, Osun State', distance: '1.2 km away' },
-              { name: 'University Teaching Hospital', address: placeName || 'Osogbo, Osun State', distance: '2.5 km away' },
-            ]);
-          } catch (err) {
-            console.error(err);
-            setError("Could not load dynamic hospital list. Showing local defaults.");
-            setHospitals([
-              { name: 'State General Hospital', address: 'Osogbo, Osun State', distance: '1.2 km away' },
-              { name: 'University Teaching Hospital', address: 'Osogbo, Osun State', distance: '2.5 km away' },
-            ]);
-          } finally {
-            setLoadingHospitals(false);
+    requestLocation();
+  }, [requestLocation]);
+
+  useEffect(() => {
+    if (geoInitialLocation) {
+      const { latitude, longitude } = geoInitialLocation;
+      (async () => {
+        try {
+          const placeName = await ai.reverseGeocode(latitude, longitude);
+          if (placeName && !customAddress) {
+            setCustomAddress(placeName);
           }
-        },
-        (err) => {
-          console.error("Geolocation error:", err);
-          setLoadingHospitals(false);
-          setError("Location access denied. Displaying emergency contacts.");
+          const result = await ai.findHospitals(latitude, longitude, placeName);
+          const realHospitals = (result.hospitals || []).map((h: any) => ({
+            ...h,
+            uri: h.uri || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(h.name + (h.address ? ' ' + h.address : ''))}`
+          }));
+          
+          setHospitals(realHospitals.length > 0 ? realHospitals.slice(0, 5) : [
+            { name: 'State General Hospital', address: placeName || 'Osogbo, Osun State', distance: '1.2 km away' },
+            { name: 'University Teaching Hospital', address: placeName || 'Osogbo, Osun State', distance: '2.5 km away' },
+          ]);
+        } catch (err) {
+          console.error(err);
+          setError("Could not load dynamic hospital list. Showing local defaults.");
           setHospitals([
             { name: 'State General Hospital', address: 'Osogbo, Osun State', distance: '1.2 km away' },
             { name: 'University Teaching Hospital', address: 'Osogbo, Osun State', distance: '2.5 km away' },
           ]);
-        },
-        { timeout: 10000, enableHighAccuracy: true }
-      );
-    } else {
+        } finally {
+          setLoadingHospitals(false);
+        }
+      })();
+    } else if (geoError) {
       setLoadingHospitals(false);
-      setError("Geolocation not supported by your device.");
+      setError(geoError);
+      setHospitals([
+        { name: 'State General Hospital', address: 'Osogbo, Osun State', distance: '1.2 km away' },
+        { name: 'University Teaching Hospital', address: 'Osogbo, Osun State', distance: '2.5 km away' },
+      ]);
     }
-  }, []);
+  }, [geoInitialLocation, geoError]);
+
+  // 2. Debounced live location updates to backend (every 5 seconds max)
+  const lastPushedRef = useRef<number>(0);
+  useEffect(() => {
+    const currentUserId = auth.currentUser?.uid || (user as any)?.id;
+    if (isTracking && liveLocation && currentUserId) {
+      const now = Date.now();
+      if (now - lastPushedRef.current >= 5000) {
+        lastPushedRef.current = now;
+        fetch('/api/emergency/update-location', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: currentUserId,
+            latitude: liveLocation.latitude,
+            longitude: liveLocation.longitude,
+            accuracy: liveLocation.accuracy,
+            timestamp: liveLocation.timestamp
+          })
+        }).catch(err => console.error('Error updating live location on server:', err));
+      }
+    }
+  }, [isTracking, liveLocation]);
 
   const handleNotifyKin = () => {
     setShowBroadcastModal(true);
@@ -123,6 +148,9 @@ const Emergency: React.FC<Props> = ({ user }) => {
     setBroadcasting(true);
     setShowBroadcastModal(true);
     setAlertProgress({});
+
+    // Start live GPS tracking when user triggers SOS
+    startTracking();
 
     if (auth.currentUser?.uid) {
       sendActivityNotification(auth.currentUser.uid, {
@@ -143,8 +171,33 @@ const Emergency: React.FC<Props> = ({ user }) => {
     });
   };
 
+  const handleStandDown = async () => {
+    setActive(false);
+    setShowBroadcastModal(false);
+    stopTracking();
+
+    const userId = auth.currentUser?.uid || (user as any)?.id;
+    if (userId) {
+      try {
+        await fetch('/api/emergency/end', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId })
+        });
+      } catch (err) {
+        console.error('Error ending emergency session:', err);
+      }
+    }
+  };
+
+  const currentLat = liveLocation?.latitude ?? geoInitialLocation?.latitude;
+  const currentLng = liveLocation?.longitude ?? geoInitialLocation?.longitude;
+  const mapsLink = (currentLat && currentLng)
+    ? `https://maps.google.com/?q=${currentLat},${currentLng}`
+    : (customAddress || 'Current Location');
+
   const allPhones = selectedContacts.map(c => c.phone).join(',');
-  const emergencySmsBody = encodeURIComponent(`EMERGENCY SOS ALERT! ${user?.fullName || 'Patient'} requires urgent medical assistance. GPS Location: ${customAddress || 'Current Location'}. Patient Blood Group: ${user?.bloodGroup || 'O+'}, Genotype: ${user?.genotype || 'AA'}. Please check on them immediately!`);
+  const emergencySmsBody = encodeURIComponent(`EMERGENCY SOS ALERT! ${user?.fullName || 'Patient'} requires urgent medical assistance. Live Location: ${mapsLink}. Patient Blood Group: ${user?.bloodGroup || 'O+'}, Genotype: ${user?.genotype || 'AA'}. Please check on them immediately!`);
 
   return (
     <div className="min-h-screen bg-red-50 dark:bg-gray-900 p-6 md:p-12 transition-colors relative">
@@ -157,6 +210,32 @@ const Emergency: React.FC<Props> = ({ user }) => {
       </header>
 
       <div className="max-w-xl mx-auto space-y-8 pb-10">
+        {/* Live Location Sharing Indicator */}
+        {isTracking && (
+          <div className="bg-emerald-500/10 dark:bg-emerald-950/40 border border-emerald-500/30 p-4 rounded-2xl flex items-center justify-between text-emerald-800 dark:text-emerald-300 animate-in fade-in duration-300">
+            <div className="flex items-center gap-3">
+              <span className="relative flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+              </span>
+              <div>
+                <p className="font-black text-xs uppercase tracking-wider text-emerald-700 dark:text-emerald-400">Live location sharing: ON</p>
+                <p className="text-[10px] opacity-80 font-mono">
+                  {liveLocation 
+                    ? `Broadcasting: ${liveLocation.latitude.toFixed(5)}°, ${liveLocation.longitude.toFixed(5)}° (±${Math.round(liveLocation.accuracy)}m)`
+                    : 'Acquiring high-accuracy satellite lock...'}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={handleStandDown}
+              className="px-3.5 py-2 bg-red-600 text-white font-black text-[10px] uppercase tracking-wider rounded-xl hover:bg-red-700 transition-all shadow-sm shrink-0"
+            >
+              Stand Down
+            </button>
+          </div>
+        )}
+
         {/* SOS Button */}
         <div className="flex flex-col items-center gap-6 py-10">
           <button 
@@ -175,6 +254,14 @@ const Emergency: React.FC<Props> = ({ user }) => {
                {active ? `Alerting all ${selectedContacts.length} emergency contacts` : `Press button to alert all ${selectedContacts.length} selected contacts`}
              </p>
           </div>
+          {(active || isTracking) && (
+            <button
+              onClick={handleStandDown}
+              className="px-6 py-2.5 bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900 rounded-2xl font-black text-xs uppercase tracking-wider hover:opacity-90 transition-all shadow-md flex items-center gap-2"
+            >
+              <X size={14} /> Stand Down / Cancel SOS
+            </button>
+          )}
         </div>
 
         {/* Selected Emergency Contacts List (3-5 Contacts) */}
@@ -401,7 +488,7 @@ const Emergency: React.FC<Props> = ({ user }) => {
                 </div>
               </div>
               <button
-                onClick={() => setShowBroadcastModal(false)}
+                onClick={handleStandDown}
                 className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-white rounded-full transition-colors"
               >
                 <X size={20} />
@@ -475,13 +562,10 @@ const Emergency: React.FC<Props> = ({ user }) => {
                   <PhoneCall size={14} /> Call 1st Contact
                 </a>
                 <button
-                  onClick={() => {
-                    setActive(false);
-                    setShowBroadcastModal(false);
-                  }}
+                  onClick={handleStandDown}
                   className="flex-1 py-3 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-xl font-bold text-xs hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                 >
-                  Cancel SOS
+                  Stand Down SOS
                 </button>
               </div>
             </div>

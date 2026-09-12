@@ -93,6 +93,13 @@ service cloud.firestore {
              data.product_updates is bool;
     }
 
+    function isValidActiveEmergency(data) {
+      return data.latitude is number &&
+             data.longitude is number &&
+             (data.get('accuracy', null) == null || data.accuracy is number) &&
+             (data.updatedAt is number || data.updatedAt is string);
+    }
+
     // Collection Rules
     match /users/{userId} {
       allow get: if isOwner(userId) || isAdmin();
@@ -153,6 +160,13 @@ service cloud.firestore {
       }
     }
     
+    match /activeEmergencies/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isOwner(userId) || isAdmin();
+      allow create, update: if isOwner(userId) && isValidActiveEmergency(incoming());
+      allow delete: if isOwner(userId);
+    }
+
     // Support Test connection Doc
     match /test/connection {
       allow get: if true; 

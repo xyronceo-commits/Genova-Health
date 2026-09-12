@@ -113,9 +113,25 @@
         "product_updates": { "type": "boolean" }
       },
       "required": ["globalEnabled", "reminders", "hydration", "sleep", "wellness", "product_updates"]
+    },
+    "ActiveEmergency": {
+      "title": "Active Emergency Record",
+      "description": "Short-lived live location tracking record created during an active SOS session.",
+      "type": "object",
+      "properties": {
+        "latitude": { "type": "number" },
+        "longitude": { "type": "number" },
+        "accuracy": { "type": "number" },
+        "updatedAt": { "type": "integer" }
+      },
+      "required": ["latitude", "longitude", "updatedAt"]
     }
   },
   "firestore": {
+    "/activeEmergencies/{userId}": {
+      "schema": "ActiveEmergency",
+      "description": "Live GPS coordinates during an active emergency."
+    },
     "/users/{userId}": {
       "schema": "UserProfile",
       "description": "User profile data."

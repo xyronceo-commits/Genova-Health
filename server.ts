@@ -10,7 +10,7 @@ import { getFirestore } from "firebase-admin/firestore";
 import { getMessaging } from "firebase-admin/messaging";
 import { initializeApp as initWebApp } from "firebase/app";
 import { getAuth as getWebAuth, signInWithEmailAndPassword as webSignIn, createUserWithEmailAndPassword as webCreateUser } from "firebase/auth";
-import { initializeFirestore as initWebFirestore, collection, getDocs } from "firebase/firestore";
+import { initializeFirestore as initWebFirestore, collection, getDocs, doc, setDoc, deleteDoc } from "firebase/firestore";
 import firebaseConfig from "./firebase-applet-config.json";
 
 async function startServer() {
@@ -205,7 +205,7 @@ async function startServer() {
     const smtpUser = process.env.SMTP_USER;
     const smtpPass = process.env.SMTP_PASS;
     const smtpPort = parseInt(process.env.SMTP_PORT || '587', 10);
-    const smtpFrom = process.env.SMTP_FROM || 'no-reply@genovahealth.com';
+    const smtpFrom = process.env.SMTP_FROM || 'no-reply@optixia.com';
 
     if (smtpHost && smtpUser && smtpPass) {
       try {
@@ -220,14 +220,14 @@ async function startServer() {
         });
 
         await transporter.sendMail({
-          from: `"Genova Health Security" <${smtpFrom}>`,
+          from: `"Optixia Security" <${smtpFrom}>`,
           to: toEmail,
-          subject: "Verify your Genova Health email address",
-          text: `Your Genova Health 6-digit verification code is: ${code}\n\nThis code will expire in 10 minutes.\nIf you did not request this verification code, please ignore this email.`,
+          subject: "Verify your Optixia email address",
+          text: `Your Optixia 6-digit verification code is: ${code}\n\nThis code will expire in 10 minutes.\nIf you did not request this verification code, please ignore this email.`,
           html: `
             <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 500px; margin: 0 auto; padding: 24px; background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 16px;">
               <div style="margin-bottom: 20px; text-align: center;">
-                <h2 style="color: #111827; font-size: 22px; font-weight: 800; margin: 0;">Genova Health</h2>
+                <h2 style="color: #111827; font-size: 22px; font-weight: 800; margin: 0;">Optixia</h2>
                 <p style="color: #6b7280; font-size: 13px; margin-top: 4px;">Security Verification</p>
               </div>
               <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; text-align: center; margin-bottom: 20px;">
@@ -712,7 +712,7 @@ async function startServer() {
     const result = await sendNotificationToUser({
       userId: sanitizeText(targetUserId),
       category: category || 'reminders',
-      title: sanitizeText(title) || 'Genova Test Notification',
+      title: sanitizeText(title) || 'Optixia Test Notification',
       body: sanitizeText(body) || 'Firebase Cloud Messaging notifications are working.',
       route: route ? sanitizeText(route) : '/scan'
     });
@@ -892,7 +892,7 @@ async function startServer() {
           const parts = email.split("@");
           emailMasked = `${parts[0].substring(0, 1)}***@${parts[1] || "gmail.com"}`;
         } else {
-          emailMasked = `usr_${id.substring(0, 4)}***@genova.health`;
+          emailMasked = `usr_${id.substring(0, 4)}***@optixia.com`;
         }
 
         const displayName = data.fullName || data.displayName || `Patient (${id.substring(0, 6)})`;
@@ -1131,7 +1131,7 @@ async function startServer() {
       return res.status(400).json({ error: "Meal query text is required." });
     }
 
-    const prompt = `You are Genova AI Clinical Nutrition Engine analyzing a real-time manual food log input.
+    const prompt = `You are Optixia AI Clinical Nutrition Engine analyzing a real-time manual food log input.
     User Query: "${query}".
     User Health Profile & Demographics: ${userContext || 'Standard Profile'}.
 
@@ -1301,7 +1301,7 @@ async function startServer() {
     const safeSpo2 = Number(telemetryData.spo2Percent) || 98;
     const safeStress = Number(telemetryData.stressLevelScore) || 25;
 
-    const prompt = `You are Genova AI Chief Clinical Intelligence Engine analyzing comprehensive live smartwatch telemetry.
+    const prompt = `You are Optixia AI Chief Clinical Intelligence Engine analyzing comprehensive live smartwatch telemetry.
     Telemetry Data:
     - Current Heart Rate: ${safeHeartRate} BPM (Resting HR: ${safeRestingHR} BPM)
     - Sleep: ${safeSleepHours} hours, Quality: ${safeSleepQuality}% (Deep: ${telemetryData.sleepBreakdown?.deep || '2h'}, REM: ${telemetryData.sleepBreakdown?.rem || '1.5h'}, Light: ${telemetryData.sleepBreakdown?.light || '3.5h'}, Awake: ${telemetryData.sleepBreakdown?.awake || '30m'})
@@ -1396,7 +1396,7 @@ async function startServer() {
 
     try {
       const nomRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`, {
-        headers: { 'Accept-Language': 'en', 'User-Agent': 'GenovaHealth/1.0' }
+        headers: { 'Accept-Language': 'en', 'User-Agent': 'Optixia/1.0' }
       });
       if (nomRes.ok) {
         const data = await nomRes.json();
@@ -1540,6 +1540,38 @@ async function startServer() {
     return res.json({ locationName: locName, hospitals: uniqueHospitals });
   });
 
+  // 9. Live Emergency Location Tracking routes
+  app.post("/api/emergency/update-location", generalRateLimiter, async (req: Request, res: Response) => {
+    const { userId, latitude, longitude, accuracy, timestamp } = req.body;
+    if (!userId || typeof latitude !== "number" || typeof longitude !== "number") {
+      return res.status(400).json({ error: "userId, latitude, and longitude are required." });
+    }
+    try {
+      await setDoc(doc(webDb, "activeEmergencies", userId), {
+        latitude,
+        longitude,
+        accuracy: accuracy || null,
+        updatedAt: timestamp || Date.now(),
+      }, { merge: true });
+      return res.json({ success: true });
+    } catch (err) {
+      console.error("Error updating emergency location:", err);
+      return res.status(500).json({ error: "Unable to update live location." });
+    }
+  });
+
+  app.post("/api/emergency/end", generalRateLimiter, async (req: Request, res: Response) => {
+    const { userId } = req.body;
+    if (!userId) return res.status(400).json({ error: "userId is required." });
+    try {
+      await deleteDoc(doc(webDb, "activeEmergencies", userId));
+      return res.json({ success: true });
+    } catch (err) {
+      console.error("Error clearing emergency record:", err);
+      return res.status(500).json({ error: "Unable to end emergency tracking." });
+    }
+  });
+
   // Vite integration for assets serving & hot reload proxying
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
@@ -1556,7 +1588,7 @@ async function startServer() {
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`[Genova Server] Backend & Frontend online on http://localhost:${PORT}`);
+    console.log(`[Optixia Server] Backend & Frontend online on http://localhost:${PORT}`);
   });
 }
 
