@@ -126,7 +126,7 @@
     },
     "/users/{userId}/chats/{chatId}": {
       "schema": "ChatSession",
-      "description": "Historical chat sessions with Genova AI assistants."
+      "description": "Historical chat sessions with Optixia AI assistants."
     },
     "/users/{userId}/foodLogs/{logId}": {
       "schema": "FoodScan",

@@ -13,7 +13,7 @@ const About: React.FC<Props> = ({ onOpenSecureAccess }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const stats = [
-    { label: "Storage Architecture", value: "Offline-First Local" },
+    { label: "Storage Architecture", value: "Cloud Firestore + Cache" },
     { label: "Core AI Engine", value: "Gemini 3.5 Flash" },
     { label: "Biometric Processing", value: "Ephemeral PPG Vitals" },
     { label: "Status", value: "Clinical Grade & Private" }
@@ -22,18 +22,18 @@ const About: React.FC<Props> = ({ onOpenSecureAccess }) => {
   const privacyHighlights = [
     {
       icon: <Lock className="text-blue-500" size={24} />,
-      title: "Data Sovereignty",
-      desc: "All health records, biomarkers, and logs stay fully sandboxed in your device's browser localStorage."
+      title: "Encrypted Cloud Storage",
+      desc: "Your profile, health metrics, and chat history are secured in Google Cloud Firestore with role-based security rules."
     },
     {
       icon: <Database className="text-emerald-500" size={24} />,
-      title: "Zero Server Logging",
-      desc: "Our API integrations process scanning signals ephemerally. Vitals statistics are never cataloged or stored on cloud networks."
+      title: "Ephemeral Vital Processing",
+      desc: "Raw optical PPG camera frames and pulse waveforms are processed in volatile memory (RAM) and never cataloged or stored."
     },
     {
       icon: <Shield className="text-indigo-500" size={24} />,
-      title: "Self-Sovereign Architecture",
-      desc: "All health records and authentication keys are stored 100% locally on your device with zero cloud database dependency."
+      title: "Client-Side Caching",
+      desc: "Step counters, theme preferences, and offline queues are cached locally for fast responsiveness and offline availability."
     }
   ];
 
@@ -75,39 +75,39 @@ const About: React.FC<Props> = ({ onOpenSecureAccess }) => {
           ))}
         </section>
 
-        {/* Dedicated Data Privacy & Local Storage Section */}
+        {/* Dedicated Data Privacy & Storage Section */}
         <section className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-800 p-8 rounded-3xl transition-all shadow-sm space-y-6">
           <div className="flex items-center gap-3">
             <div className="p-2.5 bg-emerald-500/10 dark:bg-emerald-500/5 text-emerald-600 dark:text-emerald-400 rounded-xl animate-pulse">
               <Database size={20} />
             </div>
-            <h3 className="font-extrabold text-lg text-gray-900 dark:text-white">Data Privacy & Local Storage</h3>
+            <h3 className="font-extrabold text-lg text-gray-900 dark:text-white">Data Privacy & Cloud Security</h3>
           </div>
 
           <div className="space-y-4 text-sm text-gray-600 dark:text-gray-300 leading-relaxed font-medium">
             <p>
-              To ensure unmatched privacy, Optixia strictly relies on <span className="font-mono bg-gray-100 dark:bg-gray-750 px-1.5 py-0.5 rounded text-blue-600 dark:text-blue-400 font-extrabold">localStorage</span> to save all your medical profile specifications and health metrics directly on your physical device. 
+              Optixia stores your account and health profile data (including full name, genotype, blood group, allergies, age, height, weight, and emergency contact details), vitals logs, meal scans, and AI assistant chat histories securely in <span className="font-mono bg-gray-100 dark:bg-gray-750 px-1.5 py-0.5 rounded text-blue-600 dark:text-blue-400 font-extrabold">Google Cloud Firestore</span>, protected by strict security rules so that only you can access your personal records.
             </p>
             <p>
-              By utilizing local sandbox database keys, your sensitive information never touches external cloud storage or centralized logging servers, guaranteeing 100% ownership and complete sovereignty over your wellness telemetry.
+              Camera vital scans evaluate optical light pulses ephemerally in RAM without saving raw video streams to cloud servers, while local browser caching provides instant offline availability.
             </p>
             
             <div className="p-5 bg-blue-500/5 dark:bg-blue-900/10 rounded-2xl border border-blue-500/10 dark:border-blue-900/20 space-y-4">
               <h4 className="font-bold text-xs text-blue-600 dark:text-blue-400 uppercase tracking-widest flex items-center gap-1.5">
-                <Lock size={12} /> Local Storage Breakdown:
+                <Lock size={12} /> Data Storage Breakdown:
               </h4>
               <ul className="text-xs space-y-3 font-semibold text-gray-500 dark:text-gray-400">
                 <li className="flex items-start gap-2.5">
                   <span className="text-emerald-500 mt-0.5 flex-shrink-0">•</span>
-                  <span><strong>Onboarding & Demographics:</strong> Your name, age, allergies, blood group, height, weight, and clinical goals are safely saved client-side for dynamic personalization.</span>
+                  <span><strong>Cloud Firestore Sync:</strong> Profile demographics, vitals logs, meal scans, and AI coach interactions are securely stored in your user account collection.</span>
                 </li>
                 <li className="flex items-start gap-2.5">
                   <span className="text-emerald-500 mt-0.5 flex-shrink-0">•</span>
-                  <span><strong>SmartScan Biometrics:</strong> Digital PPG vital readings, pulse estimates, historical blood pressure trends, and stress records remain strictly in local storage registry.</span>
+                  <span><strong>Ephemeral Optical Vitals:</strong> Raw camera video frames and PPG pulse feeds are evaluated strictly in volatile RAM and never stored.</span>
                 </li>
                 <li className="flex items-start gap-2.5">
                   <span className="text-emerald-500 mt-0.5 flex-shrink-0">•</span>
-                  <span><strong>AI Assistant Dialogues:</strong> Dialogue session history and clinical system advice context are stored exclusively in temporary browser state cache, maintaining complete medical anonymity.</span>
+                  <span><strong>Local Browser Cache:</strong> Step counts, dark/light theme options, and offline queues are cached in browser localStorage for immediate speed.</span>
                 </li>
               </ul>
             </div>
@@ -120,11 +120,11 @@ const About: React.FC<Props> = ({ onOpenSecureAccess }) => {
             <div className="p-2 bg-blue-500/10 dark:bg-blue-500/5 text-blue-600 dark:text-blue-400 rounded-xl">
               <Shield size={20} />
             </div>
-            <h3 className="font-extrabold text-lg text-gray-900 dark:text-white">Local Privacy Standard</h3>
+            <h3 className="font-extrabold text-lg text-gray-900 dark:text-white">Privacy & Security Standard</h3>
           </div>
 
           <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed font-medium">
-            Unlike traditional health trackers that upload personal medical charts and tracking statistics to centralized corporate databases, Optixia operates as a self-contained local unit. Your health profile remains private to you.
+            Optixia enforces least-privilege security controls. Sensitive health attributes remain protected under strict cloud database security rules and are excluded from admin operational views.
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t border-gray-100 dark:border-gray-800 transition-colors">
@@ -188,7 +188,7 @@ const About: React.FC<Props> = ({ onOpenSecureAccess }) => {
             <h4 className="text-xs font-black uppercase tracking-wider">Clinical Guidance Disclaimer</h4>
           </div>
           <p className="text-[11px] text-gray-600 dark:text-gray-400 leading-relaxed font-semibold">
-            Optixia provides local digital analytics, wellness scanning guides, and expert AI dialogue models. The output does not substitute for real clinical assessments, professional nursing care, or direct specialized consultation from a qualified physician. Always consult emergency systems or your healthcare provider in case of true medical crises.
+            Optixia provides digital analytics, wellness scanning guides, and expert AI dialogue models. The output does not substitute for real clinical assessments, professional nursing care, or direct specialized consultation from a qualified physician. Always consult emergency systems or your healthcare provider in case of true medical crises.
           </p>
         </section>
       </main>
@@ -221,7 +221,7 @@ const About: React.FC<Props> = ({ onOpenSecureAccess }) => {
                 </div>
                 <div>
                   <h3 className="text-xl font-black text-gray-900 dark:text-white">Data Privacy Policy</h3>
-                  <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-0.5">Offline Local Guarantee</p>
+                  <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-0.5">Cloud Security & Encryption</p>
                 </div>
               </div>
 
@@ -230,10 +230,10 @@ const About: React.FC<Props> = ({ onOpenSecureAccess }) => {
                 <div className="space-y-2">
                   <h4 className="font-extrabold text-gray-900 dark:text-white flex items-center gap-2 text-sm uppercase tracking-wider">
                     <Database size={14} className="text-blue-500" />
-                    1. Storage Location & Technology
+                    1. Cloud Storage & Firestore Security
                   </h4>
                   <p className="text-xs">
-                    Your entire health profile—including full name, blood status, genotypes, fitness step totals, personal meal scan logs, and biometric PPG signal analyses—is **strictly stored locally on your device** utilizing the browser's sandboxed <code className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded font-mono font-bold text-blue-600 dark:text-blue-400">localStorage</code>. Optixia has zero server-side telemetry trackers attached to this data.
+                    Your health profile (including full name, blood status, genotype, allergies, age, height, weight, and emergency contact details), vital logs, food scan history, and AI chat histories are stored securely in Google Cloud Firestore under strict access rules.
                   </p>
                 </div>
 
@@ -243,34 +243,34 @@ const About: React.FC<Props> = ({ onOpenSecureAccess }) => {
                     2. Ephemeral Signal Processing
                   </h4>
                   <p className="text-xs">
-                    When you perform a camera-based vital scan, video frames are processed completely in local RAM. The extracted photoplethysmogram (PPG) values are sent directly inside secure headers to our AI engine to compile your health report in real-time. This transmission is fully encrypted and transient; none of your raw vital feeds or bio-signals are written to cloud databases or logged.
+                    When you perform a camera-based vital scan, video frames are processed completely in local RAM. Photoplethysmogram (PPG) values are evaluated transiently. None of your raw video feeds or live bio-signal waveforms are written to cloud storage or logged on central servers.
                   </p>
                 </div>
 
                 <div className="space-y-2">
                   <h4 className="font-extrabold text-gray-900 dark:text-white flex items-center gap-2 text-sm uppercase tracking-wider">
                     <Sparkles size={14} className="text-purple-500" />
-                    3. Personalized LLM Interactions
+                    3. AI Processing & Confidentiality
                   </h4>
                   <p className="text-xs">
-                    Conversations with our Optixia AI coaches use specialized model completions to construct highly aligned medical guidance rules. They do not retain logging history on centralized networks for any future training or branding purposes. Conversations are entirely managed and cached in local states.
+                    Conversations with our Optixia AI coaches pass through secure server proxy API endpoints. Queries are never shared with advertisers or used for commercial LLM training.
                   </p>
                 </div>
 
                 <div className="space-y-2">
                   <h4 className="font-extrabold text-gray-900 dark:text-white flex items-center gap-2 text-sm uppercase tracking-wider">
                     <Award size={14} className="text-indigo-500" />
-                    4. Offline Local Sandbox
+                    4. Client Caching & Performance
                   </h4>
                   <p className="text-xs">
-                    Optixia operates 100% client-side. Your user credentials, chat logs, and bio-scans are completely isolated to your device browser sandbox without transmitting data to cloud databases.
+                    Optixia utilizes browser localStorage for step counting, theme preferences, and offline queues to ensure optimal application speed and offline resiliency.
                   </p>
                 </div>
 
                 <div className="p-4 bg-emerald-500/10 dark:bg-emerald-500/5 rounded-2xl border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 flex items-start gap-3">
                   <Shield size={18} className="mt-0.5 flex-shrink-0" />
                   <p className="text-[11px] font-semibold leading-relaxed">
-                    <strong>Strictest Local-First Guarantee:</strong> Your vitals metrics, daily steps, scans, and AI dialogue sessions are strictly kept in local custody on this device. They are never exported or combined with third-party behavioral profiles or advertorial platforms.
+                    <strong>Least-Privilege Protection Guarantee:</strong> Your vitals metrics, daily steps, scans, and AI dialogue sessions are strictly protected under authenticated Firestore rules and excluded from admin user views.
                   </p>
                 </div>
               </div>

@@ -14,20 +14,20 @@ export const LEGAL_DOCS: Record<string, LegalDoc> = {
   hub: {
     id: "hub",
     title: "Legal & Regulatory Hub",
-    shortDesc: "Overview of Genova Health policies, governance standards, and terms.",
+    shortDesc: "Overview of Optixia policies, governance standards, and terms.",
     lastUpdated: "August 2026",
     category: "Overview",
     sections: [
       {
-        heading: "Welcome to Genova Health Legal Portal",
-        content: "Genova Health is committed to compliance, user privacy, transparent medical disclaimers, and data protection. Below you will find our complete set of legally binding terms and policies governing your usage of our web platform, mobile applications, AI health assistants, and biometric scanning telemetry."
+        heading: "Welcome to Optixia Legal Portal",
+        content: "Optixia is committed to compliance, user privacy, transparent medical disclaimers, and data protection. Below you will find our complete set of legally binding terms and policies governing your usage of our web platform, mobile applications, AI health assistants, and biometric scanning telemetry."
       },
       {
         heading: "Quick Navigation & Compliance Directory",
         content: [
           "• Terms & Conditions: Core user agreement, account responsibilities, and service tier rights.",
-          "• Privacy Policy: Local-first data architecture, client-side storage, and ephemeral processing standards.",
-          "• Cookie Policy: Essential browser storage, cache usage, and analytics policy.",
+          "• Privacy Policy: Cloud database security, ephemeral signal processing, and data sovereignty.",
+          "• Cookie Policy: Essential browser storage, local caching, and analytics policy.",
           "• Acceptable Use Policy: Rules against abuse, false emergency dispatches, or automated scrapers.",
           "• Disclaimer: Medical and clinical guidance disclaimers regarding AI responses.",
           "• Intellectual Property Policy: Ownership of trademarks, proprietary PPG algorithms, and software code.",
@@ -42,33 +42,33 @@ export const LEGAL_DOCS: Record<string, LegalDoc> = {
   terms: {
     id: "terms",
     title: "Terms & Conditions",
-    shortDesc: "Binding agreement governing access and use of Genova Health services.",
+    shortDesc: "Binding agreement governing access and use of Optixia services.",
     lastUpdated: "August 7, 2026",
     category: "Terms",
     sections: [
       {
         heading: "1. Acceptance of Terms",
-        content: "By accessing, creating an account on, or interacting with Genova Health ('Platform', 'Services', 'we', 'us'), you agree to be bound by these Terms & Conditions and our Privacy Policy. If you do not agree to all terms, you must immediately cease using the platform."
+        content: "By accessing, creating an account on, or interacting with Optixia ('Platform', 'Services', 'we', 'us'), you agree to be bound by these Terms & Conditions and our Privacy Policy. If you do not agree to all terms, you must immediately cease using the platform."
       },
       {
         heading: "2. Scope of Services",
-        content: "Genova Health provides digital wellness tools, including local client-side biometric scanning (PPG), step tracking, AI health assistant dialogues, food scanning (NutriScan), and emergency SOS dispatch notifications. These services are provided for informational and preliminary triage purposes only."
+        content: "Optixia provides digital wellness tools, including optical biometric scanning (PPG), step tracking, AI health assistant dialogues, food scanning (NutriScan), and emergency SOS dispatch notifications. These services are provided for informational and preliminary triage purposes only."
       },
       {
         heading: "3. Account Eligibility & User Obligations",
         content: [
           "• Age Requirement: You must be at least 18 years old or possess legal parental consent.",
           "• Accuracy: You warrant that any health demographics (genotype, blood group, allergies) entered into your profile are accurate.",
-          "• Account Security: You are solely responsible for maintaining physical security over your device, as biometric logs reside locally."
+          "• Account Security: You are responsible for maintaining account credential confidentiality and device security."
         ]
       },
       {
         heading: "4. Subscription & Paid Features",
-        content: "Certain features (e.g., Genova Health Premium, unlimited AI Nurse consultation, advanced PPG heart rate variability analytics) may require a paid subscription. Payments are non-refundable except as required by applicable law or explicit statutory guarantee."
+        content: "Certain features (e.g., Optixia Premium, unlimited AI Nurse consultation, advanced PPG heart rate variability analytics) may require a paid subscription. Payments are non-refundable except as required by applicable law or explicit statutory guarantee."
       },
       {
         heading: "5. Limitation of Liability",
-        content: "To the maximum extent permitted by applicable law, Genova Health and its developers shall not be liable for any direct, indirect, incidental, or consequential damages resulting from reliance on AI health responses, device motion sensors, or emergency alert delivery failures."
+        content: "To the maximum extent permitted by applicable law, Optixia and its developers shall not be liable for any direct, indirect, incidental, or consequential damages resulting from reliance on AI health responses, device motion sensors, or emergency alert delivery failures."
       },
       {
         heading: "6. Termination & Service Modifications",
@@ -80,33 +80,34 @@ export const LEGAL_DOCS: Record<string, LegalDoc> = {
   privacy: {
     id: "privacy",
     title: "Privacy Policy",
-    shortDesc: "Details on client-side sandboxing, data sovereignty, and zero cloud logging.",
+    shortDesc: "Details on cloud Firestore encryption, access controls, and ephemeral processing.",
     lastUpdated: "August 7, 2026",
     category: "Privacy",
     sections: [
       {
-        heading: "1. Client-Side Local Data Architecture",
-        content: "Genova Health operates on a Local-First privacy architecture. All medical demographics (full name, genotype, blood group, allergies), PPG vital scan histories, daily step counters, and AI assistant chat histories are saved strictly inside your web browser's sandboxed localStorage."
+        heading: "1. Cloud Database & Security Architecture",
+        content: "Optixia stores your account and health profile data (including full name, genotype, blood group, allergies, age, gender, height, weight, and emergency contact details), vitals history logs, food logs, and AI assistant chat histories securely in our cloud database (Google Cloud Firestore). Access is strictly governed by authenticated security rules ensuring that only you (and authorized administrators via anonymized operational metrics) can access your records."
       },
       {
-        heading: "2. Information We Collect & How We Use It",
+        heading: "2. Information We Collect & How We Process It",
         content: [
-          "• Profile Information: Name, age, weight, height, genotype, blood group, and emergency contacts are stored locally on your device.",
-          "• Biometric Telemetry: Video frames from optical PPG camera scans are processed ephemerally in volatile memory (RAM) and never saved or stored on central servers.",
-          "• Sensor Inputs: Device acceleration and motion data are processed locally to count physical steps and detect emergency fall impacts."
+          "• Cloud Profile & Telemetry: Account demographics, health metrics, meal scans, and chat logs are securely synchronized to Cloud Firestore.",
+          "• Ephemeral Optical Processing: Raw camera video frames and millisecond PPG pulse waveforms captured during vital scans are processed ephemerally in device RAM and are never saved or stored on central servers.",
+          "• Sensor Inputs: Device acceleration and motion data are processed locally to count physical steps and detect emergency fall impacts.",
+          "• Local Browser Caching: Step counts, local UI theme preferences, and offline queues are cached in your browser's localStorage for instant performance and offline availability."
         ]
       },
       {
-        heading: "3. AI Processing & Transient Data Flow",
-        content: "When you interact with our AI health coaches (Nurse Genova, Nutrition Assistant, Symptom Checker), queries are sent to secure serverless endpoints solely to compute answers. Queries are never stored for model training or linked to third-party advertising IDs."
+        heading: "3. AI Processing & Confidential Data Flow",
+        content: "When you interact with our AI health coaches (Nurse Optixia, Nutrition Assistant, Symptom Checker), queries are processed through secure server-side proxy API endpoints. Queries are never stored for AI model training or shared with third-party advertisers."
       },
       {
         heading: "4. Emergency SOS Data Sharing",
         content: "When you explicitly trigger an SOS Emergency Alert, your specified emergency contacts and location coordinates are transmitted via SMS or webhook dispatches to alert your chosen recipients. You hold full control over your contact list."
       },
       {
-        heading: "5. Data Control & Deletion",
-        content: "Because your health data resides in your device's local storage, clearing your browser cache or clicking 'Clear Local Data' in Profile Settings instantly and irreversibly purges 100% of your records from the device."
+        heading: "5. Data Control & Access",
+        content: "You retain control over your health records. You may update your profile or request data deletion through account settings or by contacting legal@optixia.com. Local cached data can be cleared at any time through your browser settings."
       }
     ]
   },
@@ -123,11 +124,11 @@ export const LEGAL_DOCS: Record<string, LegalDoc> = {
         content: "Cookies and local Web Storage (localStorage/sessionStorage) are small data keys stored on your device browser that enable websites to remember user preferences, login states, and active sessions."
       },
       {
-        heading: "2. How Genova Health Uses Local Storage",
+        heading: "2. How Optixia Uses Local Storage & Caching",
         content: [
-          "• Essential Functional Keys: Used to save your user profile (genova_user_profile), dark/light theme preference (genova_theme_mode), and smartwatch pair states.",
-          "• Biometric Caching: Saves step counts (genova_daily_steps) and local PPG vital history logs.",
-          "• Zero Advertising Cookies: Genova Health does NOT place third-party tracking pixels, marketing cookies, or retargeting scripts on your device."
+          "• Essential Functional Keys: Used to save your local UI preferences (optixia_theme_mode) and smartwatch pairing states.",
+          "• Offline Caching: Caches step counts (optixia_daily_steps) and local UI state for seamless offline interaction.",
+          "• Zero Advertising Cookies: Optixia does NOT place third-party tracking pixels, marketing cookies, or retargeting scripts on your device."
         ]
       },
       {
@@ -149,8 +150,8 @@ export const LEGAL_DOCS: Record<string, LegalDoc> = {
         content: [
           "• False Emergency Triggers: You must not deliberately send false SOS emergency broadcasts or spam dispatch webhooks.",
           "• Automated Abuse & Scraping: You may not reverse-engineer, crawl, or scrape our PPG camera scanning algorithms or AI API endpoints.",
-          "• Unauthorized Medical Advice: You may not use Genova Health output to impersonate a licensed physician or prescribe controlled substances.",
-          "• Malware & Reverse Engineering: Attempting to bypass browser sandboxing or compromise platform security is strictly forbidden."
+          "• Unauthorized Medical Advice: You may not use Optixia output to impersonate a licensed physician or prescribe controlled substances.",
+          "• Malware & Reverse Engineering: Attempting to bypass security controls or compromise platform security is strictly forbidden."
         ]
       },
       {
@@ -169,11 +170,11 @@ export const LEGAL_DOCS: Record<string, LegalDoc> = {
     sections: [
       {
         heading: "1. Not Medical Advice",
-        content: "GENOVA HEALTH IS AN AI-POWERED WELLNESS COMPANION AND PRELIMINARY TRIAGE TOOL. THE CONTENT, BIOMETRIC ESTIMATES, PPG HEART RATE READINGS, AND AI ASSISTANT RESPONSES ARE FOR INFORMATIONAL PURPOSES ONLY AND DO NOT CONSTITUTE PROFESSIONAL MEDICAL DIAGNOSIS, TREATMENT, OR CLINICAL DIRECTION."
+        content: "OPTIXIA IS AN AI-POWERED WELLNESS COMPANION AND PRELIMINARY TRIAGE TOOL. THE CONTENT, BIOMETRIC ESTIMATES, PPG HEART RATE READINGS, AND AI ASSISTANT RESPONSES ARE FOR INFORMATIONAL PURPOSES ONLY AND DO NOT CONSTITUTE PROFESSIONAL MEDICAL DIAGNOSIS, TREATMENT, OR CLINICAL DIRECTION."
       },
       {
         heading: "2. Emergency Medical Situations",
-        content: "IF YOU ARE EXPERIENCING A MEDICAL EMERGENCY, SEVERE CHEST PAIN, DIFFICULTY BREATHING, SUDDEN NUMBNESS, OR ACUTE TRAUMA, IMMEDIATELY CALL YOUR LOCAL EMERGENCY SERVICES (OR 112/911/112 IN NIGERIA) OR VISIT THE NEAREST HOSPITAL EMERGENCY ROOM."
+        content: "IF YOU ARE EXPERIENCING A MEDICAL EMERGENCY, SEVERE CHEST PAIN, DIFFICULTY BREATHING, SUDDEN NUMBNESS, OR ACUTE TRAUMA, IMMEDIATELY CALL YOUR LOCAL EMERGENCY SERVICES (OR 112/911 IN YOUR AREA) OR VISIT THE NEAREST HOSPITAL EMERGENCY ROOM."
       },
       {
         heading: "3. Biometric Scan & Sensor Limitations",
@@ -191,15 +192,15 @@ export const LEGAL_DOCS: Record<string, LegalDoc> = {
     sections: [
       {
         heading: "1. Ownership of Platform Assets",
-        content: "All source code, user interface designs, custom icons, Genova Health branding, logos, PPG signal processing code, and proprietary prompt engines are the exclusive property of Genova Health and its licensors."
+        content: "All source code, user interface designs, custom icons, Optixia branding, logos, PPG signal processing code, and proprietary prompt engines are the exclusive property of Optixia and its licensors."
       },
       {
         heading: "2. User Data Ownership",
-        content: "You retain full ownership over any personal health records, notes, and profile details created within your local app environment."
+        content: "You retain ownership rights over your personal health records, notes, and profile details."
       },
       {
         heading: "3. Limited Software License",
-        content: "We grant you a personal, non-exclusive, non-transferable, revocable license to access and use Genova Health for personal, non-commercial health tracking."
+        content: "We grant you a personal, non-exclusive, non-transferable, revocable license to access and use Optixia for personal, non-commercial health tracking."
       }
     ]
   },
@@ -213,7 +214,7 @@ export const LEGAL_DOCS: Record<string, LegalDoc> = {
     sections: [
       {
         heading: "1. DMCA Notice & Takedown Procedure",
-        content: "Genova Health respects intellectual property rights. If you believe any material on our platform infringes your copyrighted work, you may submit a written DMCA notice to legal@genovahealth.com with:"
+        content: "Optixia respects intellectual property rights. If you believe any material on our platform infringes your copyrighted work, you may submit a written DMCA notice to legal@optixia.com with:"
       },
       {
         heading: "2. Required Information for DMCA Claims",
@@ -238,7 +239,7 @@ export const LEGAL_DOCS: Record<string, LegalDoc> = {
     sections: [
       {
         heading: "1. Respectful & Empathetic Interaction",
-        content: "Genova Health is dedicated to supporting users on their wellness journeys. All community forums, feedback channels, and public interactions must maintain mutual respect, empathy, and constructive tone."
+        content: "Optixia is dedicated to supporting users on their wellness journeys. All community forums, feedback channels, and public interactions must maintain mutual respect, empathy, and constructive tone."
       },
       {
         heading: "2. Prohibited Content & Harassment",
@@ -268,7 +269,7 @@ export const LEGAL_DOCS: Record<string, LegalDoc> = {
       },
       {
         heading: "3. Continuous Monitoring & Safety Audits",
-        content: "We perform regular security audits of our local web sandboxes, encryption layers, and third-party APIs to safeguard user trust and ensure application integrity."
+        content: "We perform regular security audits of our cloud security rules, API proxies, and application components to safeguard user trust and ensure application integrity."
       }
     ]
   }

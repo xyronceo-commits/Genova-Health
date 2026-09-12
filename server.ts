@@ -907,8 +907,6 @@ async function startServer() {
           createdAt,
           isVerified,
           status,
-          bloodGroup: data.bloodGroup || "Not set",
-          genotype: data.genotype || "Not set",
           subscriptionStatus: data.subscriptionStatus || "free"
         };
       });
