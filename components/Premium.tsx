@@ -12,11 +12,11 @@ const Premium: React.FC<Props> = ({ user, onUpdate }) => {
   const navigate = useNavigate();
 
   const unlockedFeatures = [
-    { title: 'NutriScan™ Pro', desc: 'Unlimited AI camera food & calorie analysis.', icon: <Zap className="text-amber-500" /> },
-    { title: 'All Genova AI Coaches', desc: 'Unlimited conversations with Nurse, Nutritionist, Fitness, Symptom, Family & Mental health coaches.', icon: <Shield className="text-blue-500" /> },
-    { title: 'Live Bluetooth Wearables', desc: 'Connect smartwatches and fitness bands for live biometrics.', icon: <Sparkles className="text-pink-500" /> },
-    { title: 'Family & Pediatric Care', desc: 'Pediatric care AI advice and family health guidance.', icon: <Check className="text-green-500" /> },
-    { title: 'Camera Bio-Scan', desc: 'Real-time PPG finger pulse & oxygen camera analysis.', icon: <Heart className="text-red-500" /> },
+    { title: 'NutriScan™ Pro', desc: 'Unlimited AI camera food & calorie analysis.', icon: <Zap className="text-blue-500" /> },
+    { title: 'All Optixia AI Coaches', desc: 'Unlimited conversations with Nurse, Nutritionist, Fitness, Symptom, Family & Mental health coaches.', icon: <Shield className="text-blue-500" /> },
+    { title: 'Live Bluetooth Wearables', desc: 'Connect smartwatches and fitness bands for live biometrics.', icon: <Sparkles className="text-blue-500" /> },
+    { title: 'Family & Pediatric Care', desc: 'Pediatric care AI advice and family health guidance.', icon: <Check className="text-blue-500" /> },
+    { title: 'Camera Bio-Scan', desc: 'Real-time PPG finger pulse & oxygen camera analysis.', icon: <Heart className="text-blue-500" /> },
   ];
 
   return (
@@ -27,19 +27,19 @@ const Premium: React.FC<Props> = ({ user, onUpdate }) => {
         </button>
         <h1 className="font-bold text-lg tracking-tight flex items-center gap-2 text-gray-900 dark:text-white">
           <Sparkles className="text-blue-500" size={20} />
-          Genova Features
+          Optixia Features
         </h1>
         <div className="w-9" />
       </header>
 
       <div className="max-w-xl mx-auto p-6 space-y-8">
         <div className="text-center space-y-4 pt-6">
-          <div className="w-20 h-20 bg-emerald-500 text-white rounded-[2.5rem] flex items-center justify-center mx-auto mb-4 shadow-xl shadow-emerald-500/20">
+          <div className="w-20 h-20 bg-blue-600 text-white rounded-[2.5rem] flex items-center justify-center mx-auto mb-4 shadow-xl shadow-blue-500/20">
             <Check size={40} />
           </div>
           <h2 className="text-3xl font-black tracking-tight text-gray-900 dark:text-white">100% Free & Unlocked</h2>
           <p className="text-gray-500 dark:text-gray-400 font-medium max-w-md mx-auto text-balance">
-            All Genova Health features, AI coaches, camera scans, and wearable sync options are completely free for all users.
+            All Optixia features, AI coaches, camera scans, and wearable sync options are completely free for all users.
           </p>
         </div>
 

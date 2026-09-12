@@ -18,7 +18,7 @@ import About from './components/About';
 import Legal from './components/Legal';
 import { SecureAccessModal } from './components/SecureAccessModal';
 import { AdminDashboard } from './components/AdminDashboard';
-import { GenovaLogo } from './components/GenovaLogo';
+import { OptixiaLogo } from './components/OptixiaLogo';
 import { NotificationPermissionPrompt } from './components/NotificationPermissionPrompt';
 import { EmailVerificationScreen } from './components/EmailVerificationScreen';
 
@@ -134,7 +134,7 @@ const App = () => {
   React.useEffect(() => {
     let unsubscribe: (() => void) | undefined;
     listenToForegroundPushMessages((payload) => {
-      const title = payload.notification?.title || payload.data?.title || 'Genova Activity Alert';
+      const title = payload.notification?.title || payload.data?.title || 'Optixia Activity Alert';
       const body = payload.notification?.body || payload.data?.body || 'New activity recorded.';
       const route = payload.data?.route || payload.data?.actionUrl || '/scan';
       
@@ -199,7 +199,7 @@ const App = () => {
 
   // Sync SEO metadata & Open Graph attributes dynamically with host origin
   React.useEffect(() => {
-    document.title = "Genova Health";
+    document.title = "Optixia";
     if (typeof window !== 'undefined' && window.location) {
       const origin = window.location.origin;
       const ogUrl = document.querySelector('meta[property="og:url"]');
@@ -366,8 +366,8 @@ const App = () => {
 
   if (loading) return (
     <div className="h-screen flex flex-col items-center justify-center bg-blue-50 dark:bg-gray-900 transition-colors gap-4">
-      <GenovaLogo className="w-16 h-16 animate-pulse" />
-      <div className="text-blue-900 dark:text-blue-400 font-extrabold text-xl tracking-tight">Genova Health</div>
+      <OptixiaLogo className="w-16 h-16 animate-pulse" />
+      <div className="text-blue-900 dark:text-blue-400 font-extrabold text-xl tracking-tight">Optixia</div>
     </div>
   );
 

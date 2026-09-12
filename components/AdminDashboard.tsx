@@ -80,8 +80,8 @@ export const AdminDashboard: React.FC<Props> = ({ adminToken, onLogout, isDarkMo
 
   // Developer FCM Push Test Form state
   const [testUserId, setTestUserId] = useState('');
-  const [testTitle, setTestTitle] = useState('Genova Health Push Test');
-  const [testBody, setTestBody] = useState('Firebase Cloud Messaging push notification test from Genova Health Admin.');
+  const [testTitle, setTestTitle] = useState('Optixia Push Test');
+  const [testBody, setTestBody] = useState('Firebase Cloud Messaging push notification test from Optixia Admin.');
   const [testCategory, setTestCategory] = useState<'reminders' | 'hydration' | 'sleep' | 'wellness' | 'product_updates'>('reminders');
   const [testRoute, setTestRoute] = useState('/scan');
   const [testResult, setTestResult] = useState<{ success?: boolean; message?: string } | null>(null);
@@ -258,7 +258,7 @@ export const AdminDashboard: React.FC<Props> = ({ adminToken, onLogout, isDarkMo
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-xl font-extrabold tracking-tight">Genova Health</h1>
+              <h1 className="text-xl font-extrabold tracking-tight">Optixia</h1>
               <span className="text-[10px] font-black uppercase tracking-wider bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 px-2.5 py-0.5 rounded-md border border-slate-200 dark:border-slate-600">
                 Secure Admin
               </span>
@@ -294,7 +294,7 @@ export const AdminDashboard: React.FC<Props> = ({ adminToken, onLogout, isDarkMo
       <div className="bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-900/50 rounded-2xl p-4 flex items-start gap-3">
         <Lock size={18} className="text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
         <div className="text-xs text-blue-900 dark:text-blue-200 leading-relaxed font-medium">
-          <strong className="font-bold">Least-Privilege Health Data Protection Active:</strong> Genova Health strictly protects individual health records. Blood group, genotype, weight, blood pressure logs, private medical notes, and AI conversations are anonymized and excluded from administrative views.
+          <strong className="font-bold">Least-Privilege Health Data Protection Active:</strong> Optixia strictly protects individual health records. Blood group, genotype, weight, blood pressure logs, private medical notes, and AI conversations are anonymized and excluded from administrative views.
         </div>
       </div>
 
@@ -548,7 +548,7 @@ export const AdminDashboard: React.FC<Props> = ({ adminToken, onLogout, isDarkMo
           <section className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-xs space-y-4">
             <div>
               <h3 className="text-sm font-bold text-gray-900 dark:text-white">Health Feature Usage Breakdown</h3>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Aggregated user activity across primary Genova application modules</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Aggregated user activity across primary Optixia application modules</p>
             </div>
 
             <div className="h-64 w-full">

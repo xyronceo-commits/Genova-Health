@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { GenovaLogo } from './GenovaLogo';
+import { OptixiaLogo } from './OptixiaLogo';
 import { Mail, CheckCircle2, RefreshCw, AlertCircle, Loader2, ExternalLink, LogOut, ShieldCheck } from 'lucide-react';
 import { auth, reloadFirebaseUser, sendFirebaseEmailVerification, logout } from '../services/firebase';
 
@@ -43,7 +43,7 @@ export const EmailVerificationScreen: React.FC<Props> = ({
         setVerifiedSuccess(true);
         setStatusMessage({
           type: 'success',
-          text: 'Email verified successfully! Opening Genova Health...'
+          text: 'Email verified successfully! Opening Optixia...'
         });
         setTimeout(() => {
           onVerificationComplete();
@@ -147,7 +147,7 @@ export const EmailVerificationScreen: React.FC<Props> = ({
         {/* Brand & Heading */}
         <div className="text-center space-y-3 pt-2">
           <div className="inline-flex p-4 bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800/80 rounded-2xl shadow-sm">
-            <GenovaLogo className="w-10 h-10" />
+            <OptixiaLogo className="w-10 h-10" />
           </div>
           
           <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">
@@ -155,7 +155,7 @@ export const EmailVerificationScreen: React.FC<Props> = ({
           </h2>
 
           <p className="text-sm text-gray-500 dark:text-gray-400 font-medium leading-relaxed">
-            Your Genova Health account isn't verified yet. Check your inbox and click the verification link sent to:
+            Your Optixia account isn't verified yet. Check your inbox and click the verification link sent to:
           </p>
 
           <div className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-gray-50 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-bold text-gray-900 dark:text-gray-100 font-mono break-all">

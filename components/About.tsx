@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChevronLeft, Shield, Lock, FileText, Database, Heart, ArrowRight, Sparkles, AlertCircle, Award, ShieldCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { GenovaLogo } from './GenovaLogo';
+import { OptixiaLogo } from './OptixiaLogo';
 
 interface Props {
   onOpenSecureAccess?: () => void;
@@ -45,7 +45,7 @@ const About: React.FC<Props> = ({ onOpenSecureAccess }) => {
         </button>
         <h1 className="font-bold text-lg tracking-tight flex items-center gap-2 text-gray-900 dark:text-white">
           <Heart className="text-red-500 animate-pulse" size={20} />
-          About Genova Health
+          About Optixia
         </h1>
         <div className="w-9" /> {/* Spacer */}
       </header>
@@ -54,14 +54,14 @@ const About: React.FC<Props> = ({ onOpenSecureAccess }) => {
         {/* Hero Brand Card */}
         <section className="text-center space-y-4 py-8">
           <div className="w-20 h-20 p-3 bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 rounded-3xl flex items-center justify-center mx-auto shadow-xl shadow-blue-500/10">
-            <GenovaLogo className="w-14 h-14" />
+            <OptixiaLogo className="w-14 h-14" />
           </div>
           <div className="space-y-2">
-            <h2 className="text-3xl font-black tracking-tight text-gray-900 dark:text-white">Genova Health</h2>
-            <p className="text-xs font-mono font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest">Version 2.4.0 — Clinical Local Companion</p>
+            <h2 className="text-3xl font-black tracking-tight text-gray-900 dark:text-white">Optixia</h2>
+            <p className="text-xs font-mono font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest">Version 2.4.0 — Clinical AI Platform</p>
           </div>
           <p className="text-gray-600 dark:text-gray-300 max-w-lg mx-auto leading-relaxed text-sm font-medium">
-            Genova is an advanced clinical assistant and biometric monitoring tool built to provide offline-first, highly secured health intelligence, nutritional scanning, and instant emergency dispatch telemetry.
+            Optixia is an advanced clinical assistant and biometric monitoring platform built to provide offline-first, highly secured health intelligence, nutritional scanning, and instant emergency dispatch telemetry.
           </p>
         </section>
 
@@ -86,7 +86,7 @@ const About: React.FC<Props> = ({ onOpenSecureAccess }) => {
 
           <div className="space-y-4 text-sm text-gray-600 dark:text-gray-300 leading-relaxed font-medium">
             <p>
-              To ensure unmatched privacy, Genova Health strictly relies on <span className="font-mono bg-gray-100 dark:bg-gray-750 px-1.5 py-0.5 rounded text-blue-600 dark:text-blue-400 font-extrabold">localStorage</span> to save all your medical profile specifications and health metrics directly on your physical device. 
+              To ensure unmatched privacy, Optixia strictly relies on <span className="font-mono bg-gray-100 dark:bg-gray-750 px-1.5 py-0.5 rounded text-blue-600 dark:text-blue-400 font-extrabold">localStorage</span> to save all your medical profile specifications and health metrics directly on your physical device. 
             </p>
             <p>
               By utilizing local sandbox database keys, your sensitive information never touches external cloud storage or centralized logging servers, guaranteeing 100% ownership and complete sovereignty over your wellness telemetry.
@@ -124,7 +124,7 @@ const About: React.FC<Props> = ({ onOpenSecureAccess }) => {
           </div>
 
           <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed font-medium">
-            Unlike traditional health trackers that upload personal medical charts and tracking statistics to centralized corporate databases, Genova operates as a self-contained local unit. Your health profile remains private to you.
+            Unlike traditional health trackers that upload personal medical charts and tracking statistics to centralized corporate databases, Optixia operates as a self-contained local unit. Your health profile remains private to you.
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t border-gray-100 dark:border-gray-800 transition-colors">
@@ -188,7 +188,7 @@ const About: React.FC<Props> = ({ onOpenSecureAccess }) => {
             <h4 className="text-xs font-black uppercase tracking-wider">Clinical Guidance Disclaimer</h4>
           </div>
           <p className="text-[11px] text-gray-600 dark:text-gray-400 leading-relaxed font-semibold">
-            Genova Health provides local digital analytics, wellness scanning guides, and expert AI dialogue models. The output does not substitute for real clinical assessments, professional nursing care, or direct specialized consultation from a qualified physician. Always consult emergency systems or your healthcare provider in case of true medical crises.
+            Optixia provides local digital analytics, wellness scanning guides, and expert AI dialogue models. The output does not substitute for real clinical assessments, professional nursing care, or direct specialized consultation from a qualified physician. Always consult emergency systems or your healthcare provider in case of true medical crises.
           </p>
         </section>
       </main>
@@ -233,7 +233,7 @@ const About: React.FC<Props> = ({ onOpenSecureAccess }) => {
                     1. Storage Location & Technology
                   </h4>
                   <p className="text-xs">
-                    Your entire health profile—including full name, blood status, genotypes, fitness step totals, personal meal scan logs, and biometric PPG signal analyses—is **strictly stored locally on your device** utilizing the browser's sandboxed <code className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded font-mono font-bold text-blue-600 dark:text-blue-400">localStorage</code>. Genova has zero server-side telemetry trackers attached to this data.
+                    Your entire health profile—including full name, blood status, genotypes, fitness step totals, personal meal scan logs, and biometric PPG signal analyses—is **strictly stored locally on your device** utilizing the browser's sandboxed <code className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded font-mono font-bold text-blue-600 dark:text-blue-400">localStorage</code>. Optixia has zero server-side telemetry trackers attached to this data.
                   </p>
                 </div>
 
@@ -253,7 +253,7 @@ const About: React.FC<Props> = ({ onOpenSecureAccess }) => {
                     3. Personalized LLM Interactions
                   </h4>
                   <p className="text-xs">
-                    Conversations with our Genova AI coaches use specialized model completions to construct highly aligned medical guidance rules. They do not retain logging history on centralized networks for any future training or branding purposes. Conversations are entirely managed and cached in local states.
+                    Conversations with our Optixia AI coaches use specialized model completions to construct highly aligned medical guidance rules. They do not retain logging history on centralized networks for any future training or branding purposes. Conversations are entirely managed and cached in local states.
                   </p>
                 </div>
 
@@ -263,7 +263,7 @@ const About: React.FC<Props> = ({ onOpenSecureAccess }) => {
                     4. Offline Local Sandbox
                   </h4>
                   <p className="text-xs">
-                    Genova operates 100% client-side. Your user credentials, chat logs, and bio-scans are completely isolated to your device browser sandbox without transmitting data to cloud databases.
+                    Optixia operates 100% client-side. Your user credentials, chat logs, and bio-scans are completely isolated to your device browser sandbox without transmitting data to cloud databases.
                   </p>
                 </div>
 

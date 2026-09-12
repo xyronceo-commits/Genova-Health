@@ -72,7 +72,7 @@ export const NotificationPermissionPrompt: React.FC<Props> = ({ userId, onPermis
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <span className="text-xs font-black text-blue-600 dark:text-blue-400 uppercase tracking-wider">Genova Health</span>
+                <span className="text-xs font-black text-blue-600 dark:text-blue-400 uppercase tracking-wider">Optixia</span>
                 <ShieldCheck size={14} className="text-emerald-500" />
               </div>
               <h3 className="font-extrabold text-base text-gray-900 dark:text-white leading-snug">
@@ -93,7 +93,7 @@ export const NotificationPermissionPrompt: React.FC<Props> = ({ userId, onPermis
         {blockedState ? (
           <div className="space-y-3">
             <p className="text-xs text-red-700 dark:text-red-300 font-medium leading-relaxed">
-              Notifications are currently blocked by your browser settings. To enable notifications for Genova Health:
+              Notifications are currently blocked by your browser settings. To enable notifications for Optixia:
             </p>
             <ol className="list-decimal list-inside text-xs text-gray-700 dark:text-gray-200 space-y-1 font-medium pl-1">
               <li>Click the <strong>Lock icon</strong> in your browser address bar.</li>
@@ -111,7 +111,7 @@ export const NotificationPermissionPrompt: React.FC<Props> = ({ userId, onPermis
         ) : (
           <>
             <p className="text-xs text-gray-600 dark:text-gray-300 font-medium leading-relaxed">
-              Get helpful reminders and updates from Genova Health.
+              Get helpful reminders and updates from Optixia.
             </p>
 
             <div className="flex items-center gap-2 pt-1">

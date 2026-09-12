@@ -1,10 +1,13 @@
 {
-  "name": "Genova Health",
-  "description": "An intelligent health companion providing AI-driven diet plans, biometrics scanning, and localized Nigerian health insights.",
+  "name": "Optixia",
+  "description": "An intelligent clinical health companion providing AI guidance, biometrics scanning, device sync, and personalized wellness.",
   "requestFramePermissions": [
     "camera",
     "microphone",
     "geolocation",
     "bluetooth"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
   ]
 }

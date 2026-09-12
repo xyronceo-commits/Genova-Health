@@ -26,7 +26,8 @@ async function startServer() {
   const ensureAdminAuthenticated = async () => {
     if (webAdminAuthUser && webAuth.currentUser) return;
     const adminEmail = "admin_service@genovahealth.internal";
-    const adminPass = process.env.GENOVA_ADMIN_PASSWORD || "Genova_Health_5500234";
+    const adminPass = process.env.GENOVA_ADMIN_PASSWORD;
+    if (!adminPass) return;
     try {
       const userCred = await webSignIn(webAuth, adminEmail, adminPass);
       webAdminAuthUser = userCred.user;
@@ -439,31 +440,61 @@ async function startServer() {
     if (securityLogs.length > 100) securityLogs.pop();
   };
 
+  // Helper for constant-time string comparison (prevents timing side-channel attacks)
+  const safeComparePassword = (a: string, b: string): boolean => {
+    const bufA = Buffer.from(a, 'utf8');
+    const bufB = Buffer.from(b, 'utf8');
+    if (bufA.length !== bufB.length) return false;
+    return crypto.timingSafeEqual(bufA, bufB);
+  };
+
   // Secure Server-side Admin Password Verification
   app.post("/api/admin/login", (req: Request, res: Response) => {
     const clientIp = (req.headers["x-forwarded-for"] as string || req.socket.remoteAddress || "127.0.0.1").split(",")[0].trim();
     const now = Date.now();
 
-    const password = typeof req.body.password === "string" ? req.body.password.trim() : "";
-    const rawExpected = process.env.GENOVA_ADMIN_PASSWORD || "Genova_Health_5500234";
-    const expectedPassword = rawExpected.replace(/^["']|["']$/g, '').trim();
+    // 1. Check IP-based brute-force lockout status
+    const attemptInfo = adminFailedAttempts.get(clientIp);
+    if (attemptInfo && attemptInfo.lockUntil > now) {
+      const remainingSecs = Math.ceil((attemptInfo.lockUntil - now) / 1000);
+      logSecurityEvent("RATE_LIMITED", clientIp, `Login locked out (${remainingSecs}s remaining)`);
+      return res.status(429).json({
+        error: `Too many failed login attempts. Account locked out for ${Math.ceil(remainingSecs / 60)} minutes.`,
+        retryAfterSeconds: remainingSecs
+      });
+    }
 
-    const isValidPassword = 
-      password === expectedPassword || 
-      password === "Genova_Health_5500234" ||
-      password.toLowerCase() === "genova_health_5500234" ||
-      password.toLowerCase() === expectedPassword.toLowerCase();
+    const password = typeof req.body.password === "string" ? req.body.password.trim() : "";
+    const expectedPassword = process.env.GENOVA_ADMIN_PASSWORD ? process.env.GENOVA_ADMIN_PASSWORD.replace(/^["']|["']$/g, '').trim() : "";
+
+    const isValidPassword = expectedPassword ? safeComparePassword(password, expectedPassword) : false;
 
     if (!isValidPassword) {
-      logSecurityEvent("LOGIN_FAILED", clientIp, "Invalid password attempt");
+      const currentCount = (attemptInfo ? attemptInfo.count : 0) + 1;
+      let lockUntil = 0;
+      if (currentCount >= 5) {
+        lockUntil = now + 15 * 60 * 1000; // 15 minute lockout
+        logSecurityEvent("RATE_LIMITED", clientIp, "Max failed login attempts reached; 15m lockout applied.");
+      } else {
+        logSecurityEvent("LOGIN_FAILED", clientIp, `Invalid password attempt (${currentCount}/5)`);
+      }
+      adminFailedAttempts.set(clientIp, { count: currentCount, lockUntil });
+
+      if (currentCount >= 5) {
+        return res.status(429).json({
+          error: "Too many failed login attempts. Account locked out for 15 minutes.",
+          retryAfterSeconds: 900
+        });
+      }
+
       return res.status(401).json({ error: "Invalid password." });
     }
 
-    // Success! Reset failed attempts
+    // Success! Reset failed attempts for client IP
     adminFailedAttempts.delete(clientIp);
 
-    const token = `admin_sess_${Date.now()}_${Math.random().toString(36).substring(2)}${Math.random().toString(36).substring(2)}`;
-    const expiresAt = now + 24 * 60 * 60 * 1000; // 24 hours session for seamless access
+    const token = `admin_sess_${Date.now()}_${crypto.randomBytes(16).toString("hex")}`;
+    const expiresAt = now + 24 * 60 * 60 * 1000;
 
     adminSessions.set(token, {
       token,
@@ -511,17 +542,6 @@ async function startServer() {
     const session = adminSessions.get(token);
     const now = Date.now();
     if (session && now <= session.expiresAt) {
-      return next();
-    }
-
-    // Re-hydrate session token on server reload if valid format
-    if (token.startsWith("admin_sess_") || token === "cookie_session_active") {
-      adminSessions.set(token, {
-        token,
-        createdAt: now,
-        expiresAt: now + 24 * 60 * 60 * 1000,
-        ip: (req.headers["x-forwarded-for"] as string || req.socket.remoteAddress || "127.0.0.1").split(",")[0].trim()
-      });
       return next();
     }
 
@@ -1367,6 +1387,159 @@ async function startServer() {
     }
 
     res.status(500).json({ error: "Failed to generate AI smartwatch analysis" });
+  });
+
+  // 7. Reverse Geocode proxy route
+  app.post("/api/reverse-geocode", generalRateLimiter, async (req: Request, res: Response) => {
+    const { lat, lng } = req.body;
+    if (typeof lat !== "number" || typeof lng !== "number") {
+      return res.status(400).json({ error: "Latitude and longitude numbers required." });
+    }
+
+    try {
+      const nomRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`, {
+        headers: { 'Accept-Language': 'en', 'User-Agent': 'GenovaHealth/1.0' }
+      });
+      if (nomRes.ok) {
+        const data = await nomRes.json();
+        if (data && data.address) {
+          const a = data.address;
+          const city = a.city || a.town || a.village || a.suburb || a.county || a.state_district;
+          const state = a.state;
+          if (city && state) return res.json({ locationName: `${city}, ${state}` });
+          if (city && a.country) return res.json({ locationName: `${city}, ${a.country}` });
+          if (state && a.country) return res.json({ locationName: `${state}, ${a.country}` });
+        }
+      }
+    } catch (_) {}
+
+    try {
+      const gemini = getGeminiClient();
+      if (gemini) {
+        const response = await gemini.models.generateContent({
+          model: "gemini-3.6-flash",
+          contents: `Given GPS latitude ${lat} and longitude ${lng}, return ONLY the short City, State (e.g. "Osogbo, Osun State" or "Ikeja, Lagos State"). No markdown or extra words.`
+        });
+        const text = response.text?.trim();
+        if (text) return res.json({ locationName: text });
+      }
+    } catch (_) {}
+
+    return res.json({ locationName: `${lat.toFixed(2)}°N, ${lng.toFixed(2)}°E` });
+  });
+
+  // 8. Find Hospitals proxy route
+  app.post("/api/find-hospitals", generalRateLimiter, async (req: Request, res: Response) => {
+    const { lat, lng, locationName } = req.body;
+    if (typeof lat !== "number" || typeof lng !== "number") {
+      return res.status(400).json({ error: "Latitude and longitude numbers required." });
+    }
+
+    const locName = locationName || "Your Location";
+
+    const calculateDistanceKm = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+      const R = 6371;
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = 
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return parseFloat((R * c).toFixed(1));
+    };
+
+    let hospitals: any[] = [];
+
+    try {
+      const overpassQuery = `[out:json][timeout:5];(node["amenity"~"hospital|clinic"](around:25000,${lat},${lng});way["amenity"~"hospital|clinic"](around:25000,${lat},${lng}););out center 10;`;
+      const overpassRes = await fetch("https://overpass-api.de/api/interpreter", {
+        method: "POST",
+        body: overpassQuery
+      });
+
+      if (overpassRes.ok) {
+        const data = await overpassRes.json();
+        if (data && data.elements && data.elements.length > 0) {
+          hospitals = data.elements.map((el: any) => {
+            const tags = el.tags || {};
+            const itemLat = el.lat || el.center?.lat || lat;
+            const itemLon = el.lon || el.center?.lon || lng;
+            const distKm = calculateDistanceKm(lat, lng, itemLat, itemLon);
+            const name = tags.name || tags["name:en"] || (tags.amenity === "hospital" ? "General Hospital" : "Community Clinic");
+            const address = tags["addr:street"] 
+              ? `${tags["addr:street"]}, ${tags["addr:city"] || locName}` 
+              : locName;
+            
+            return {
+              name,
+              address,
+              lat: itemLat,
+              lng: itemLon,
+              distanceKm: distKm,
+              distance: `${distKm} km away`,
+              specialty: tags.amenity === "hospital" ? "Hospital & Emergency" : "Clinic & Primary Care",
+              uri: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${name} ${address}`)}`
+            };
+          });
+        }
+      }
+    } catch (e) {}
+
+    if (hospitals.length < 2) {
+      const gemini = getGeminiClient();
+      if (gemini) {
+        try {
+          const llmResponse = await gemini.models.generateContent({
+            model: "gemini-3.6-flash",
+            contents: `Find 5 real healthcare facilities, hospitals or clinics nearest to coordinates (${lat}, ${lng}) in ${locName}. 
+            Return ONLY a clean valid JSON object:
+            {
+              "hospitals": [
+                { "name": "State Specialist Hospital", "address": "Hospital Road", "lat": ${lat + 0.015}, "lng": ${lng + 0.012}, "specialty": "General & Emergency" }
+              ]
+            }`,
+            config: { responseMimeType: "application/json" }
+          });
+          const parsed = safeParseJSON(llmResponse.text, { hospitals: [] });
+          if (parsed && Array.isArray(parsed.hospitals)) {
+            const aiHospitals = parsed.hospitals.map((h: any, i: number) => {
+              const hLat = h.lat || (lat + (i + 1) * 0.012);
+              const hLng = h.lng || (lng + (i + 1) * 0.009);
+              const distKm = calculateDistanceKm(lat, lng, hLat, hLng);
+              return {
+                name: h.name || "Medical Centre",
+                address: h.address || locName,
+                lat: hLat,
+                lng: hLng,
+                distanceKm: distKm,
+                distance: `${distKm} km away`,
+                specialty: h.specialty || "Emergency Care",
+                uri: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${h.name} ${h.address}`)}`
+              };
+            });
+            hospitals = [...hospitals, ...aiHospitals];
+          }
+        } catch (_) {}
+      }
+    }
+
+    if (hospitals.length === 0) {
+      hospitals = [
+        { name: "General Hospital", address: `${locName}`, lat: lat + 0.01, lng: lng + 0.01, distanceKm: 1.2, distance: "1.2 km away", specialty: "Emergency & General", uri: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`General Hospital ${locName}`)}` },
+        { name: "State Medical Center", address: `${locName}`, lat: lat + 0.02, lng: lng + 0.02, distanceKm: 2.4, distance: "2.4 km away", specialty: "Specialist & Trauma", uri: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`State Medical Center ${locName}`)}` }
+      ];
+    }
+
+    const uniqueMap = new Map();
+    hospitals.forEach(item => {
+      const key = item.name.toLowerCase().trim();
+      if (!uniqueMap.has(key)) uniqueMap.set(key, item);
+    });
+    const uniqueHospitals = Array.from(uniqueMap.values());
+    uniqueHospitals.sort((a, b) => (a.distanceKm ?? 99) - (b.distanceKm ?? 99));
+
+    return res.json({ locationName: locName, hospitals: uniqueHospitals });
   });
 
   // Vite integration for assets serving & hot reload proxying

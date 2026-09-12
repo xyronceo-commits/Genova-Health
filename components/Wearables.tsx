@@ -11,6 +11,11 @@ import { STORAGE_KEYS } from '../constants';
 import { UserProfile } from '../types';
 import { ai } from '../services/ai';
 import { auth, sendActivityNotification } from '../services/firebase';
+import { 
+  ConnectedHealthIllustration, 
+  SleepIllustration, 
+  EmptySleepIllustration 
+} from './OptixiaIllustrations';
 
 interface Props {
   user: UserProfile;
@@ -148,7 +153,7 @@ const Wearables: React.FC<Props> = ({ user }) => {
     
     setTimeout(() => {
       const deviceData = {
-        name: 'Genova SmartWatch Pro',
+        name: 'Optixia SmartWatch Pro',
         id: 'SMARTWATCH-LIVE-001',
         connected: true,
         lastSeen: new Date().toISOString()
@@ -192,7 +197,7 @@ const Wearables: React.FC<Props> = ({ user }) => {
       setScanStatus(`Connecting to ${btDevice.name || 'Smartwatch'}...`);
       
       const deviceData = {
-        name: btDevice.name || 'Genova SmartWatch',
+        name: btDevice.name || 'Optixia SmartWatch',
         id: btDevice.id || 'BT-' + Date.now(),
         connected: true,
         lastSeen: new Date().toISOString()
@@ -353,7 +358,9 @@ const Wearables: React.FC<Props> = ({ user }) => {
                       <Radio size={64} className="animate-pulse" />
                       <Wifi size={24} className="absolute -top-2 -right-2 text-blue-200 animate-bounce" />
                     </div>
-                  ) : <Watch size={64} />}
+                  ) : (
+                    <ConnectedHealthIllustration className="w-24 h-24" />
+                  )}
                 </motion.div>
               </div>
 
@@ -362,7 +369,7 @@ const Wearables: React.FC<Props> = ({ user }) => {
                   {isScanning ? 'Searching Smartwatch...' : 'Connect Smartwatch'}
                 </h2>
                 <p className="text-gray-500 dark:text-gray-400 font-medium text-sm leading-relaxed">
-                  Connect your Apple Watch, Garmin, Fitbit or Genova SmartWatch to continuously stream heart rate, sleep architecture, workouts, blood oxygen, and stress levels.
+                  Connect your Apple Watch, Garmin, Fitbit or Optixia SmartWatch to continuously stream heart rate, sleep architecture, workouts, blood oxygen, and stress levels.
                 </p>
               </div>
 
@@ -634,8 +641,11 @@ const Wearables: React.FC<Props> = ({ user }) => {
               {/* 2. Sleep Duration & Quality */}
               <div className="p-6 bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 space-y-4 shadow-xs">
                 <div className="flex items-center justify-between">
-                  <div className="p-3 bg-indigo-50 text-indigo-500 dark:bg-indigo-900/30 rounded-2xl">
-                    <Moon size={22} />
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 bg-indigo-50 text-indigo-500 dark:bg-indigo-900/30 rounded-2xl">
+                      <Moon size={22} />
+                    </div>
+                    <SleepIllustration className="w-10 h-10" />
                   </div>
                   <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-2 py-0.5 rounded-full">
                     Quality {telemetry.sleepQualityPercent}%
@@ -923,7 +933,7 @@ const Wearables: React.FC<Props> = ({ user }) => {
                   Sensor Integration Request
                 </h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed font-medium">
-                  Genova Health needs your explicit consent to access real-time smartwatch sensor telemetry:
+                  Optixia needs your explicit consent to access real-time smartwatch sensor telemetry:
                 </p>
               </div>
 

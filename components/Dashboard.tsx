@@ -5,17 +5,23 @@ import { auth, getHealthHistory } from '../services/firebase';
 import { ai } from '../services/ai';
 import { 
   Activity, Footprints, Heart, Droplets, Utensils, Zap, ChevronRight, 
-  MapPin, ClipboardList, Pill, Brain, Watch, Baby, Sun, Moon, Crown, 
-  Lock, Loader2, Navigation, Radio, CheckCircle2, ShieldCheck, Flame, Smartphone
+  MapPin, ClipboardList, Pill, Brain, Watch, Sun, Moon, 
+  CheckCircle2, Navigation, Sparkles, ScanLine
 } from 'lucide-react';
 import { 
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   LineChart, Line, Legend
 } from 'recharts';
 import { Link, useNavigate } from 'react-router-dom';
-import { OfflineSyncBadge } from './OfflineSyncBadge';
 import { WaterIntakeWidget } from './WaterIntakeWidget';
 import { MoodTrackerWidget } from './MoodTrackerWidget';
+import { 
+  DashboardHeroIllustration, 
+  VitalsTelemetryIllustration, 
+  HealthScanIllustration, 
+  EmptyStateIllustration, 
+  SOSIllustration 
+} from './OptixiaIllustrations';
 
 interface Props { 
   user: UserProfile; 
@@ -29,16 +35,15 @@ const Dashboard: React.FC<Props> = ({ user, isDarkMode, toggleDarkMode }) => {
   const navigate = useNavigate();
   const [history, setHistory] = useState<HealthMetrics[]>([]);
   const [steps, setSteps] = useState<number>(() => {
-    const saved = localStorage.getItem('genova_daily_steps');
+    const saved = localStorage.getItem('optixia_daily_steps') || localStorage.getItem('genova_daily_steps');
     return saved ? parseInt(saved, 10) : 0;
   });
-  const [sensorActive, setSensorActive] = useState(false);
   const [syncedDevice, setSyncedDevice] = useState<any>(null);
   const [activeMetricTab, setActiveMetricTab] = useState<BiometricTab>('all');
   const [showDetailedTrends, setShowDetailedTrends] = useState(false);
   const [showEmergencyFinder, setShowEmergencyFinder] = useState(false);
 
-  const [location, setLocation] = useState('Lagos, Nigeria');
+  const [location, setLocation] = useState('Location Enabled');
   const [coords, setCoords] = useState<{lat: number, lng: number} | null>(null);
   const [nearbyHospitals, setNearbyHospitals] = useState<any[]>([]);
   const [isFindingHospitals, setIsFindingHospitals] = useState(false);
@@ -133,7 +138,6 @@ const Dashboard: React.FC<Props> = ({ user, isDarkMode, toggleDarkMode }) => {
     let filteredAcc = 0;
 
     const handleMotion = (event: DeviceMotionEvent) => {
-      setSensorActive(true);
       const acc = event.accelerationIncludingGravity || event.acceleration;
       if (acc?.x !== undefined && acc?.y !== undefined && acc?.z !== undefined) {
         const totalAcc = Math.sqrt(acc.x**2 + acc.y**2 + acc.z**2);
@@ -146,6 +150,7 @@ const Dashboard: React.FC<Props> = ({ user, isDarkMode, toggleDarkMode }) => {
         if (filteredAcc > threshold && (now - lastStepTime > minStepTime)) {
           setSteps(prev => {
             const next = prev + 1;
+            localStorage.setItem('optixia_daily_steps', next.toString());
             localStorage.setItem('genova_daily_steps', next.toString());
             return next;
           });
@@ -169,198 +174,156 @@ const Dashboard: React.FC<Props> = ({ user, isDarkMode, toggleDarkMode }) => {
   const stepGoal = user.stepGoal || 10000;
   const stepProgress = Math.min(100, Math.round((steps / stepGoal) * 100));
 
-  // Build last 7 days biometric trend data
   const chartData = generateBiometricTrendData(history);
 
   return (
-    <div className="p-3 sm:p-6 lg:p-10 max-w-6xl mx-auto space-y-4 sm:space-y-8 animate-in fade-in duration-500">
-      {/* Header & Context */}
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 pb-2.5 border-b border-gray-100 dark:border-gray-800">
+    <div className="p-4 sm:p-6 lg:p-10 max-w-6xl mx-auto space-y-6 sm:space-y-8 animate-in fade-in duration-300">
+      
+      {/* Greeting Header */}
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-gray-800">
         <div>
-          <h1 className="text-lg sm:text-2xl md:text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight flex flex-wrap items-center gap-2">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
             <span>{getGreeting()}, {user.fullName?.split(' ')[0] || 'Friend'}</span>
-            <span className="text-[11px] sm:text-xs font-bold text-blue-600 dark:text-blue-400 font-mono bg-blue-50 dark:bg-blue-950/60 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-xl border border-blue-100 dark:border-blue-900/50">
+            <span className="text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-2.5 py-0.5 rounded-lg border border-blue-100 dark:border-blue-900/50">
               {user.bloodGroup || 'A+'} • {user.genotype || 'AA'}
             </span>
           </h1>
-          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 font-medium mt-0.5">
-            Here is your daily health overview and personalized recommendation.
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium mt-1">
+            How are you feeling today? Here is your Optixia health overview.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <button 
-            onClick={toggleDarkMode}
-            className="p-2 sm:p-2.5 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-2xs text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all active:scale-95"
-            title="Toggle theme mode"
-          >
-            {isDarkMode ? <Sun size={17} /> : <Moon size={17} />}
-          </button>
-
-          <div className="bg-white dark:bg-gray-800 px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 shadow-2xs flex items-center gap-2 text-xs font-semibold text-gray-700 dark:text-gray-300">
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <div className="bg-slate-50 dark:bg-gray-800 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-gray-700 flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-300">
             <MapPin size={14} className="text-blue-600 shrink-0" />
             <span className="truncate max-w-[140px] sm:max-w-[160px]">{location}</span>
           </div>
         </div>
       </header>
 
-      {/* Main Grid: 8 Columns Main Content + 4 Columns Right Side Panel */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-8 items-start">
-        
-        {/* Left Column (8/12): Primary Telemetry & Hero */}
-        <div className="lg:col-span-8 space-y-4 sm:space-y-8">
-          
-          {/* Hero Health Snapshot Card */}
-          <section className="bg-gradient-to-br from-blue-600 via-indigo-600 to-slate-900 rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 text-white shadow-md relative overflow-hidden">
-            <div className="relative z-10 space-y-3 sm:space-y-4 max-w-xl">
-              <h2 className="text-base sm:text-2xl font-black tracking-tight leading-snug">
-                "Your physiological recovery is balanced today."
-              </h2>
-
-              <p className="text-xs sm:text-sm text-blue-100/90 leading-relaxed font-medium">
-                Biometric telemetry indicates normal resting heart rate and active recovery. Keep staying hydrated and aim for your daily step goal.
-              </p>
-
-              <div className="flex flex-wrap items-center gap-2 pt-1">
-                <button
-                  onClick={() => navigate('/scan')}
-                  className="px-3.5 py-2.5 bg-white text-blue-900 font-bold text-xs rounded-xl hover:bg-blue-50 transition-all shadow-2xs flex items-center gap-2 active:scale-95"
-                >
-                  <Activity size={15} />
-                  <span>Start Health Scan</span>
-                </button>
-
-                <button
-                  onClick={() => navigate('/assistant/nurse')}
-                  className="px-3.5 py-2.5 bg-white/10 hover:bg-white/20 text-white font-bold text-xs rounded-xl transition-all border border-white/20 flex items-center gap-2 active:scale-95"
-                >
-                  <Brain size={15} />
-                  <span>Ask AI Nurse</span>
-                </button>
-
-                {syncedDevice?.connected ? (
-                  <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-300 bg-emerald-950/40 px-3 py-2 rounded-xl border border-emerald-500/30">
-                    <CheckCircle2 size={13} /> Synced with {syncedDevice.name}
-                  </span>
-                ) : (
-                  <button
-                    onClick={() => navigate('/wearables')}
-                    className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-200 hover:text-white underline underline-offset-4 py-1"
-                  >
-                    <Watch size={14} /> Connect Smartwatch
-                  </button>
-                )}
-              </div>
+      {/* Hero Health Overview Card */}
+      <section className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-3xl p-5 sm:p-7 text-white shadow-md relative overflow-hidden">
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-3 max-w-lg">
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/15 backdrop-blur-md rounded-full text-xs font-bold text-white">
+              <Sparkles size={14} />
+              <span>Optixia Health Status: Optimal</span>
             </div>
+            <h2 className="text-xl sm:text-2xl font-black tracking-tight leading-snug">
+              "Your physiological recovery is balanced today."
+            </h2>
+            <p className="text-xs sm:text-sm text-blue-100 leading-relaxed font-medium">
+              Resting heart rate and biometric signals are steady. Maintain your hydration and daily movement goals.
+            </p>
 
-            <Watch className="absolute -right-6 -bottom-6 w-36 sm:w-52 h-36 sm:h-52 text-white/5 pointer-events-none" />
-          </section>
+            <div className="flex flex-wrap items-center gap-2.5 pt-2">
+              <button
+                onClick={() => navigate('/scan')}
+                className="px-4 py-2.5 bg-white text-blue-600 font-extrabold text-xs rounded-xl hover:bg-blue-50 transition-all shadow-xs flex items-center gap-2 active:scale-95"
+              >
+                <ScanLine size={16} />
+                <span>Start Health Scan</span>
+              </button>
 
+              <button
+                onClick={() => navigate('/assistant/nurse')}
+                className="px-4 py-2.5 bg-blue-800/80 hover:bg-blue-800 text-white font-bold text-xs rounded-xl transition-all flex items-center gap-2 active:scale-95 border border-white/10"
+              >
+                <Brain size={16} />
+                <span>Ask AI Nurse</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="hidden sm:flex shrink-0 justify-center">
+            <DashboardHeroIllustration className="w-44 h-44 drop-shadow-md" />
+          </div>
+        </div>
+      </section>
+
+      {/* Main Grid Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        
+        {/* Left Column (8/12) */}
+        <div className="lg:col-span-8 space-y-6">
+          
           {/* Key Health Metrics Grid */}
           <section className="space-y-3">
             <div className="flex items-center justify-between px-1">
-              <h2 className="text-sm sm:text-base font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                <span>Key Biometrics</span>
+              <h2 className="text-base font-extrabold text-slate-900 dark:text-white">
+                Key Biometrics
               </h2>
 
               <button
                 onClick={() => setShowDetailedTrends(!showDetailedTrends)}
                 className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 py-1"
               >
-                {showDetailedTrends ? "Hide Analytics" : "View 7-Day Trends"}
+                {showDetailedTrends ? "Hide Trends" : "View 7-Day Trends"}
                 <ChevronRight size={14} className={`transition-transform ${showDetailedTrends ? 'rotate-90' : ''}`} />
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-2.5 sm:gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <MetricCard 
                 title="Heart Rate" 
                 value={lastMetric?.heartRate ? `${lastMetric.heartRate} BPM` : '72 BPM'} 
-                sub="Within usual resting range" 
-                icon={<Heart className="text-red-500" size={18} />} 
-                trend="Steady" 
-                color="bg-red-50 dark:bg-red-950/40" 
+                sub="Normal resting rate" 
+                icon={<Heart className="text-blue-600" size={18} />} 
               />
               
-              {/* Step Counter Card */}
-              <div className="bg-white dark:bg-gray-800 p-3.5 sm:p-5 rounded-2xl border border-gray-100 dark:border-gray-700/80 shadow-xs space-y-2.5">
-                <div className="flex justify-between items-start">
-                  <div className="p-2 sm:p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400">
-                    <Footprints size={18} />
-                  </div>
-                  <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-md">
-                    {stepProgress}% Goal
-                  </span>
-                </div>
-
-                <div>
-                  <p className="text-[10px] sm:text-[11px] font-bold text-gray-400 uppercase tracking-wider">Daily Steps</p>
-                  <p className="text-base sm:text-xl font-black text-gray-900 dark:text-white flex items-baseline gap-1 mt-0.5 truncate">
-                    {steps.toLocaleString()}
-                    <span className="text-[11px] text-gray-400 font-normal truncate">/ {stepGoal.toLocaleString()}</span>
-                  </p>
-                  <div className="w-full bg-gray-100 dark:bg-gray-700 h-1.5 rounded-full mt-2 overflow-hidden">
-                    <div 
-                      className="bg-emerald-500 h-full rounded-full transition-all duration-500" 
-                      style={{ width: `${stepProgress}%` }}
-                    />
-                  </div>
-                </div>
-              </div>
+              <MetricCard 
+                title="Daily Steps" 
+                value={steps.toLocaleString()} 
+                sub={`Goal: ${stepGoal.toLocaleString()}`} 
+                icon={<Footprints className="text-blue-600" size={18} />} 
+              />
 
               <MetricCard 
                 title="Stress Level" 
                 value={lastMetric?.stressLevel || 'Low'} 
-                sub="Optimal mental balance" 
-                icon={<Zap className="text-amber-500" size={18} />} 
-                trend="Normal" 
-                color="bg-amber-50 dark:bg-amber-950/40" 
+                sub="Optimal balance" 
+                icon={<Zap className="text-blue-600" size={18} />} 
               />
 
               <MetricCard 
                 title="Blood Pressure" 
                 value={lastMetric?.bloodPressure || '120/80'} 
-                sub="Normal arterial pressure" 
-                icon={<Activity className="text-blue-500" size={18} />} 
-                trend="Steady" 
-                color="bg-blue-50 dark:bg-blue-950/40" 
+                sub="Normal arterial" 
+                icon={<Activity className="text-blue-600" size={18} />} 
               />
             </div>
           </section>
 
           {/* Expandable 7-Day Biometric Trends Section */}
           {showDetailedTrends && (
-            <section className="bg-white dark:bg-gray-800 p-6 rounded-3xl border border-gray-200 dark:border-gray-700 shadow-sm space-y-4 animate-in slide-in-from-top-4 duration-300">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-gray-100 dark:border-gray-700">
-                <div>
-                  <h3 className="text-sm font-bold text-gray-900 dark:text-white">7-Day Biometric Telemetry</h3>
-                  <p className="text-[11px] text-gray-500 dark:text-gray-400">Historical trends synced from health tracking & wearable devices</p>
+            <section className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-slate-100 dark:border-gray-700 shadow-xs space-y-4 animate-in slide-in-from-top-4 duration-300">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-slate-100 dark:border-gray-700">
+                <div className="flex items-center gap-3">
+                  <VitalsTelemetryIllustration className="w-12 h-12 shrink-0 hidden sm:block" />
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">7-Day Biometric Telemetry</h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">Historical trends synced from health tracking & wearable devices</p>
+                  </div>
                 </div>
 
-                <div className="flex items-center gap-1.5 bg-gray-100 dark:bg-gray-700/60 p-1 rounded-xl text-xs font-bold">
+                <div className="flex items-center gap-1 bg-slate-100 dark:bg-gray-700 p-1 rounded-xl text-xs font-bold">
                   <button
                     onClick={() => setActiveMetricTab('all')}
-                    className={`px-2.5 py-1 rounded-lg transition-all ${activeMetricTab === 'all' ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-xs' : 'text-gray-500'}`}
+                    className={`px-2.5 py-1 rounded-lg transition-all ${activeMetricTab === 'all' ? 'bg-white dark:bg-gray-800 text-slate-900 dark:text-white shadow-2xs' : 'text-slate-500'}`}
                   >
                     All
                   </button>
                   <button
                     onClick={() => setActiveMetricTab('steps')}
-                    className={`px-2.5 py-1 rounded-lg transition-all ${activeMetricTab === 'steps' ? 'bg-emerald-500 text-white shadow-xs' : 'text-gray-500'}`}
+                    className={`px-2.5 py-1 rounded-lg transition-all ${activeMetricTab === 'steps' ? 'bg-blue-600 text-white' : 'text-slate-500'}`}
                   >
                     Steps
                   </button>
                   <button
                     onClick={() => setActiveMetricTab('bp')}
-                    className={`px-2.5 py-1 rounded-lg transition-all ${activeMetricTab === 'bp' ? 'bg-blue-500 text-white shadow-xs' : 'text-gray-500'}`}
+                    className={`px-2.5 py-1 rounded-lg transition-all ${activeMetricTab === 'bp' ? 'bg-blue-600 text-white' : 'text-slate-500'}`}
                   >
                     BP
-                  </button>
-                  <button
-                    onClick={() => setActiveMetricTab('stress')}
-                    className={`px-2.5 py-1 rounded-lg transition-all ${activeMetricTab === 'stress' ? 'bg-amber-500 text-white shadow-xs' : 'text-gray-500'}`}
-                  >
-                    Stress
                   </button>
                 </div>
               </div>
@@ -368,31 +331,28 @@ const Dashboard: React.FC<Props> = ({ user, isDarkMode, toggleDarkMode }) => {
               <div className="h-56 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDarkMode ? '#374151' : '#f3f4f6'} />
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#9ca3af', fontSize: 11 }} />
-                    <YAxis axisLine={false} tickLine={false} tick={{ fill: '#9ca3af', fontSize: 11 }} />
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDarkMode ? '#374151' : '#f1f5f9'} />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} />
                     <Tooltip 
                       contentStyle={{ 
                         borderRadius: '12px', 
                         backgroundColor: isDarkMode ? '#1f2937' : '#ffffff',
-                        border: isDarkMode ? '1px solid #374151' : '1px solid #e5e7eb',
+                        border: isDarkMode ? '1px solid #374151' : '1px solid #e2e8f0',
                         fontSize: '12px',
-                        color: isDarkMode ? '#ffffff' : '#111827'
+                        color: isDarkMode ? '#ffffff' : '#0f172a'
                       }}
                     />
                     <Legend wrapperStyle={{ paddingTop: '10px', fontSize: '11px', fontWeight: 'bold' }} />
 
                     {(activeMetricTab === 'all' || activeMetricTab === 'hr') && (
-                      <Line type="monotone" dataKey="hr" name="Heart Rate" stroke="#ef4444" strokeWidth={2.5} dot={{ r: 3 }} />
+                      <Line type="monotone" dataKey="hr" name="Heart Rate" stroke="#2563eb" strokeWidth={2.5} dot={{ r: 3 }} />
                     )}
                     {(activeMetricTab === 'all' || activeMetricTab === 'steps') && (
-                      <Line type="monotone" dataKey={activeMetricTab === 'all' ? 'stepsScaled' : 'steps'} name={activeMetricTab === 'all' ? 'Steps (k)' : 'Steps'} stroke="#10b981" strokeWidth={2.5} dot={{ r: 3 }} />
+                      <Line type="monotone" dataKey={activeMetricTab === 'all' ? 'stepsScaled' : 'steps'} name="Steps" stroke="#3b82f6" strokeWidth={2.5} dot={{ r: 3 }} />
                     )}
                     {(activeMetricTab === 'all' || activeMetricTab === 'bp') && (
-                      <Line type="monotone" dataKey="bp" name="Systolic BP" stroke="#3b82f6" strokeWidth={2.5} dot={{ r: 3 }} />
-                    )}
-                    {(activeMetricTab === 'all' || activeMetricTab === 'stress') && (
-                      <Line type="monotone" dataKey="stress" name="Stress Level" stroke="#f59e0b" strokeWidth={2.5} dot={{ r: 3 }} />
+                      <Line type="monotone" dataKey="bp" name="Systolic BP" stroke="#1d4ed8" strokeWidth={2.5} dot={{ r: 3 }} />
                     )}
                   </LineChart>
                 </ResponsiveContainer>
@@ -400,50 +360,33 @@ const Dashboard: React.FC<Props> = ({ user, isDarkMode, toggleDarkMode }) => {
             </section>
           )}
 
-          {/* AI Health Companions Grid */}
-          <section className="space-y-3">
-            <div className="flex items-center justify-between px-1">
-              <div>
-                <h2 className="text-base font-bold text-gray-900 dark:text-white">AI Clinical Companions</h2>
-                <p className="text-[11px] text-gray-500 dark:text-gray-400">Specialized AI guidance tailored for your genotype & health context</p>
-              </div>
-            </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              <CoachLink name="Nurse Genova" sub="General medical guidance" icon={<Droplets size={16}/>} to="/assistant/nurse" color="text-blue-600" bg="bg-blue-50 dark:bg-blue-950/40"/>
-              <CoachLink name="Clinical Nutrition" sub="Genotype meal plans" icon={<Utensils size={16}/>} to="/assistant/nutritionist" color="text-orange-600" bg="bg-orange-50 dark:bg-orange-950/40"/>
-              <CoachLink name="Symptom Checker" sub="Analyze symptoms" icon={<ClipboardList size={16}/>} to="/assistant/symptom" color="text-red-600" bg="bg-red-50 dark:bg-red-950/40"/>
-              <CoachLink name="Medication Explainer" sub="Drug dosage & safety" icon={<Pill size={16}/>} to="/assistant/prescription" color="text-indigo-600" bg="bg-indigo-50 dark:bg-indigo-950/40"/>
-            </div>
-          </section>
 
         </div>
 
-        {/* Right Column (4/12): Offline Health Logging & Quick Emergency */}
+        {/* Right Column (4/12) */}
         <div className="lg:col-span-4 space-y-6">
 
-          {/* Offline Daily Health Logging Widgets */}
+          {/* Daily Trackers */}
           <div className="space-y-4">
-            <div className="flex items-center justify-between px-1">
-              <h2 className="text-sm font-black uppercase tracking-wider text-gray-900 dark:text-white flex items-center gap-1.5">
-                <span>Daily Health Log</span>
-              </h2>
-            </div>
+            <h2 className="text-base font-extrabold text-slate-900 dark:text-white px-1">
+              Daily Hydration & Mood
+            </h2>
 
             <WaterIntakeWidget uid={auth.currentUser?.uid || user.fullName || 'guest'} />
             <MoodTrackerWidget uid={auth.currentUser?.uid || user.fullName || 'guest'} />
           </div>
 
-          {/* Collapsible Emergency & Hospital Locator */}
-          <section className="bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-200 dark:border-gray-700/80 shadow-xs space-y-3">
+          {/* Emergency Locator */}
+          <section className="bg-white dark:bg-gray-800 p-4 rounded-2xl border border-slate-100 dark:border-gray-700 shadow-2xs space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <div className="p-2 bg-red-50 dark:bg-red-950/50 text-red-600 rounded-xl">
+                <div className="p-2 bg-blue-50 dark:bg-blue-950/60 text-blue-600 rounded-xl">
                   <Navigation size={18} />
                 </div>
                 <div>
-                  <h3 className="text-xs font-bold text-gray-900 dark:text-white">Emergency Locator</h3>
-                  <p className="text-[10px] text-gray-500 dark:text-gray-400">Nearby hospitals & ERs</p>
+                  <h3 className="text-xs font-bold text-slate-900 dark:text-white">Emergency Locator</h3>
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400">Find nearest ERs</p>
                 </div>
               </div>
 
@@ -456,32 +399,27 @@ const Dashboard: React.FC<Props> = ({ user, isDarkMode, toggleDarkMode }) => {
                     setShowEmergencyFinder(!showEmergencyFinder);
                   }
                 }}
-                className="px-3 py-1.5 bg-red-50 hover:bg-red-100 dark:bg-red-950/50 dark:hover:bg-red-900/60 text-red-600 dark:text-red-300 font-bold text-[11px] rounded-xl transition-all border border-red-200 dark:border-red-900/50"
+                className="px-3 py-1.5 bg-blue-600 text-white font-bold text-xs rounded-xl transition-all shadow-xs"
               >
-                {isFindingHospitals ? "Scanning..." : showEmergencyFinder ? "Hide" : "Find Nearby"}
+                {isFindingHospitals ? "Locating..." : showEmergencyFinder ? "Hide" : "Find Nearby"}
               </button>
             </div>
 
             {showEmergencyFinder && nearbyHospitals.length > 0 && (
-              <div className="space-y-2 pt-2 border-t border-gray-100 dark:border-gray-700 animate-in fade-in duration-300 max-h-60 overflow-y-auto custom-scrollbar">
+              <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-gray-700 max-h-56 overflow-y-auto custom-scrollbar">
                 {nearbyHospitals.map((hospital, i) => (
                   <a 
                     key={i}
                     href={hospital.uri || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${hospital.name} ${hospital.address || ''}`)}`}
                     target="_blank"
                     rel="no-referrer"
-                    className="p-2.5 bg-gray-50 dark:bg-gray-700/40 rounded-xl border border-gray-100 dark:border-gray-700 hover:border-red-300 transition-all text-xs block"
+                    className="p-2.5 bg-slate-50 dark:bg-gray-700/50 rounded-xl border border-slate-100 dark:border-gray-700 hover:border-blue-300 transition-all text-xs block"
                   >
                     <div className="flex items-start justify-between mb-0.5">
-                      <h4 className="font-bold text-gray-900 dark:text-white truncate">{hospital.name}</h4>
-                      <ChevronRight size={13} className="text-gray-400 shrink-0" />
+                      <h4 className="font-bold text-slate-900 dark:text-white truncate">{hospital.name}</h4>
+                      <ChevronRight size={13} className="text-slate-400 shrink-0" />
                     </div>
-                    <p className="text-[10px] text-gray-500 dark:text-gray-400 line-clamp-1 mb-1">{hospital.address}</p>
-                    {hospital.distance && (
-                      <span className="inline-block text-[9px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded">
-                        {hospital.distance} away
-                      </span>
-                    )}
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 line-clamp-1">{hospital.address}</p>
                   </a>
                 ))}
               </div>
@@ -495,41 +433,36 @@ const Dashboard: React.FC<Props> = ({ user, isDarkMode, toggleDarkMode }) => {
   );
 };
 
-const MetricCard: React.FC<{title: string, value: string, sub: string, icon: React.ReactNode, trend: string, color: string}> = ({ title, value, sub, icon, trend, color }) => (
-  <div className="bg-white dark:bg-gray-800 p-3.5 sm:p-5 rounded-2xl border border-gray-100 dark:border-gray-700/80 shadow-xs space-y-2.5">
-    <div className="flex justify-between items-start">
-      <div className={`p-2 sm:p-2.5 rounded-xl ${color}`}>{icon}</div>
-      <span className="text-[10px] font-bold text-gray-400 tracking-tight bg-gray-50 dark:bg-gray-700 px-2 py-0.5 rounded">{trend}</span>
-    </div>
+const MetricCard: React.FC<{title: string, value: string, sub: string, icon: React.ReactNode}> = ({ title, value, sub, icon }) => (
+  <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl border border-slate-100 dark:border-gray-700 shadow-2xs space-y-2">
+    <div className="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/60 w-fit">{icon}</div>
     <div>
-      <p className="text-[10px] sm:text-[11px] font-bold text-gray-400 uppercase tracking-wider">{title}</p>
-      <p className="text-base sm:text-xl font-black text-gray-900 dark:text-white mt-0.5 truncate">{value}</p>
-      <p className="text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 mt-1 font-medium leading-tight line-clamp-1">{sub}</p>
+      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{title}</p>
+      <p className="text-lg font-black text-slate-900 dark:text-white mt-0.5 truncate">{value}</p>
+      <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium line-clamp-1">{sub}</p>
     </div>
   </div>
 );
 
-const CoachLink: React.FC<{name: string, sub: string, icon: React.ReactNode, to: string, color: string, bg: string}> = ({ name, sub, icon, to, color, bg }) => (
-  <Link to={to} className="flex items-center justify-between p-3 sm:p-4 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-800 shadow-xs transition-all group active:scale-[0.98]">
+const CoachLink: React.FC<{name: string, sub: string, icon: React.ReactNode, to: string}> = ({ name, sub, icon, to }) => (
+  <Link to={to} className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 rounded-2xl border border-slate-100 dark:border-gray-700 hover:border-blue-300 transition-all group shadow-2xs">
     <div className="flex items-center gap-3 min-w-0">
-      <div className={`w-10 h-10 ${bg} ${color} rounded-xl flex items-center justify-center shrink-0`}>
+      <div className="w-9 h-9 bg-blue-50 dark:bg-blue-950/60 text-blue-600 rounded-xl flex items-center justify-center shrink-0">
         {icon}
       </div>
       <div className="min-w-0">
-        <h4 className="font-bold text-xs sm:text-sm text-gray-900 dark:text-white group-hover:text-blue-600 transition-colors truncate">
+        <h4 className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white group-hover:text-blue-600 transition-colors truncate">
           {name}
         </h4>
-        <p className="text-[11px] font-medium text-gray-500 dark:text-gray-400 truncate">{sub}</p>
+        <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 truncate">{sub}</p>
       </div>
     </div>
-    <ChevronRight className="text-gray-300 dark:text-gray-600 group-hover:text-blue-600 transition-transform group-hover:translate-x-0.5 shrink-0" size={16} />
+    <ChevronRight className="text-slate-300 dark:text-gray-600 group-hover:text-blue-600 transition-transform group-hover:translate-x-0.5 shrink-0" size={16} />
   </Link>
 );
 
 function generateBiometricTrendData(history: HealthMetrics[]) {
-  const todayIndex = new Date().getDay(); // 0 is Sunday
-  
-  // Reorder days ending with today
+  const todayIndex = new Date().getDay();
   const orderedDays: string[] = [];
   for (let i = 6; i >= 0; i--) {
     const dayIdx = (todayIndex - i + 7) % 7;
@@ -540,35 +473,23 @@ function generateBiometricTrendData(history: HealthMetrics[]) {
   return orderedDays.map((dayName, idx) => {
     const histItem = history[history.length - 7 + idx];
     if (!histItem) {
-      return {
-        name: dayName,
-        hr: 0,
-        steps: 0,
-        stepsScaled: 0,
-        bp: 0,
-        stress: 0
-      };
+      return { name: dayName, hr: 70, steps: 5000, stepsScaled: 5, bp: 120 };
     }
 
-    let hr = histItem.heartRate || 0;
-    let steps = histItem.steps || 0;
-    let bpSystolic = 0;
+    let hr = histItem.heartRate || 72;
+    let steps = histItem.steps || 6000;
+    let bpSystolic = 120;
     if (histItem.bloodPressure) {
       const parsed = parseInt(histItem.bloodPressure.split('/')[0], 10);
       if (!isNaN(parsed)) bpSystolic = parsed;
     }
-    let stressScore = 0;
-    if (histItem.stressLevel === 'High') stressScore = 75;
-    else if (histItem.stressLevel === 'Medium') stressScore = 50;
-    else if (histItem.stressLevel === 'Low') stressScore = 20;
 
     return {
       name: dayName,
       hr,
       steps,
       stepsScaled: parseFloat((steps / 1000).toFixed(1)),
-      bp: bpSystolic,
-      stress: stressScore
+      bp: bpSystolic
     };
   });
 }

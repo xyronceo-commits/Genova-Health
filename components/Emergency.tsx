@@ -152,7 +152,7 @@ const Emergency: React.FC<Props> = ({ user }) => {
         <button onClick={() => navigate('/')} className="p-2 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-full text-red-600 transition-colors">
           <ChevronRight className="rotate-180" size={24}/>
         </button>
-        <h1 className="text-2xl font-black text-red-600 tracking-tight">Genova SOS</h1>
+        <h1 className="text-2xl font-black text-red-600 tracking-tight">Optixia SOS</h1>
         <div className="w-10"></div>
       </header>
 
@@ -262,7 +262,7 @@ const Emergency: React.FC<Props> = ({ user }) => {
           </div>
 
           <p className="text-xs text-gray-400 leading-relaxed">
-            Trouble with GPS? Enter your nearest landmark or full address. Genova's AI parser will extract exact coordinate bounds to anchor emergency routing.
+            Trouble with GPS? Enter your nearest landmark or full address. Optixia's AI parser will extract exact coordinate bounds to anchor emergency routing.
           </p>
 
           <div className="flex gap-2 items-center">

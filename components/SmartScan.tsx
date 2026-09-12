@@ -384,8 +384,8 @@ const SmartScan: React.FC<Props> = ({ user }) => {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <span className="text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] text-orange-400 flex items-center gap-1.5">
-              <Sparkles size={13} /> Genova AI Diagnostic Engine
+            <span className="text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] text-blue-400 flex items-center gap-1.5">
+              <Sparkles size={13} /> Optixia AI Diagnostic Engine
             </span>
             <h1 className="text-xl sm:text-3xl font-black tracking-tight text-white mt-0.5">SmartScan & Vitals</h1>
           </div>

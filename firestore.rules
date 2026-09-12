@@ -28,7 +28,10 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isSignedIn() && request.auth.token.email != null && request.auth.token.email.matches('.*admin.*@genovahealth\\.internal');
+      return isSignedIn() && 
+             request.auth.token.email_verified == true && 
+             request.auth.token.email != null && 
+             request.auth.token.email.matches('.*admin.*@genovahealth\\.internal');
     }
 
     // Phase 4: Entity Validations
@@ -92,7 +95,8 @@ service cloud.firestore {
 
     // Collection Rules
     match /users/{userId} {
-      allow get, list: if isSignedIn();
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
       allow create: if isOwner(userId) && isValidUserProfile(incoming()) && 
                     (!('subscriptionStatus' in incoming()) || incoming().subscriptionStatus == 'free') &&
                     (!('role' in incoming()) || incoming().role == 'patient');

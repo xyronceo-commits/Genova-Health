@@ -7,6 +7,15 @@ import { ai } from '../services/ai';
 import { SYSTEM_PROMPTS, STORAGE_KEYS } from '../constants';
 import { auth, saveChatSession, getChatSessions, deleteChatSession } from '../services/firebase';
 import MarkdownRenderer from './MarkdownRenderer';
+import { 
+  NurseOptixiaIllustration, 
+  NutritionIllustration, 
+  ActivityIllustration, 
+  SleepIllustration, 
+  AIGuidanceIllustration, 
+  EmptyChatIllustration, 
+  EmptyHistoryIllustration 
+} from './OptixiaIllustrations';
 
 interface Props {
   user: UserProfile;
@@ -94,7 +103,7 @@ const Assistant: React.FC<Props> = ({ user }) => {
 
   const assistantConfig = {
     nurse: { 
-      title: 'Nurse Genova', 
+      title: 'Nurse Optixia', 
       role: AssistantType.NURSE, 
       prompt: SYSTEM_PROMPTS.NURSE, 
       color: 'bg-blue-600', 
@@ -102,7 +111,7 @@ const Assistant: React.FC<Props> = ({ user }) => {
       placeholder: 'Type a message or share how you\'re doing...'
     },
     nutritionist: { 
-      title: 'Genova Nutrition', 
+      title: 'Optixia Nutrition', 
       role: AssistantType.NUTRITIONIST, 
       prompt: SYSTEM_PROMPTS.NUTRITIONIST, 
       color: 'bg-orange-500', 
@@ -150,7 +159,7 @@ const Assistant: React.FC<Props> = ({ user }) => {
       placeholder: 'Ask about child wellness, growth, or nutrition...'
     }
   }[type || 'nurse'] || { 
-    title: 'Genova AI', 
+    title: 'Optixia AI', 
     role: AssistantType.NURSE, 
     prompt: SYSTEM_PROMPTS.NURSE, 
     color: 'bg-blue-600', 
@@ -161,7 +170,7 @@ const Assistant: React.FC<Props> = ({ user }) => {
   const loadSessions = async () => {
     if (!auth.currentUser) {
       // Offline / Local storage fallback
-      const local = localStorage.getItem(`genova_local_chats_${type}`);
+      const local = localStorage.getItem(`optixia_local_chats_${type}`) || localStorage.getItem(`genova_local_chats_${type}`);
       if (local) {
         const parsed = JSON.parse(local);
         const mapped = parsed.map((s: any) => ({
@@ -195,7 +204,7 @@ const Assistant: React.FC<Props> = ({ user }) => {
     
     // Welcome message
     const welcomeMessages: Record<string, string> = {
-      nurse: `Hi ${user.fullName?.split(' ')[0] || 'there'}! I'm Nurse Genova. How can I help you today?`,
+      nurse: `Hi ${user.fullName?.split(' ')[0] || 'there'}! I'm Nurse Optixia. How can I help you today?`,
       nutritionist: `Hello! 👋 I can help you with meal ideas and nutrition tailored for your ${user.genotype} genotype. What would you like to explore today?`,
       fitness: `Hi there! Ready to get moving? I can help with exercises suited for your goals. What would you like to work on?`,
       mental: `Hello! I'm here to support your mental well-being and stress relief. How are you feeling today?`,
@@ -539,9 +548,12 @@ const Assistant: React.FC<Props> = ({ user }) => {
               <span className="text-[10px] uppercase font-bold text-gray-400">Loading history...</span>
             </div>
           ) : sessions.length === 0 ? (
-            <div className="text-center py-12 text-gray-400 dark:text-gray-500 text-xs">
-              <MessageSquare className="mx-auto mb-2 opacity-30" size={24} />
-              No past chats.
+            <div className="flex flex-col items-center justify-center py-10 px-4 text-center space-y-3">
+              <EmptyHistoryIllustration className="w-20 h-20" />
+              <div>
+                <p className="text-xs font-bold text-gray-700 dark:text-gray-300">No Past Sessions Yet</p>
+                <p className="text-[10.5px] text-gray-400 mt-1 leading-relaxed">Start your first clinical query or chat with Optixia AI assistants.</p>
+              </div>
             </div>
           ) : (
             sessions.map((s) => (
@@ -631,9 +643,12 @@ const Assistant: React.FC<Props> = ({ user }) => {
               <span className="text-[10px] uppercase font-bold text-gray-400">Loading history...</span>
             </div>
           ) : sessions.length === 0 ? (
-            <div className="text-center py-12 text-gray-400 dark:text-gray-500 text-xs">
-              <MessageSquare className="mx-auto mb-2 opacity-30" size={24} />
-              No past chats.
+            <div className="flex flex-col items-center justify-center py-10 px-4 text-center space-y-3">
+              <EmptyHistoryIllustration className="w-20 h-20" />
+              <div>
+                <p className="text-xs font-bold text-gray-700 dark:text-gray-300">No Past Sessions Yet</p>
+                <p className="text-[10.5px] text-gray-400 mt-1 leading-relaxed">Start your first clinical query or chat with Optixia AI assistants.</p>
+              </div>
             </div>
           ) : (
             sessions.map((s) => (
@@ -758,7 +773,7 @@ const Assistant: React.FC<Props> = ({ user }) => {
                 <p className="text-white text-xl font-medium">{liveTranscript.input || 'Listening for your voice...'}</p>
               </div>
               <div className="min-h-[6rem] p-6 bg-white/5 rounded-3xl border border-white/10">
-                <p className="text-blue-400 text-sm font-bold uppercase tracking-widest mb-2">Nurse Genova</p>
+                <p className="text-blue-400 text-sm font-bold uppercase tracking-widest mb-2">Nurse Optixia</p>
                 <p className="text-gray-200 text-lg leading-relaxed">{liveTranscript.output || 'Awaiting response...'}</p>
               </div>
             </div>
@@ -852,10 +867,26 @@ const Assistant: React.FC<Props> = ({ user }) => {
                 </div>
               ))}
 
-              {/* Starter Query suggestion cards (only shown in a fresh chat thread with just the welcome message) */}
+              {/* Starter Query suggestion cards with branded hero illustration */}
               {messages.length === 1 && (
-                <div className="p-4 bg-blue-50/40 dark:bg-blue-950/10 border border-blue-100/40 dark:border-blue-950/20 rounded-3xl max-w-2xl mx-auto space-y-4 animate-in fade-in duration-500">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 text-center">Suggested Starter Queries</p>
+                <div className="p-6 bg-white dark:bg-gray-900 border border-blue-100 dark:border-blue-900/40 rounded-3xl max-w-2xl mx-auto space-y-6 shadow-sm animate-in fade-in duration-500">
+                  <div className="flex flex-col items-center text-center space-y-3">
+                    <div className="p-3 bg-blue-50 dark:bg-blue-950/60 rounded-2xl border border-blue-100 dark:border-blue-800">
+                      {type === 'nurse' && <NurseOptixiaIllustration className="w-24 h-24" />}
+                      {type === 'nutritionist' && <NutritionIllustration className="w-24 h-24" />}
+                      {type === 'fitness' && <ActivityIllustration className="w-24 h-24" />}
+                      {type === 'mental' && <SleepIllustration className="w-24 h-24" />}
+                      {type !== 'nurse' && type !== 'nutritionist' && type !== 'fitness' && type !== 'mental' && <AIGuidanceIllustration className="w-24 h-24" />}
+                    </div>
+                    <div>
+                      <h3 className="text-base font-black text-gray-900 dark:text-white">{assistantConfig.title}</h3>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 font-medium max-w-sm mt-0.5">
+                        Ask any clinical question, upload medical charts or images, or pick a starter topic below.
+                      </p>
+                    </div>
+                  </div>
+
+                  <p className="text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 text-center border-t border-gray-100 dark:border-gray-800 pt-4">Suggested Starter Queries</p>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
                     {type === 'nurse' && (
                       <>
@@ -935,7 +966,7 @@ const Assistant: React.FC<Props> = ({ user }) => {
                 <div className="flex justify-start">
                   <div className="bg-white dark:bg-gray-800 px-5 py-3 rounded-2xl rounded-tl-none border border-gray-100 dark:border-gray-700 shadow-sm flex items-center gap-3 animate-pulse">
                      <Loader2 className="animate-spin text-blue-600" size={16} />
-                     <span className="text-xs font-bold text-gray-400">Genova is researching & formulating advice...</span>
+                     <span className="text-xs font-bold text-gray-400">Optixia is researching & formulating advice...</span>
                   </div>
                 </div>
               )}

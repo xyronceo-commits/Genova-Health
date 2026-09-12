@@ -99,7 +99,7 @@ export const NotificationPreferencesCard: React.FC = () => {
     {
       key: 'product_updates' as const,
       label: 'Product Updates',
-      description: 'New feature announcements and Genova Health platform news.',
+      description: 'New feature announcements and Optixia platform news.',
       icon: Info,
       iconColor: 'text-purple-500 bg-purple-50 dark:bg-purple-950/40'
     }

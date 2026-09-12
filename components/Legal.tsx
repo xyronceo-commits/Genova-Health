@@ -71,7 +71,7 @@ const Legal: React.FC = () => {
               <ShieldCheck className="text-blue-600 dark:text-blue-400" size={22} />
               Legal & Policy Center
             </h1>
-            <p className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">Genova Health Governance & Compliance</p>
+            <p className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">Optixia Governance & Compliance</p>
           </div>
         </div>
 
@@ -141,7 +141,7 @@ const Legal: React.FC = () => {
               <Lock size={12} /> Compliance Commitment
             </h4>
             <p className="text-gray-600 dark:text-gray-300 font-medium leading-relaxed">
-              Genova Health adheres strictly to Nigerian NDPR privacy requirements, global digital health disclaimers, and local-first data sandbox protocols.
+              Optixia adheres strictly to privacy requirements, global digital health disclaimers, and local-first data sandbox protocols.
             </p>
           </div>
         </aside>
@@ -239,9 +239,9 @@ const Legal: React.FC = () => {
 
             {/* Bottom Footer Callout */}
             <div className="pt-6 border-t border-gray-100 dark:border-gray-700 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-semibold text-gray-500">
-              <p>Questions regarding our policies? Contact <span className="text-blue-600 font-mono font-bold">legal@genovahealth.com</span></p>
+              <p>Questions regarding our policies? Contact <span className="text-blue-600 font-mono font-bold">legal@optixia.health</span></p>
               <div className="flex items-center gap-4">
-                <Link to="/about" className="hover:text-blue-600 transition-colors">About Genova</Link>
+                <Link to="/about" className="hover:text-blue-600 transition-colors">About Optixia</Link>
                 <span>•</span>
                 <Link to="/privacy" className="hover:text-blue-600 transition-colors">Privacy</Link>
               </div>
