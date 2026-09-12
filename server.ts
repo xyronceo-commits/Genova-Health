@@ -129,14 +129,75 @@ async function startServer() {
     return { base64: base64Str, mimeType };
   };
 
-  // Initialize Groq safely using purely server-side environment variables
+  interface AIClientWrapper {
+    name: "groq" | "grok";
+    client: Groq;
+    visionModels: string[];
+    textModels: string[];
+  }
+
+  // Initialize Groq and Grok (xAI) safely using server-side environment variables
+  const getOpenAIClients = (): AIClientWrapper[] => {
+    const clients: AIClientWrapper[] = [];
+
+    const grokKey = process.env.GROK_API_KEY || process.env.X_API_KEY || process.env.XAI_API_KEY;
+    const groqKey = process.env.GROQ_API_KEY;
+
+    if (grokKey) {
+      if (grokKey.startsWith("xai-")) {
+        clients.push({
+          name: "grok",
+          client: new Groq({ apiKey: grokKey, baseURL: "https://api.x.ai/v1" }),
+          visionModels: ["grok-2-vision-128k", "grok-vision-beta"],
+          textModels: ["grok-2-128k", "grok-2", "grok-beta"]
+        });
+      } else if (grokKey.startsWith("gsk_")) {
+        clients.push({
+          name: "groq",
+          client: new Groq({ apiKey: grokKey, baseURL: "https://api.groq.com/openai/v1" }),
+          visionModels: ["llama-3.2-11b-vision-preview", "llama-3.2-90b-vision-preview"],
+          textModels: ["openai/gpt-oss-120b", "llama-3.3-70b-versatile", "qwen/qwen3.6-27b", "qwen-2.5-32b", "gemma2-9b-it"]
+        });
+      } else {
+        clients.push({
+          name: "grok",
+          client: new Groq({ apiKey: grokKey, baseURL: "https://api.x.ai/v1" }),
+          visionModels: ["grok-2-vision-128k", "grok-vision-beta"],
+          textModels: ["grok-2-128k", "grok-2", "grok-beta"]
+        });
+        clients.push({
+          name: "groq",
+          client: new Groq({ apiKey: grokKey, baseURL: "https://api.groq.com/openai/v1" }),
+          visionModels: ["llama-3.2-11b-vision-preview", "llama-3.2-90b-vision-preview"],
+          textModels: ["openai/gpt-oss-120b", "llama-3.3-70b-versatile", "qwen/qwen3.6-27b", "qwen-2.5-32b", "gemma2-9b-it"]
+        });
+      }
+    }
+
+    if (groqKey && groqKey !== grokKey) {
+      if (groqKey.startsWith("xai-")) {
+        clients.push({
+          name: "grok",
+          client: new Groq({ apiKey: groqKey, baseURL: "https://api.x.ai/v1" }),
+          visionModels: ["grok-2-vision-128k", "grok-vision-beta"],
+          textModels: ["grok-2-128k", "grok-2", "grok-beta"]
+        });
+      } else {
+        clients.push({
+          name: "groq",
+          client: new Groq({ apiKey: groqKey, baseURL: "https://api.groq.com/openai/v1" }),
+          visionModels: ["llama-3.2-11b-vision-preview", "llama-3.2-90b-vision-preview"],
+          textModels: ["openai/gpt-oss-120b", "llama-3.3-70b-versatile", "qwen/qwen3.6-27b", "qwen-2.5-32b", "gemma2-9b-it"]
+        });
+      }
+    }
+
+    return clients;
+  };
+
   const getGroqClient = () => {
-    const key = process.env.GROQ_API_KEY || 
-                process.env.GROK_API_KEY || 
-                process.env.X_API_KEY || 
-                process.env.XAI_API_KEY;
-    if (!key) return null;
-    return new Groq({ apiKey: key });
+    const wrappers = getOpenAIClients();
+    return wrappers.length > 0 ? wrappers[0].client : null;
   };
 
   // Initialize Gemini safely using purely server-side environment variables
@@ -165,13 +226,14 @@ async function startServer() {
 
   // 1. Health & Config endpoint
   app.get("/api/health", generalRateLimiter, (req: Request, res: Response) => {
-    const groqKey = process.env.GROQ_API_KEY || 
-                    process.env.GROK_API_KEY || 
-                    process.env.X_API_KEY || 
-                    process.env.XAI_API_KEY;
+    const grokKey = process.env.GROK_API_KEY || process.env.X_API_KEY || process.env.XAI_API_KEY;
+    const groqKey = process.env.GROQ_API_KEY;
+    const openAIClients = getOpenAIClients();
     res.json({ 
       status: "ok", 
+      grokConfigured: !!grokKey,
       groqConfigured: !!groqKey,
+      aiClientsCount: openAIClients.length,
       geminiConfigured: !!process.env.GEMINI_API_KEY
     });
   });
@@ -982,50 +1044,59 @@ async function startServer() {
           "gemma2-9b-it"
         ]));
 
-    // Attempt Groq first with candidate models
-    const groqClient = getGroqClient();
-    if (groqClient) {
-      for (const targetModel of candidateModels) {
-        if (targetModel.startsWith("gemini")) continue;
-        try {
-          let lastUserContent: any = userMessage || "Analyze this image and explain what you see in relation to my health query.";
-          if (hasImage) {
-            const mime = attachedImage.mimeType || "image/jpeg";
-            const dataUri = attachedImage.base64.startsWith("data:")
-              ? attachedImage.base64
-              : `data:${mime};base64,${attachedImage.base64}`;
-            lastUserContent = [
-              { type: "text", text: userMessage || "Analyze this image and explain what you see in relation to my health and medical query." },
-              { type: "image_url", image_url: { url: dataUri } }
-            ];
-          }
+    // Attempt OpenAI-compatible clients (Groq & Grok xAI)
+    const openAIClients = getOpenAIClients();
+    if (openAIClients.length > 0) {
+      for (const wrapper of openAIClients) {
+        const candidateModels = hasImage 
+          ? wrapper.visionModels
+          : Array.from(new Set([
+              model,
+              ...wrapper.textModels
+            ].filter(Boolean)));
 
-          const messages: any[] = [
-            { role: "system", content: systemInstruction },
-            ...(history || []).map((h: any) => ({
-              role: h.role === "model" ? "assistant" : "user",
-              content: sanitizeText(h.text, 2000),
-            })),
-            { role: "user", content: lastUserContent },
-          ];
-
-          const completion = await groqClient.chat.completions.create({
-            messages,
-            model: targetModel,
-            stream: true,
-          });
-
-          for await (const chunk of completion) {
-            const text = chunk.choices[0]?.delta?.content || "";
-            if (text) {
-              res.write(`data: ${JSON.stringify({ text })}\n\n`);
+        for (const targetModel of candidateModels) {
+          if (targetModel.startsWith("gemini")) continue;
+          try {
+            let lastUserContent: any = userMessage || "Analyze this image and explain what you see in relation to my health query.";
+            if (hasImage) {
+              const mime = attachedImage.mimeType || "image/jpeg";
+              const dataUri = attachedImage.base64.startsWith("data:")
+                ? attachedImage.base64
+                : `data:${mime};base64,${attachedImage.base64}`;
+              lastUserContent = [
+                { type: "text", text: userMessage || "Analyze this image and explain what you see in relation to my health and medical query." },
+                { type: "image_url", image_url: { url: dataUri } }
+              ];
             }
+
+            const messages: any[] = [
+              { role: "system", content: systemInstruction },
+              ...(history || []).map((h: any) => ({
+                role: h.role === "model" ? "assistant" : "user",
+                content: sanitizeText(h.text, 2000),
+              })),
+              { role: "user", content: lastUserContent },
+            ];
+
+            const completion = await wrapper.client.chat.completions.create({
+              messages,
+              model: targetModel,
+              stream: true,
+            });
+
+            for await (const chunk of completion) {
+              const text = chunk.choices[0]?.delta?.content || "";
+              if (text) {
+                res.write(`data: ${JSON.stringify({ text })}\n\n`);
+              }
+            }
+            res.write("data: [DONE]\n\n");
+            res.end();
+            return;
+          } catch (groqErr: any) {
+            console.warn(`[Server] Client ${wrapper.name} model ${targetModel} failed: ${groqErr?.message}`);
           }
-          res.write("data: [DONE]\n\n");
-          res.end();
-          return;
-        } catch (groqErr: any) {
-          console.warn(`[Server] Groq model ${targetModel} failed: ${groqErr?.message}`);
         }
       }
     }
@@ -1073,7 +1144,7 @@ async function startServer() {
     res.end();
   });
 
-  // 3. Food Analysis endpoint using Groq Vision model ONLY
+  // 3. Food Analysis endpoint using Groq/Grok Vision model ONLY
   app.post("/api/analyze-food", aiRateLimiter, async (req: Request, res: Response) => {
     const base64Image = typeof req.body.base64Image === "string" ? req.body.base64Image : "";
     const userContext = sanitizeText(req.body.userContext, 2000);
@@ -1083,59 +1154,69 @@ async function startServer() {
     }
 
     try {
-      const groqClient = getGroqClient();
-      if (groqClient) {
-        const response = await groqClient.chat.completions.create({
-          model: "llama-3.2-11b-vision-preview",
-          messages: [
-            {
-              role: "user",
-              content: [
-                {
-                  type: "text",
-                  text: `Identify the food in this image and cross-reference with local Nigerian & West African dietary standards for a user with profile: ${userContext}. 
-                  Provide accurate estimates for calories, protein, carbs, fat, fiber, and glycemic index. Also state genotype & blood group compatibility if relevant.
-                  If the food is a Nigerian or West African dish (or similar staple like Jollof, Amala, Egusi, Suya, Pounded Yam, Eba, Moi Moi, Ofada, Pepper Soup, etc.), set isNigerianMeal to true and provide local dietary breakdown.
-                  Return a JSON object in this exact format:
+      const openAIClients = getOpenAIClients();
+      if (openAIClients.length > 0) {
+        for (const wrapper of openAIClients) {
+          for (const visionModel of wrapper.visionModels) {
+            try {
+              const response = await wrapper.client.chat.completions.create({
+                model: visionModel,
+                messages: [
                   {
-                    "foodName": "Identified Dish Name",
-                    "calories": 450,
-                    "protein": "20g",
-                    "carbs": "55g",
-                    "fat": "15g",
-                    "fiber": "5g",
-                    "glycemicIndex": "Low",
-                    "genotypeCompatibility": "Highly Compatible",
-                    "insight": "Personalized health advice tailored to user demographics.",
-                    "isNigerianMeal": true,
-                    "nigerianMealDetails": {
-                      "region": "South-West / Pan-Nigerian",
-                      "localDietaryStandard": "Nutritious & Balanced",
-                      "sodiumLevel": "Moderate",
-                      "oilContent": "Moderate",
-                      "healthConditionAdvice": "Low GI, rich in lycopene from cooked tomato stew. Suitable for hypertension if salt is moderated."
-                    }
-                  }`
-                },
-                {
-                  type: "image_url",
-                  image_url: {
-                    url: `data:image/jpeg;base64,${base64Image}`
+                    role: "user",
+                    content: [
+                      {
+                        type: "text",
+                        text: `Identify the food in this image and cross-reference with local Nigerian & West African dietary standards for a user with profile: ${userContext}. 
+                        Provide accurate estimates for calories, protein, carbs, fat, fiber, and glycemic index. Also state genotype & blood group compatibility if relevant.
+                        If the food is a Nigerian or West African dish (or similar staple like Jollof, Amala, Egusi, Suya, Pounded Yam, Eba, Moi Moi, Ofada, Pepper Soup, etc.), set isNigerianMeal to true and provide local dietary breakdown.
+                        Return a JSON object in this exact format:
+                        {
+                          "foodName": "Identified Dish Name",
+                          "calories": 450,
+                          "protein": "20g",
+                          "carbs": "55g",
+                          "fat": "15g",
+                          "fiber": "5g",
+                          "glycemicIndex": "Low",
+                          "genotypeCompatibility": "Highly Compatible",
+                          "insight": "Personalized health advice tailored to user demographics.",
+                          "isNigerianMeal": true,
+                          "nigerianMealDetails": {
+                            "region": "South-West / Pan-Nigerian",
+                            "localDietaryStandard": "Nutritious & Balanced",
+                            "sodiumLevel": "Moderate",
+                            "oilContent": "Moderate",
+                            "healthConditionAdvice": "Low GI, rich in lycopene from cooked tomato stew. Suitable for hypertension if salt is moderated."
+                          }
+                        }`
+                      },
+                      {
+                        type: "image_url",
+                        image_url: {
+                          url: `data:image/jpeg;base64,${base64Image}`
+                        }
+                      }
+                    ]
                   }
-                }
-              ]
-            }
-          ],
-          response_format: { type: "json_object" }
-        });
+                ],
+                response_format: { type: "json_object" }
+              });
 
-        const parsed = safeParseJSON(response.choices[0]?.message?.content, {});
-        return res.json(parsed);
+              const parsed = safeParseJSON(response.choices[0]?.message?.content, {});
+              if (parsed && parsed.foodName) {
+                return res.json(parsed);
+              }
+            } catch (err: any) {
+              console.warn(`[Server] Food analysis vision model ${visionModel} on ${wrapper.name} failed:`, err?.message);
+            }
+          }
+        }
       }
 
       // Per user directive: Do NOT use Gemini for image analysis
       return res.status(400).json({ 
-        error: "Image analysis is set to Groq AI Vision. Please add a GROQ_API_KEY, GROK_API_KEY, or X_API_KEY in Environment Settings." 
+        error: "Image analysis is set to Groq/Grok AI Vision. Please add a GROQ_API_KEY, GROK_API_KEY, or X_API_KEY in Environment Settings." 
       });
     } catch (error: any) {
       console.error("Food Analysis Error on Backend:", error);
@@ -1180,22 +1261,23 @@ async function startServer() {
     }`;
 
     try {
-      const groqClient = getGroqClient();
-      if (groqClient) {
-        const candidateModels = ["openai/gpt-oss-120b", "qwen/qwen3.6-27b", "qwen-2.5-32b"];
-        for (const modelName of candidateModels) {
-          try {
-            const response = await groqClient.chat.completions.create({
-              model: modelName,
-              messages: [{ role: "user", content: prompt }],
-              response_format: { type: "json_object" }
-            });
-            const parsed = safeParseJSON(response.choices[0]?.message?.content, null);
-            if (parsed && parsed.foodName) {
-              return res.json(parsed);
+      const openAIClients = getOpenAIClients();
+      if (openAIClients.length > 0) {
+        for (const wrapper of openAIClients) {
+          for (const modelName of wrapper.textModels) {
+            try {
+              const response = await wrapper.client.chat.completions.create({
+                model: modelName,
+                messages: [{ role: "user", content: prompt }],
+                response_format: { type: "json_object" }
+              });
+              const parsed = safeParseJSON(response.choices[0]?.message?.content, null);
+              if (parsed && parsed.foodName) {
+                return res.json(parsed);
+              }
+            } catch (e: any) {
+              console.warn(`[Server] Food text model ${modelName} on ${wrapper.name} failed:`, e?.message);
             }
-          } catch (e: any) {
-            console.warn(`[Server] Food text model ${modelName} failed:`, e?.message);
           }
         }
       }
@@ -1221,7 +1303,7 @@ async function startServer() {
     }
   });
 
-  // 4. Biometric signal PPG analysis endpoint using Groq
+  // 4. Biometric signal PPG analysis endpoint using Groq/Grok
   app.post("/api/analyze-biometrics", aiRateLimiter, async (req: Request, res: Response) => {
     const userContext = sanitizeText(req.body.userContext, 2000);
     const rawSignal = Array.isArray(req.body.ppgSignal) ? req.body.ppgSignal : [];
@@ -1232,41 +1314,65 @@ async function startServer() {
     }
 
     try {
-      const groqClient = getGroqClient();
-      if (!groqClient) {
-        return res.status(500).json({ error: "Groq AI client is not configured on the server." });
+      const openAIClients = getOpenAIClients();
+      if (openAIClients.length > 0) {
+        for (const wrapper of openAIClients) {
+          for (const modelName of wrapper.textModels) {
+            try {
+              const response = await wrapper.client.chat.completions.create({
+                model: modelName,
+                messages: [
+                  {
+                    role: "user",
+                    content: `Analyze this PPG (Photoplethysmogram) signal data. 
+                        User Profile: ${userContext}. 
+                        Signal Data: ${ppgSignal.slice(0, 50).join(', ')}.
+                        Return a JSON object with heartRate, bloodPressure, stressLevel, and insight. 
+                        Return ONLY JSON in this exact format:
+                        {
+                          "heartRate": 72,
+                          "bloodPressure": "120/80",
+                          "stressLevel": "Normal",
+                          "insight": "Your vitals appear stable."
+                        }`
+                  }
+                ],
+                response_format: { type: "json_object" }
+              });
+
+              const parsed = safeParseJSON(response.choices[0]?.message?.content, {});
+              if (parsed && (parsed.heartRate || parsed.bloodPressure)) {
+                return res.json(parsed);
+              }
+            } catch (err: any) {
+              console.warn(`[Server] Biometrics model ${modelName} on ${wrapper.name} failed:`, err?.message);
+            }
+          }
+        }
       }
 
-      const response = await groqClient.chat.completions.create({
-        model: "openai/gpt-oss-120b",
-        messages: [
-          {
-            role: "user",
-            content: `Analyze this PPG (Photoplethysmogram) signal data. 
-                User Profile: ${userContext}. 
-                Signal Data: ${ppgSignal.slice(0, 50).join(', ')}.
-                Return a JSON object with heartRate, bloodPressure, stressLevel, and insight. 
-                Return ONLY JSON in this exact format:
-                {
-                  "heartRate": 72,
-                  "bloodPressure": "120/80",
-                  "stressLevel": "Normal",
-                  "insight": "Your vitals appear stable."
-                }`
-          }
-        ],
-        response_format: { type: "json_object" }
-      });
+      // Gemini Fallback
+      const gemini = getGeminiClient();
+      if (gemini) {
+        const response = await gemini.models.generateContent({
+          model: "gemini-3.6-flash",
+          contents: `Analyze PPG signal data: ${ppgSignal.slice(0, 50).join(', ')}. User: ${userContext}. Return JSON with heartRate (number), bloodPressure (string), stressLevel (string), insight (string).`,
+          config: { responseMimeType: "application/json" }
+        });
+        const parsed = safeParseJSON(response.text, {});
+        if (parsed && parsed.heartRate) {
+          return res.json(parsed);
+        }
+      }
 
-      const parsed = safeParseJSON(response.choices[0]?.message?.content, {});
-      res.json(parsed);
+      return res.status(500).json({ error: "AI client is not configured or failed to analyze biometrics." });
     } catch (error: any) {
-      console.error("Groq Biometrics Analysis Error on Backend:", error);
+      console.error("Biometrics Analysis Error on Backend:", error);
       res.status(500).json({ error: "Internal biometrics error" });
     }
   });
 
-  // 5. Landmark & Location extraction endpoint using Groq
+  // 5. Landmark & Location extraction endpoint
   app.post("/api/extract-location", aiRateLimiter, async (req: Request, res: Response) => {
     const text = sanitizeText(req.body.text, 1000);
 
@@ -1275,35 +1381,59 @@ async function startServer() {
     }
 
     try {
-      const groqClient = getGroqClient();
-      if (!groqClient) {
-        return res.status(500).json({ error: "Groq AI client is not configured on the server." });
+      const openAIClients = getOpenAIClients();
+      if (openAIClients.length > 0) {
+        for (const wrapper of openAIClients) {
+          for (const modelName of wrapper.textModels) {
+            try {
+              const response = await wrapper.client.chat.completions.create({
+                model: modelName,
+                messages: [
+                  {
+                    role: "user",
+                    content: `Extract the location details from this text into JSON format: '${text}'.
+                    Return a JSON object in this exact format:
+                    {
+                      "landmark": "Lekki Conservation Centre",
+                      "city": "Lagos",
+                      "country": "Nigeria",
+                      "latitude": 6.4281,
+                      "longitude": 3.4219
+                    }
+                    Use your general knowledge to estimate accurate coordinates (lat/lng) for the landmark or address described. Return ONLY the JSON object, do not explain the coordinates, do not write anything else.`
+                  }
+                ],
+                response_format: { type: "json_object" }
+              });
+
+              const parsed = safeParseJSON(response.choices[0]?.message?.content, {});
+              if (parsed && (parsed.landmark || parsed.city)) {
+                return res.json(parsed);
+              }
+            } catch (err: any) {
+              console.warn(`[Server] Location extraction model ${modelName} on ${wrapper.name} failed:`, err?.message);
+            }
+          }
+        }
       }
 
-      const response = await groqClient.chat.completions.create({
-        model: "openai/gpt-oss-120b",
-        messages: [
-          {
-            role: "user",
-            content: `Extract the location details from this text into JSON format: '${text}'.
-            Return a JSON object in this exact format:
-            {
-              "landmark": "Lekki Conservation Centre",
-              "city": "Lagos",
-              "country": "Nigeria",
-              "latitude": 6.4281,
-              "longitude": 3.4219
-            }
-            Use your general knowledge to estimate accurate coordinates (lat/lng) for the landmark or address described. Return ONLY the JSON object, do not explain the coordinates, do not write anything else.`
-          }
-        ],
-        response_format: { type: "json_object" }
-      });
+      // Gemini Fallback
+      const gemini = getGeminiClient();
+      if (gemini) {
+        const response = await gemini.models.generateContent({
+          model: "gemini-3.6-flash",
+          contents: `Extract location from text: '${text}'. Return JSON with landmark, city, country, latitude (number), longitude (number).`,
+          config: { responseMimeType: "application/json" }
+        });
+        const parsed = safeParseJSON(response.text, {});
+        if (parsed && (parsed.landmark || parsed.city)) {
+          return res.json(parsed);
+        }
+      }
 
-      const parsed = safeParseJSON(response.choices[0]?.message?.content, {});
-      res.json(parsed);
+      return res.status(500).json({ error: "AI client is not configured or failed to extract location." });
     } catch (error: any) {
-      console.error("Groq Location Extraction Error on Backend:", error);
+      console.error("Location Extraction Error on Backend:", error);
       res.status(500).json({ error: "Internal location extraction error" });
     }
   });
@@ -1367,22 +1497,23 @@ async function startServer() {
       "summaryInsight": "Your physiological recovery is strong with balanced sleep architecture and active cardiovascular output."
     }`;
 
-    const groqClient = getGroqClient();
-    if (groqClient) {
-      const candidateModels = ["openai/gpt-oss-120b", "qwen/qwen3.6-27b", "qwen-2.5-32b"];
-      for (const modelName of candidateModels) {
-        try {
-          const response = await groqClient.chat.completions.create({
-            model: modelName,
-            messages: [{ role: "user", content: prompt }],
-            response_format: { type: "json_object" }
-          });
-          const parsed = safeParseJSON(response.choices[0]?.message?.content, null);
-          if (parsed && parsed.healthScore) {
-            return res.json({ ...parsed, modelUsed: modelName });
+    const openAIClients = getOpenAIClients();
+    if (openAIClients.length > 0) {
+      for (const wrapper of openAIClients) {
+        for (const modelName of wrapper.textModels) {
+          try {
+            const response = await wrapper.client.chat.completions.create({
+              model: modelName,
+              messages: [{ role: "user", content: prompt }],
+              response_format: { type: "json_object" }
+            });
+            const parsed = safeParseJSON(response.choices[0]?.message?.content, null);
+            if (parsed && parsed.healthScore) {
+              return res.json({ ...parsed, modelUsed: `${wrapper.name}:${modelName}` });
+            }
+          } catch (err: any) {
+            console.warn(`[Server] Smartwatch analysis model ${modelName} on ${wrapper.name} failed:`, err?.message);
           }
-        } catch (err: any) {
-          console.warn(`[Server] Smartwatch analysis model ${modelName} failed:`, err?.message);
         }
       }
     }
