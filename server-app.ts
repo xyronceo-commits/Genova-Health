@@ -3,7 +3,6 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import Groq from "groq-sdk";
 import OpenAI from "openai";
-import { GoogleGenAI } from "@google/genai";
 import nodemailer from "nodemailer";
 import crypto from "crypto";
 import { initializeApp, getApps, getApp, App } from "firebase-admin/app";
@@ -148,91 +147,122 @@ const validateBase64Image = (img: any): { base64: string; mimeType: string } | n
 };
 
 interface AIClientWrapper {
-  name: "groq" | "grok" | "openai";
+  name: "groq" | "grok" | "openai" | "openrouter";
   client: OpenAI;
   visionModels: string[];
   textModels: string[];
 }
 
-// Initialize Groq, Grok (xAI), and OpenAI safely using server-side environment variables
+// Initialize AI clients (OpenAI, OpenRouter, Groq, Grok) safely using server-side environment variables
 const getOpenAIClients = (): AIClientWrapper[] => {
   const clients: AIClientWrapper[] = [];
 
-  const grokKey = process.env.GROK_API_KEY || process.env.X_API_KEY || process.env.XAI_API_KEY;
-  const groqKey = process.env.GROQ_API_KEY;
-  const openaiKey = process.env.OPENAI_API_KEY || process.env.OPENAI_KEY;
+  const keysToTest: Array<{ key: string; source: string }> = [];
+  const envVars = [
+    "OPENAI_API_KEY",
+    "OPENAI_KEY",
+    "OPENROUTER_API_KEY",
+    "GROQ_API_KEY",
+    "GROK_API_KEY",
+    "X_API_KEY",
+    "XAI_API_KEY",
+    "AI_API_KEY",
+    "API_KEY",
+    "GEMINI_API_KEY",
+    "GOOGLE_API_KEY"
+  ];
 
-  if (grokKey) {
-    if (grokKey.startsWith("xai-")) {
-      clients.push({
-        name: "grok",
-        client: new OpenAI({ apiKey: grokKey, baseURL: "https://api.x.ai/v1" }),
-        visionModels: ["grok-2-vision-128k", "grok-vision-beta"],
-        textModels: ["grok-2-128k", "grok-2", "grok-beta"]
-      });
-    } else if (grokKey.startsWith("gsk_")) {
-      clients.push({
-        name: "groq",
-        client: new OpenAI({ apiKey: grokKey, baseURL: "https://api.groq.com/openai/v1" }),
-        visionModels: ["llama-3.2-11b-vision-preview", "llama-3.2-90b-vision-preview"],
-        textModels: ["llama-3.3-70b-versatile", "llama-3.1-80b-instant", "qwen-2.5-32b", "gemma2-9b-it", "deepseek-r1-distill-llama-70b"]
-      });
-    } else {
-      clients.push({
-        name: "grok",
-        client: new OpenAI({ apiKey: grokKey, baseURL: "https://api.x.ai/v1" }),
-        visionModels: ["grok-2-vision-128k", "grok-vision-beta"],
-        textModels: ["grok-2-128k", "grok-2", "grok-beta"]
-      });
-      clients.push({
-        name: "groq",
-        client: new OpenAI({ apiKey: grokKey, baseURL: "https://api.groq.com/openai/v1" }),
-        visionModels: ["llama-3.2-11b-vision-preview", "llama-3.2-90b-vision-preview"],
-        textModels: ["llama-3.3-70b-versatile", "llama-3.1-80b-instant", "qwen-2.5-32b", "gemma2-9b-it", "deepseek-r1-distill-llama-70b"]
-      });
+  const seenKeys = new Set<string>();
+
+  for (const varName of envVars) {
+    const val = process.env[varName];
+    if (val && typeof val === "string" && val.trim().length > 5) {
+      const cleanVal = val.trim();
+      if (!seenKeys.has(cleanVal)) {
+        seenKeys.add(cleanVal);
+        keysToTest.push({ key: cleanVal, source: varName });
+      }
     }
   }
 
-  if (groqKey && groqKey !== grokKey) {
-    if (groqKey.startsWith("xai-")) {
+  const primaryVisionModels = [
+    "openai/gpt-oss-120b",
+    "openai/gpt-oss-20b",
+    "gpt-4o",
+    "gpt-4o-mini",
+    "llama-3.2-11b-vision-preview",
+    "grok-2-vision-128k"
+  ];
+
+  const primaryTextModels = [
+    "openai/gpt-oss-120b",
+    "openai/gpt-oss-20b",
+    "gpt-4o",
+    "gpt-4o-mini",
+    "llama-3.3-70b-versatile",
+    "grok-2-128k",
+    "qwen-2.5-32b",
+    "deepseek-r1-distill-llama-70b"
+  ];
+
+  for (const item of keysToTest) {
+    const key = item.key;
+    const source = item.source;
+
+    if (key.startsWith("sk-or-") || source === "OPENROUTER_API_KEY") {
+      clients.push({
+        name: "openrouter",
+        client: new OpenAI({
+          apiKey: key,
+          baseURL: "https://openrouter.ai/api/v1",
+          defaultHeaders: {
+            "HTTP-Referer": "https://genovahealth.com",
+            "X-Title": "Optixia Genova Health"
+          }
+        }),
+        visionModels: primaryVisionModels,
+        textModels: primaryTextModels
+      });
+    } else if (key.startsWith("gsk_") || source === "GROQ_API_KEY") {
+      clients.push({
+        name: "groq",
+        client: new OpenAI({ apiKey: key, baseURL: "https://api.groq.com/openai/v1" }),
+        visionModels: ["llama-3.2-11b-vision-preview", "llama-3.2-90b-vision-preview"],
+        textModels: ["llama-3.3-70b-versatile", "qwen-2.5-32b", "deepseek-r1-distill-llama-70b", "gemma2-9b-it"]
+      });
+    } else if (key.startsWith("xai-") || source === "GROK_API_KEY" || source === "X_API_KEY" || source === "XAI_API_KEY") {
       clients.push({
         name: "grok",
-        client: new OpenAI({ apiKey: groqKey, baseURL: "https://api.x.ai/v1" }),
+        client: new OpenAI({ apiKey: key, baseURL: "https://api.x.ai/v1" }),
         visionModels: ["grok-2-vision-128k", "grok-vision-beta"],
         textModels: ["grok-2-128k", "grok-2", "grok-beta"]
       });
     } else {
+      // General OpenAI / OpenRouter key format (e.g. sk-... or custom key)
       clients.push({
-        name: "groq",
-        client: new OpenAI({ apiKey: groqKey, baseURL: "https://api.groq.com/openai/v1" }),
-        visionModels: ["llama-3.2-11b-vision-preview", "llama-3.2-90b-vision-preview"],
-        textModels: ["llama-3.3-70b-versatile", "llama-3.1-80b-instant", "qwen-2.5-32b", "gemma2-9b-it", "deepseek-r1-distill-llama-70b"]
+        name: "openai",
+        client: new OpenAI({ apiKey: key, baseURL: "https://api.openai.com/v1" }),
+        visionModels: primaryVisionModels,
+        textModels: primaryTextModels
+      });
+
+      clients.push({
+        name: "openrouter",
+        client: new OpenAI({
+          apiKey: key,
+          baseURL: "https://openrouter.ai/api/v1",
+          defaultHeaders: {
+            "HTTP-Referer": "https://genovahealth.com",
+            "X-Title": "Optixia Genova Health"
+          }
+        }),
+        visionModels: primaryVisionModels,
+        textModels: primaryTextModels
       });
     }
-  }
-
-  if (openaiKey && openaiKey !== grokKey && openaiKey !== groqKey) {
-    clients.push({
-      name: "openai",
-      client: new OpenAI({ apiKey: openaiKey, baseURL: "https://api.openai.com/v1" }),
-      visionModels: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo"],
-      textModels: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"]
-    });
   }
 
   return clients;
-};
-
-const getGroqClient = () => {
-  const wrappers = getOpenAIClients();
-  return wrappers.length > 0 ? wrappers[0].client : null;
-};
-
-// Initialize Gemini safely using purely server-side environment variables
-const getGeminiClient = () => {
-  const key = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
-  if (!key) return null;
-  return new GoogleGenAI({ apiKey: key });
 };
 
 // Helper for resilient JSON parsing
@@ -254,18 +284,13 @@ const safeParseJSON = (rawText: string | undefined | null, fallback: any = {}) =
 
 // 1. Health & Config endpoint
 app.get("/api/health", generalRateLimiter, (req: Request, res: Response) => {
-  const grokKey = process.env.GROK_API_KEY || process.env.X_API_KEY || process.env.XAI_API_KEY;
-  const groqKey = process.env.GROQ_API_KEY;
-  const openaiKey = process.env.OPENAI_API_KEY || process.env.OPENAI_KEY;
-  const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
   const openAIClients = getOpenAIClients();
   res.json({ 
     status: "ok", 
-    grokConfigured: !!grokKey,
-    groqConfigured: !!groqKey,
-    openaiConfigured: !!openaiKey,
-    geminiConfigured: !!geminiKey,
-    aiClientsCount: openAIClients.length
+    aiConfigured: openAIClients.length > 0,
+    aiClientsCount: openAIClients.length,
+    primaryModels: ["openai/gpt-oss-120b", "openai/gpt-oss-20b"],
+    geminiDisabled: true
   });
 });
 
@@ -1143,7 +1168,7 @@ app.get("/api/admin/security-logs", verifyAdminSession, (req: Request, res: Resp
   res.json({ logs: securityLogs });
 });
 
-// 2. Chat Streaming endpoint (SSE) using Groq with Gemini fallback (text-only)
+// 2. Chat Streaming endpoint (SSE) using OpenAI-compatible providers
 app.post("/api/chat/stream", aiRateLimiter, async (req: Request, res: Response) => {
   const systemInstruction = sanitizeText(req.body.systemInstruction, 2000);
   const userMessage = sanitizeText(req.body.userMessage, 4000);
@@ -1157,28 +1182,13 @@ app.post("/api/chat/stream", aiRateLimiter, async (req: Request, res: Response) 
 
   const hasImage = !!(attachedImage && attachedImage.base64);
 
-  // If image is present, prioritize Groq vision models
-  const requestedModel = model || (hasImage ? "llama-3.2-11b-vision-preview" : "openai/gpt-oss-120b");
-  const candidateModels = hasImage 
-    ? ["llama-3.2-11b-vision-preview", "llama-3.2-90b-vision-preview"]
-    : Array.from(new Set([
-        requestedModel,
-        "openai/gpt-oss-120b",
-        "qwen/qwen3.6-27b",
-        "qwen-2.5-32b",
-        "gemma2-9b-it"
-      ]));
-
-  // Attempt OpenAI-compatible clients (Groq & Grok xAI)
+  // Attempt OpenAI-compatible clients (OpenAI, OpenRouter, Groq & Grok xAI)
   const openAIClients = getOpenAIClients();
   if (openAIClients.length > 0) {
     for (const wrapper of openAIClients) {
       const candidateModels = hasImage 
-        ? wrapper.visionModels
-        : Array.from(new Set([
-            model,
-            ...wrapper.textModels
-          ].filter(Boolean)));
+        ? Array.from(new Set(["openai/gpt-oss-120b", "openai/gpt-oss-20b", model, ...wrapper.visionModels].filter(Boolean)))
+        : Array.from(new Set(["openai/gpt-oss-120b", "openai/gpt-oss-20b", model, ...wrapper.textModels].filter(Boolean)));
 
       for (const targetModel of candidateModels) {
         if (targetModel.startsWith("gemini")) continue;
@@ -1219,66 +1229,18 @@ app.post("/api/chat/stream", aiRateLimiter, async (req: Request, res: Response) 
           res.write("data: [DONE]\n\n");
           res.end();
           return;
-        } catch (groqErr: any) {
-          console.warn(`[Server] Client ${wrapper.name} model ${targetModel} failed: ${groqErr?.message}`);
+        } catch (err: any) {
+          console.warn(`[Server] Client ${wrapper.name} model ${targetModel} failed: ${err?.message}`);
         }
       }
     }
   }
 
-  // Fallback to Gemini for text or image queries if Groq/Grok failed or key is missing
-  try {
-    const gemini = getGeminiClient();
-    if (gemini) {
-      const userParts: any[] = [];
-      if (userMessage) {
-        userParts.push({ text: userMessage });
-      } else if (hasImage) {
-        userParts.push({ text: "Analyze this uploaded health image:" });
-      }
-
-      if (hasImage) {
-        const cleanBase64 = attachedImage.base64.replace(/^data:image\/\w+;base64,/, "");
-        userParts.push({
-          inlineData: {
-            mimeType: attachedImage.mimeType || "image/jpeg",
-            data: cleanBase64
-          }
-        });
-      }
-
-      const response = await gemini.models.generateContentStream({
-        model: "gemini-3.6-flash",
-        contents: [
-          ...(history || []).map((h: any) => ({
-            role: h.role === "model" ? "model" : "user",
-            parts: [{ text: sanitizeText(h.text, 2000) }]
-          })),
-          { role: "user", parts: userParts }
-        ],
-        config: {
-          systemInstruction: systemInstruction || undefined
-        }
-      });
-
-      for await (const chunk of response) {
-        if (chunk.text) {
-          res.write(`data: ${JSON.stringify({ text: chunk.text })}\n\n`);
-        }
-      }
-      res.write("data: [DONE]\n\n");
-      res.end();
-      return;
-    }
-  } catch (geminiErr: any) {
-    console.error("[Server] Gemini streaming failed:", geminiErr?.message);
-  }
-
-  res.write(`data: ${JSON.stringify({ error: "No working AI API key found. Please configure GEMINI_API_KEY, GROQ_API_KEY, or X_API_KEY in Environment Settings." })}\n\n`);
+  res.write(`data: ${JSON.stringify({ error: "No working AI API key found or models unavailable. Please ensure your API key is configured in Environment Settings." })}\n\n`);
   res.end();
 });
 
-// 3. Food Analysis endpoint using Groq/Grok Vision model with Gemini Vision fallback
+// 3. Food Analysis endpoint using vision-capable AI models
 app.post("/api/analyze-food", aiRateLimiter, async (req: Request, res: Response) => {
   const base64Image = typeof req.body.base64Image === "string" ? req.body.base64Image : "";
   const userContext = sanitizeText(req.body.userContext, 2000);
@@ -1291,7 +1253,13 @@ app.post("/api/analyze-food", aiRateLimiter, async (req: Request, res: Response)
     const openAIClients = getOpenAIClients();
     if (openAIClients.length > 0) {
       for (const wrapper of openAIClients) {
-        for (const visionModel of wrapper.visionModels) {
+        const candidateVisionModels = Array.from(new Set([
+          "openai/gpt-oss-120b",
+          "openai/gpt-oss-20b",
+          ...wrapper.visionModels
+        ]));
+
+        for (const visionModel of candidateVisionModels) {
           try {
             const response = await wrapper.client.chat.completions.create({
               model: visionModel,
@@ -1348,64 +1316,7 @@ app.post("/api/analyze-food", aiRateLimiter, async (req: Request, res: Response)
       }
     }
 
-    // Gemini Fallback — Gemini supports multimodal (image + text) input natively
-    const gemini = getGeminiClient();
-    if (gemini) {
-      try {
-        const cleanBase64 = base64Image.replace(/^data:image\/\w+;base64,/, "");
-        const response = await gemini.models.generateContent({
-          model: "gemini-3.6-flash",
-          contents: [
-            {
-              role: "user",
-              parts: [
-                {
-                  text: `Identify the food in this image and cross-reference with local Nigerian & West African dietary standards for a user with profile: ${userContext || 'Standard Profile'}. 
-Provide accurate estimates for calories, protein, carbs, fat, fiber, and glycemic index. Also state genotype & blood group compatibility if relevant.
-If the food is a Nigerian or West African dish (or similar staple like Jollof, Amala, Egusi, Suya, Pounded Yam, Eba, Moi Moi, Ofada, Pepper Soup, etc.), set isNigerianMeal to true and provide local dietary breakdown.
-Return ONLY a JSON object in this exact format:
-{
-  "foodName": "Identified Dish Name",
-  "calories": 450,
-  "protein": "20g",
-  "carbs": "55g",
-  "fat": "15g",
-  "fiber": "5g",
-  "glycemicIndex": "Low",
-  "genotypeCompatibility": "Highly Compatible",
-  "insight": "Personalized health advice tailored to user demographics.",
-  "isNigerianMeal": true,
-  "nigerianMealDetails": {
-    "region": "South-West / Pan-Nigerian",
-    "localDietaryStandard": "Nutritious & Balanced",
-    "sodiumLevel": "Moderate",
-    "oilContent": "Moderate",
-    "healthConditionAdvice": "Low GI, rich in lycopene from cooked tomato stew. Suitable for hypertension if salt is moderated."
-  }
-}`
-                },
-                {
-                  inlineData: {
-                    mimeType: "image/jpeg",
-                    data: cleanBase64
-                  }
-                }
-              ]
-            }
-          ],
-          config: { responseMimeType: "application/json" }
-        });
-
-        const parsed = safeParseJSON(response.text, null);
-        if (parsed && parsed.foodName) {
-          return res.json(parsed);
-        }
-      } catch (geminiErr: any) {
-        console.error("[Server] Gemini food image analysis failed:", geminiErr?.message);
-      }
-    }
-
-    return res.status(500).json({ error: "Unable to analyze this food photo right now. Please try again." });
+    return res.status(500).json({ error: "Unable to analyze this food photo right now. Please verify your AI API key." });
   } catch (error: any) {
     console.error("Food Analysis Error on Backend:", error);
     res.status(500).json({ error: "An internal error occurred during food analysis." });
@@ -1452,7 +1363,13 @@ app.post("/api/analyze-food-text", aiRateLimiter, async (req: Request, res: Resp
     const openAIClients = getOpenAIClients();
     if (openAIClients.length > 0) {
       for (const wrapper of openAIClients) {
-        for (const modelName of wrapper.textModels) {
+        const candidateTextModels = Array.from(new Set([
+          "openai/gpt-oss-120b",
+          "openai/gpt-oss-20b",
+          ...wrapper.textModels
+        ]));
+
+        for (const modelName of candidateTextModels) {
           try {
             const response = await wrapper.client.chat.completions.create({
               model: modelName,
@@ -1470,28 +1387,14 @@ app.post("/api/analyze-food-text", aiRateLimiter, async (req: Request, res: Resp
       }
     }
 
-    // Gemini Fallback
-    const gemini = getGeminiClient();
-    if (gemini) {
-      const response = await gemini.models.generateContent({
-        model: "gemini-3.6-flash",
-        contents: prompt,
-        config: { responseMimeType: "application/json" }
-      });
-      const parsed = safeParseJSON(response.text, null);
-      if (parsed && parsed.foodName) {
-        return res.json(parsed);
-      }
-    }
-
-    res.status(500).json({ error: "Failed to process manual food analysis" });
+    res.status(500).json({ error: "Failed to process manual food analysis. Please check AI key." });
   } catch (error: any) {
     console.error("Food Text Analysis Error on Backend:", error);
     res.status(500).json({ error: "Internal food text analysis error" });
   }
 });
 
-// 4. Biometric signal PPG analysis endpoint using Groq/Grok
+// 4. Biometric signal PPG analysis endpoint
 app.post("/api/analyze-biometrics", aiRateLimiter, async (req: Request, res: Response) => {
   const userContext = sanitizeText(req.body.userContext, 2000);
   const rawSignal = Array.isArray(req.body.ppgSignal) ? req.body.ppgSignal : [];
@@ -1505,7 +1408,13 @@ app.post("/api/analyze-biometrics", aiRateLimiter, async (req: Request, res: Res
     const openAIClients = getOpenAIClients();
     if (openAIClients.length > 0) {
       for (const wrapper of openAIClients) {
-        for (const modelName of wrapper.textModels) {
+        const candidateTextModels = Array.from(new Set([
+          "openai/gpt-oss-120b",
+          "openai/gpt-oss-20b",
+          ...wrapper.textModels
+        ]));
+
+        for (const modelName of candidateTextModels) {
           try {
             const response = await wrapper.client.chat.completions.create({
               model: modelName,
@@ -1539,20 +1448,6 @@ app.post("/api/analyze-biometrics", aiRateLimiter, async (req: Request, res: Res
       }
     }
 
-    // Gemini Fallback
-    const gemini = getGeminiClient();
-    if (gemini) {
-      const response = await gemini.models.generateContent({
-        model: "gemini-3.6-flash",
-        contents: `Analyze PPG signal data: ${ppgSignal.slice(0, 50).join(', ')}. User: ${userContext}. Return JSON with heartRate (number), bloodPressure (string), stressLevel (string), insight (string).`,
-        config: { responseMimeType: "application/json" }
-      });
-      const parsed = safeParseJSON(response.text, {});
-      if (parsed && parsed.heartRate) {
-        return res.json(parsed);
-      }
-    }
-
     return res.status(500).json({ error: "AI client is not configured or failed to analyze biometrics." });
   } catch (error: any) {
     console.error("Biometrics Analysis Error on Backend:", error);
@@ -1572,7 +1467,13 @@ app.post("/api/extract-location", aiRateLimiter, async (req: Request, res: Respo
     const openAIClients = getOpenAIClients();
     if (openAIClients.length > 0) {
       for (const wrapper of openAIClients) {
-        for (const modelName of wrapper.textModels) {
+        const candidateTextModels = Array.from(new Set([
+          "openai/gpt-oss-120b",
+          "openai/gpt-oss-20b",
+          ...wrapper.textModels
+        ]));
+
+        for (const modelName of candidateTextModels) {
           try {
             const response = await wrapper.client.chat.completions.create({
               model: modelName,
@@ -1602,20 +1503,6 @@ app.post("/api/extract-location", aiRateLimiter, async (req: Request, res: Respo
             console.warn(`[Server] Location extraction model ${modelName} on ${wrapper.name} failed:`, err?.message);
           }
         }
-      }
-    }
-
-    // Gemini Fallback
-    const gemini = getGeminiClient();
-    if (gemini) {
-      const response = await gemini.models.generateContent({
-        model: "gemini-3.6-flash",
-        contents: `Extract location from text: '${text}'. Return JSON with landmark, city, country, latitude (number), longitude (number).`,
-        config: { responseMimeType: "application/json" }
-      });
-      const parsed = safeParseJSON(response.text, {});
-      if (parsed && (parsed.landmark || parsed.city)) {
-        return res.json(parsed);
       }
     }
 
@@ -1688,7 +1575,13 @@ app.post("/api/analyze-smartwatch-telemetry", aiRateLimiter, async (req: Request
   const openAIClients = getOpenAIClients();
   if (openAIClients.length > 0) {
     for (const wrapper of openAIClients) {
-      for (const modelName of wrapper.textModels) {
+      const candidateTextModels = Array.from(new Set([
+        "openai/gpt-oss-120b",
+        "openai/gpt-oss-20b",
+        ...wrapper.textModels
+      ]));
+
+      for (const modelName of candidateTextModels) {
         try {
           const response = await wrapper.client.chat.completions.create({
             model: modelName,
@@ -1704,24 +1597,6 @@ app.post("/api/analyze-smartwatch-telemetry", aiRateLimiter, async (req: Request
         }
       }
     }
-  }
-
-  // Gemini Fallback
-  try {
-    const gemini = getGeminiClient();
-    if (gemini) {
-      const response = await gemini.models.generateContent({
-        model: "gemini-3.6-flash",
-        contents: prompt,
-        config: { responseMimeType: "application/json" }
-      });
-      const parsed = safeParseJSON(response.text, null);
-      if (parsed && parsed.healthScore) {
-        return res.json({ ...parsed, modelUsed: "gemini-3.6-flash" });
-      }
-    }
-  } catch (err: any) {
-    console.warn("[Server] Gemini smartwatch analysis failed:", err?.message);
   }
 
   res.status(500).json({ error: "Failed to generate AI smartwatch analysis" });
@@ -1752,14 +1627,19 @@ app.post("/api/reverse-geocode", generalRateLimiter, async (req: Request, res: R
   } catch (_) {}
 
   try {
-    const gemini = getGeminiClient();
-    if (gemini) {
-      const response = await gemini.models.generateContent({
-        model: "gemini-3.6-flash",
-        contents: `Given GPS latitude ${lat} and longitude ${lng}, return ONLY the short City, State (e.g. "Osogbo, Osun State" or "Ikeja, Lagos State"). No markdown or extra words.`
-      });
-      const text = response.text?.trim();
-      if (text) return res.json({ locationName: text });
+    const openAIClients = getOpenAIClients();
+    for (const wrapper of openAIClients) {
+      try {
+        const response = await wrapper.client.chat.completions.create({
+          model: wrapper.textModels[0] || "openai/gpt-oss-120b",
+          messages: [{
+            role: "user",
+            content: `Given GPS latitude ${lat} and longitude ${lng}, return ONLY the short City, State (e.g. "Osogbo, Osun State" or "Ikeja, Lagos State"). No markdown or extra words.`
+          }]
+        });
+        const text = response.choices[0]?.message?.content?.trim();
+        if (text) return res.json({ locationName: text });
+      } catch (_) {}
     }
   } catch (_) {}
 
@@ -1825,21 +1705,24 @@ app.post("/api/find-hospitals", generalRateLimiter, async (req: Request, res: Re
   } catch (e) {}
 
   if (hospitals.length < 2) {
-    const gemini = getGeminiClient();
-    if (gemini) {
+    const openAIClients = getOpenAIClients();
+    for (const wrapper of openAIClients) {
       try {
-        const llmResponse = await gemini.models.generateContent({
-          model: "gemini-3.6-flash",
-          contents: `Find 5 real healthcare facilities, hospitals or clinics nearest to coordinates (${lat}, ${lng}) in ${locName}. 
-          Return ONLY a clean valid JSON object:
-          {
-            "hospitals": [
-              { "name": "State Specialist Hospital", "address": "Hospital Road", "lat": ${lat + 0.015}, "lng": ${lng + 0.012}, "specialty": "General & Emergency" }
-            ]
-          }`,
-          config: { responseMimeType: "application/json" }
+        const llmResponse = await wrapper.client.chat.completions.create({
+          model: wrapper.textModels[0] || "openai/gpt-oss-120b",
+          messages: [{
+            role: "user",
+            content: `Find 5 real healthcare facilities, hospitals or clinics nearest to coordinates (${lat}, ${lng}) in ${locName}. 
+            Return ONLY a clean valid JSON object:
+            {
+              "hospitals": [
+                { "name": "State Specialist Hospital", "address": "Hospital Road", "lat": ${lat + 0.015}, "lng": ${lng + 0.012}, "specialty": "General & Emergency" }
+              ]
+            }`
+          }],
+          response_format: { type: "json_object" }
         });
-        const parsed = safeParseJSON(llmResponse.text, { hospitals: [] });
+        const parsed = safeParseJSON(llmResponse.choices[0]?.message?.content, { hospitals: [] });
         if (parsed && Array.isArray(parsed.hospitals)) {
           const aiHospitals = parsed.hospitals.map((h: any, i: number) => {
             const hLat = h.lat || (lat + (i + 1) * 0.012);
@@ -1857,6 +1740,7 @@ app.post("/api/find-hospitals", generalRateLimiter, async (req: Request, res: Re
             };
           });
           hospitals = [...hospitals, ...aiHospitals];
+          break;
         }
       } catch (_) {}
     }
