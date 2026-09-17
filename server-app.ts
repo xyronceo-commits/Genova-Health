@@ -3,6 +3,7 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import Groq from "groq-sdk";
 import OpenAI from "openai";
+import { GoogleGenAI } from "@google/genai";
 import nodemailer from "nodemailer";
 import crypto from "crypto";
 import { initializeApp, getApps, getApp, App } from "firebase-admin/app";
@@ -239,13 +240,7 @@ const getOpenAIClients = (): AIClientWrapper[] => {
       });
     } else {
       // General OpenAI / OpenRouter key format (e.g. sk-... or custom key)
-      clients.push({
-        name: "openai",
-        client: new OpenAI({ apiKey: key, baseURL: "https://api.openai.com/v1" }),
-        visionModels: primaryVisionModels,
-        textModels: primaryTextModels
-      });
-
+      // Push OpenRouter wrapper FIRST because OpenRouter handles slash models like 'openai/gpt-oss-120b'
       clients.push({
         name: "openrouter",
         client: new OpenAI({
@@ -259,10 +254,68 @@ const getOpenAIClients = (): AIClientWrapper[] => {
         visionModels: primaryVisionModels,
         textModels: primaryTextModels
       });
+
+      clients.push({
+        name: "openai",
+        client: new OpenAI({ apiKey: key, baseURL: "https://api.openai.com/v1" }),
+        visionModels: ["gpt-4o", "gpt-4o-mini"],
+        textModels: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"]
+      });
     }
   }
 
   return clients;
+};
+
+// Initialize Gemini safely using server-side environment variables as a resilient fallback
+const getGeminiClient = () => {
+  const key = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+  if (!key) return null;
+  return new GoogleGenAI({ apiKey: key });
+};
+
+// Route model names intelligently based on provider wrapper capability
+const getModelsForWrapper = (wrapper: AIClientWrapper, requestedModel: string, hasImage: boolean): string[] => {
+  if (wrapper.name === "openrouter") {
+    const models = [
+      requestedModel,
+      "openai/gpt-oss-120b",
+      "openai/gpt-oss-20b",
+      "openai/gpt-4o",
+      "openai/gpt-4o-mini",
+      "meta-llama/llama-3.3-70b-instruct",
+      "google/gemini-2.0-flash-001"
+    ];
+    return Array.from(new Set(models.filter(Boolean)));
+  }
+
+  if (wrapper.name === "openai") {
+    // Official OpenAI API (api.openai.com) strictly expects un-prefixed models like gpt-4o
+    const cleanRequested = requestedModel.includes('/') ? requestedModel.split('/')[1] : requestedModel;
+    const baseModel = (cleanRequested === "gpt-oss-120b" || cleanRequested === "gpt-oss-20b") ? "gpt-4o" : cleanRequested;
+    const models = [
+      baseModel,
+      "gpt-4o",
+      "gpt-4o-mini",
+      "gpt-4-turbo",
+      "gpt-3.5-turbo"
+    ];
+    return Array.from(new Set(models.filter(Boolean)));
+  }
+
+  if (wrapper.name === "groq") {
+    return hasImage
+      ? ["llama-3.2-11b-vision-preview", "llama-3.2-90b-vision-preview"]
+      : ["llama-3.3-70b-versatile", "qwen-2.5-32b", "deepseek-r1-distill-llama-70b", "gemma2-9b-it"];
+  }
+
+  if (wrapper.name === "grok") {
+    return hasImage
+      ? ["grok-2-vision-128k", "grok-vision-beta"]
+      : ["grok-2-128k", "grok-2", "grok-beta"];
+  }
+
+  return wrapper.textModels;
 };
 
 // Helper for resilient JSON parsing
@@ -1186,9 +1239,7 @@ app.post("/api/chat/stream", aiRateLimiter, async (req: Request, res: Response) 
   const openAIClients = getOpenAIClients();
   if (openAIClients.length > 0) {
     for (const wrapper of openAIClients) {
-      const candidateModels = hasImage 
-        ? Array.from(new Set(["openai/gpt-oss-120b", "openai/gpt-oss-20b", model, ...wrapper.visionModels].filter(Boolean)))
-        : Array.from(new Set(["openai/gpt-oss-120b", "openai/gpt-oss-20b", model, ...wrapper.textModels].filter(Boolean)));
+      const candidateModels = getModelsForWrapper(wrapper, model || "openai/gpt-oss-120b", hasImage);
 
       for (const targetModel of candidateModels) {
         if (targetModel.startsWith("gemini")) continue;
@@ -1236,7 +1287,55 @@ app.post("/api/chat/stream", aiRateLimiter, async (req: Request, res: Response) 
     }
   }
 
-  res.write(`data: ${JSON.stringify({ error: "No working AI API key found or models unavailable. Please ensure your API key is configured in Environment Settings." })}\n\n`);
+  // Resilient Fallback to Gemini Flash if configured
+  try {
+    const gemini = getGeminiClient();
+    if (gemini) {
+      const userParts: any[] = [];
+      if (userMessage) {
+        userParts.push({ text: userMessage });
+      } else if (hasImage) {
+        userParts.push({ text: "Analyze this uploaded health image:" });
+      }
+
+      if (hasImage) {
+        const cleanBase64 = attachedImage.base64.replace(/^data:image\/\w+;base64,/, "");
+        userParts.push({
+          inlineData: {
+            mimeType: attachedImage.mimeType || "image/jpeg",
+            data: cleanBase64
+          }
+        });
+      }
+
+      const response = await gemini.models.generateContentStream({
+        model: "gemini-2.5-flash",
+        contents: [
+          ...(history || []).map((h: any) => ({
+            role: h.role === "model" ? "model" : "user",
+            parts: [{ text: sanitizeText(h.text, 2000) }]
+          })),
+          { role: "user", parts: userParts }
+        ],
+        config: {
+          systemInstruction: systemInstruction || undefined
+        }
+      });
+
+      for await (const chunk of response) {
+        if (chunk.text) {
+          res.write(`data: ${JSON.stringify({ text: chunk.text })}\n\n`);
+        }
+      }
+      res.write("data: [DONE]\n\n");
+      res.end();
+      return;
+    }
+  } catch (geminiErr: any) {
+    console.error("[Server] Gemini streaming fallback notice:", geminiErr?.message);
+  }
+
+  res.write(`data: ${JSON.stringify({ error: "No working AI API key found or model request failed. Please verify your OPENAI_API_KEY, OPENROUTER_API_KEY, or GROQ_API_KEY in Environment Settings." })}\n\n`);
   res.end();
 });
 

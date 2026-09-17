@@ -65,6 +65,7 @@ export class AIService {
             try {
               const data = JSON.parse(dataStr);
               if (data.error) {
+                receivedText = true;
                 yield { text: `⚠️ ${data.error}`, groundingMetadata: null };
                 return;
               }
