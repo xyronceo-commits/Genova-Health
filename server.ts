@@ -130,18 +130,19 @@ async function startServer() {
   };
 
   interface AIClientWrapper {
-    name: "groq" | "grok";
+    name: "groq" | "grok" | "openai";
     client: Groq;
     visionModels: string[];
     textModels: string[];
   }
 
-  // Initialize Groq and Grok (xAI) safely using server-side environment variables
+  // Initialize Groq, Grok (xAI), and OpenAI safely using server-side environment variables
   const getOpenAIClients = (): AIClientWrapper[] => {
     const clients: AIClientWrapper[] = [];
 
     const grokKey = process.env.GROK_API_KEY || process.env.X_API_KEY || process.env.XAI_API_KEY;
     const groqKey = process.env.GROQ_API_KEY;
+    const openaiKey = process.env.OPENAI_API_KEY || process.env.OPENAI_KEY;
 
     if (grokKey) {
       if (grokKey.startsWith("xai-")) {
@@ -192,6 +193,15 @@ async function startServer() {
       }
     }
 
+    if (openaiKey && openaiKey !== grokKey && openaiKey !== groqKey) {
+      clients.push({
+        name: "openai",
+        client: new Groq({ apiKey: openaiKey, baseURL: "https://api.openai.com/v1" }),
+        visionModels: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo"],
+        textModels: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"]
+      });
+    }
+
     return clients;
   };
 
@@ -202,7 +212,7 @@ async function startServer() {
 
   // Initialize Gemini safely using purely server-side environment variables
   const getGeminiClient = () => {
-    const key = process.env.GEMINI_API_KEY;
+    const key = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
     if (!key) return null;
     return new GoogleGenAI({ apiKey: key });
   };
@@ -228,13 +238,16 @@ async function startServer() {
   app.get("/api/health", generalRateLimiter, (req: Request, res: Response) => {
     const grokKey = process.env.GROK_API_KEY || process.env.X_API_KEY || process.env.XAI_API_KEY;
     const groqKey = process.env.GROQ_API_KEY;
+    const openaiKey = process.env.OPENAI_API_KEY || process.env.OPENAI_KEY;
+    const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
     const openAIClients = getOpenAIClients();
     res.json({ 
       status: "ok", 
       grokConfigured: !!grokKey,
       groqConfigured: !!groqKey,
-      aiClientsCount: openAIClients.length,
-      geminiConfigured: !!process.env.GEMINI_API_KEY
+      openaiConfigured: !!openaiKey,
+      geminiConfigured: !!geminiKey,
+      aiClientsCount: openAIClients.length
     });
   });
 
@@ -1101,18 +1114,27 @@ async function startServer() {
       }
     }
 
-    // STRICT USER DIRECTIVE: Do NOT use Gemini to analyze images!
-    if (hasImage) {
-      res.write(`data: ${JSON.stringify({ text: "⚠️ Image analysis requires a Groq AI API key. Please configure GROQ_API_KEY, GROK_API_KEY, or X_API_KEY in Environment Settings. Gemini image analysis is disabled per user settings." })}\n\n`);
-      res.write("data: [DONE]\n\n");
-      res.end();
-      return;
-    }
-
-    // Fallback to Gemini for text-only queries if Groq failed or key is missing
+    // Fallback to Gemini for text or image queries if Groq/Grok failed or key is missing
     try {
       const gemini = getGeminiClient();
       if (gemini) {
+        const userParts: any[] = [];
+        if (userMessage) {
+          userParts.push({ text: userMessage });
+        } else if (hasImage) {
+          userParts.push({ text: "Analyze this uploaded health image:" });
+        }
+
+        if (hasImage) {
+          const cleanBase64 = attachedImage.base64.replace(/^data:image\/\w+;base64,/, "");
+          userParts.push({
+            inlineData: {
+              mimeType: attachedImage.mimeType || "image/jpeg",
+              data: cleanBase64
+            }
+          });
+        }
+
         const response = await gemini.models.generateContentStream({
           model: "gemini-3.6-flash",
           contents: [
@@ -1120,7 +1142,7 @@ async function startServer() {
               role: h.role === "model" ? "model" : "user",
               parts: [{ text: sanitizeText(h.text, 2000) }]
             })),
-            { role: "user", parts: [{ text: userMessage || "" }] }
+            { role: "user", parts: userParts }
           ],
           config: {
             systemInstruction: systemInstruction || undefined
@@ -1140,11 +1162,11 @@ async function startServer() {
       console.error("[Server] Gemini streaming failed:", geminiErr?.message);
     }
 
-    res.write(`data: ${JSON.stringify({ error: "No working AI API key found. Please configure GROQ_API_KEY or X_API_KEY in environment settings." })}\n\n`);
+    res.write(`data: ${JSON.stringify({ error: "No working AI API key found. Please configure GEMINI_API_KEY, GROQ_API_KEY, or X_API_KEY in Environment Settings." })}\n\n`);
     res.end();
   });
 
-  // 3. Food Analysis endpoint using Groq/Grok Vision model ONLY
+  // 3. Food Analysis endpoint using Groq/Grok Vision model with Gemini Vision fallback
   app.post("/api/analyze-food", aiRateLimiter, async (req: Request, res: Response) => {
     const base64Image = typeof req.body.base64Image === "string" ? req.body.base64Image : "";
     const userContext = sanitizeText(req.body.userContext, 2000);
@@ -1214,10 +1236,64 @@ async function startServer() {
         }
       }
 
-      // Per user directive: Do NOT use Gemini for image analysis
-      return res.status(400).json({ 
-        error: "Image analysis is set to Groq/Grok AI Vision. Please add a GROQ_API_KEY, GROK_API_KEY, or X_API_KEY in Environment Settings." 
-      });
+      // Gemini Fallback — Gemini supports multimodal (image + text) input natively
+      const gemini = getGeminiClient();
+      if (gemini) {
+        try {
+          const cleanBase64 = base64Image.replace(/^data:image\/\w+;base64,/, "");
+          const response = await gemini.models.generateContent({
+            model: "gemini-3.6-flash",
+            contents: [
+              {
+                role: "user",
+                parts: [
+                  {
+                    text: `Identify the food in this image and cross-reference with local Nigerian & West African dietary standards for a user with profile: ${userContext || 'Standard Profile'}. 
+Provide accurate estimates for calories, protein, carbs, fat, fiber, and glycemic index. Also state genotype & blood group compatibility if relevant.
+If the food is a Nigerian or West African dish (or similar staple like Jollof, Amala, Egusi, Suya, Pounded Yam, Eba, Moi Moi, Ofada, Pepper Soup, etc.), set isNigerianMeal to true and provide local dietary breakdown.
+Return ONLY a JSON object in this exact format:
+{
+  "foodName": "Identified Dish Name",
+  "calories": 450,
+  "protein": "20g",
+  "carbs": "55g",
+  "fat": "15g",
+  "fiber": "5g",
+  "glycemicIndex": "Low",
+  "genotypeCompatibility": "Highly Compatible",
+  "insight": "Personalized health advice tailored to user demographics.",
+  "isNigerianMeal": true,
+  "nigerianMealDetails": {
+    "region": "South-West / Pan-Nigerian",
+    "localDietaryStandard": "Nutritious & Balanced",
+    "sodiumLevel": "Moderate",
+    "oilContent": "Moderate",
+    "healthConditionAdvice": "Low GI, rich in lycopene from cooked tomato stew. Suitable for hypertension if salt is moderated."
+  }
+}`
+                  },
+                  {
+                    inlineData: {
+                      mimeType: "image/jpeg",
+                      data: cleanBase64
+                    }
+                  }
+                ]
+              }
+            ],
+            config: { responseMimeType: "application/json" }
+          });
+
+          const parsed = safeParseJSON(response.text, null);
+          if (parsed && parsed.foodName) {
+            return res.json(parsed);
+          }
+        } catch (geminiErr: any) {
+          console.error("[Server] Gemini food image analysis failed:", geminiErr?.message);
+        }
+      }
+
+      return res.status(500).json({ error: "Unable to analyze this food photo right now. Please try again." });
     } catch (error: any) {
       console.error("Food Analysis Error on Backend:", error);
       res.status(500).json({ error: "An internal error occurred during food analysis." });

@@ -346,13 +346,13 @@ const Emergency: React.FC<Props> = ({ user }) => {
           </button>
         </div>
 
-        {/* Custom Landmark Extraction Search (Groq Llama-3.3-70b-versatile JSON Mode) */}
+        {/* Custom Landmark Extraction Search (AI Engine) */}
         <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl border border-red-100 dark:border-gray-700 space-y-4 shadow-sm transition-all">
           <div className="flex items-center justify-between">
             <h3 className="font-black text-gray-900 dark:text-white uppercase tracking-widest text-[11px] flex items-center gap-2">
               <Sparkles size={14} className="text-red-500 animate-pulse" /> Dispatch Address Grounding
             </h3>
-            <span className="text-[9px] bg-red-100 dark:bg-red-900/30 text-red-600 px-2 py-0.5 rounded-full font-black uppercase tracking-wider">Llama-3.3 Extraction</span>
+            <span className="text-[9px] bg-red-100 dark:bg-red-900/30 text-red-600 px-2 py-0.5 rounded-full font-black uppercase tracking-wider">AI Extraction</span>
           </div>
 
           <p className="text-xs text-gray-400 leading-relaxed">
