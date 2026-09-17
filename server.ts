@@ -2,6 +2,7 @@ import express, { Request, Response, NextFunction } from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import Groq from "groq-sdk";
+import OpenAI from "openai";
 import { GoogleGenAI } from "@google/genai";
 import nodemailer from "nodemailer";
 import crypto from "crypto";
@@ -22,6 +23,25 @@ async function startServer() {
   const webApp = initWebApp(firebaseConfig);
   const webAuth = getWebAuth(webApp);
   const webDb = initWebFirestore(webApp, {}, firebaseConfig.firestoreDatabaseId || "(default)");
+
+  // Firebase Admin SDK Initialization
+  let firebaseAdminApp: App | null = null;
+  try {
+    if (!getApps().length) {
+      firebaseAdminApp = initializeApp({
+        projectId: firebaseConfig.projectId
+      });
+    } else {
+      firebaseAdminApp = getApp();
+    }
+  } catch (err) {
+    console.warn("Firebase Admin SDK initialization notice:", err);
+  }
+
+  const getAdminDb = () => {
+    const dbId = firebaseConfig.firestoreDatabaseId || '(default)';
+    return getFirestore(firebaseAdminApp!, dbId);
+  };
 
   let webAdminAuthUser: any = null;
   const ensureAdminAuthenticated = async () => {
@@ -131,7 +151,7 @@ async function startServer() {
 
   interface AIClientWrapper {
     name: "groq" | "grok" | "openai";
-    client: Groq;
+    client: OpenAI;
     visionModels: string[];
     textModels: string[];
   }
@@ -148,29 +168,29 @@ async function startServer() {
       if (grokKey.startsWith("xai-")) {
         clients.push({
           name: "grok",
-          client: new Groq({ apiKey: grokKey, baseURL: "https://api.x.ai/v1" }),
+          client: new OpenAI({ apiKey: grokKey, baseURL: "https://api.x.ai/v1" }),
           visionModels: ["grok-2-vision-128k", "grok-vision-beta"],
           textModels: ["grok-2-128k", "grok-2", "grok-beta"]
         });
       } else if (grokKey.startsWith("gsk_")) {
         clients.push({
           name: "groq",
-          client: new Groq({ apiKey: grokKey, baseURL: "https://api.groq.com/openai/v1" }),
+          client: new OpenAI({ apiKey: grokKey, baseURL: "https://api.groq.com/openai/v1" }),
           visionModels: ["llama-3.2-11b-vision-preview", "llama-3.2-90b-vision-preview"],
-          textModels: ["openai/gpt-oss-120b", "llama-3.3-70b-versatile", "qwen/qwen3.6-27b", "qwen-2.5-32b", "gemma2-9b-it"]
+          textModels: ["llama-3.3-70b-versatile", "llama-3.1-80b-instant", "qwen-2.5-32b", "gemma2-9b-it", "deepseek-r1-distill-llama-70b"]
         });
       } else {
         clients.push({
           name: "grok",
-          client: new Groq({ apiKey: grokKey, baseURL: "https://api.x.ai/v1" }),
+          client: new OpenAI({ apiKey: grokKey, baseURL: "https://api.x.ai/v1" }),
           visionModels: ["grok-2-vision-128k", "grok-vision-beta"],
           textModels: ["grok-2-128k", "grok-2", "grok-beta"]
         });
         clients.push({
           name: "groq",
-          client: new Groq({ apiKey: grokKey, baseURL: "https://api.groq.com/openai/v1" }),
+          client: new OpenAI({ apiKey: grokKey, baseURL: "https://api.groq.com/openai/v1" }),
           visionModels: ["llama-3.2-11b-vision-preview", "llama-3.2-90b-vision-preview"],
-          textModels: ["openai/gpt-oss-120b", "llama-3.3-70b-versatile", "qwen/qwen3.6-27b", "qwen-2.5-32b", "gemma2-9b-it"]
+          textModels: ["llama-3.3-70b-versatile", "llama-3.1-80b-instant", "qwen-2.5-32b", "gemma2-9b-it", "deepseek-r1-distill-llama-70b"]
         });
       }
     }
@@ -179,16 +199,16 @@ async function startServer() {
       if (groqKey.startsWith("xai-")) {
         clients.push({
           name: "grok",
-          client: new Groq({ apiKey: groqKey, baseURL: "https://api.x.ai/v1" }),
+          client: new OpenAI({ apiKey: groqKey, baseURL: "https://api.x.ai/v1" }),
           visionModels: ["grok-2-vision-128k", "grok-vision-beta"],
           textModels: ["grok-2-128k", "grok-2", "grok-beta"]
         });
       } else {
         clients.push({
           name: "groq",
-          client: new Groq({ apiKey: groqKey, baseURL: "https://api.groq.com/openai/v1" }),
+          client: new OpenAI({ apiKey: groqKey, baseURL: "https://api.groq.com/openai/v1" }),
           visionModels: ["llama-3.2-11b-vision-preview", "llama-3.2-90b-vision-preview"],
-          textModels: ["openai/gpt-oss-120b", "llama-3.3-70b-versatile", "qwen/qwen3.6-27b", "qwen-2.5-32b", "gemma2-9b-it"]
+          textModels: ["llama-3.3-70b-versatile", "llama-3.1-80b-instant", "qwen-2.5-32b", "gemma2-9b-it", "deepseek-r1-distill-llama-70b"]
         });
       }
     }
@@ -196,7 +216,7 @@ async function startServer() {
     if (openaiKey && openaiKey !== grokKey && openaiKey !== groqKey) {
       clients.push({
         name: "openai",
-        client: new Groq({ apiKey: openaiKey, baseURL: "https://api.openai.com/v1" }),
+        client: new OpenAI({ apiKey: openaiKey, baseURL: "https://api.openai.com/v1" }),
         visionModels: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo"],
         textModels: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"]
       });
@@ -497,6 +517,116 @@ async function startServer() {
   const adminFailedAttempts = new Map<string, { count: number; lockUntil: number }>();
   const securityLogs: SecurityEvent[] = [];
 
+  // Firestore-backed server session and lockout persistence helpers
+  const getAdminSession = async (token: string): Promise<AdminSession | null> => {
+    if (!token) return null;
+    const local = adminSessions.get(token);
+    if (local && local.expiresAt > Date.now()) return local;
+
+    try {
+      const db = getAdminDb();
+      if (db) {
+        const snap = await db.collection("serverSessions").doc(token).get();
+        if (snap.exists) {
+          const data = snap.data() as AdminSession;
+          if (data && data.expiresAt > Date.now()) {
+            adminSessions.set(token, data);
+            return data;
+          }
+        }
+      }
+    } catch (err) {
+      console.warn("Firestore session fetch notice:", err);
+    }
+    return local && local.expiresAt > Date.now() ? local : null;
+  };
+
+  const setAdminSession = async (session: AdminSession): Promise<void> => {
+    adminSessions.set(session.token, session);
+    try {
+      const db = getAdminDb();
+      if (db) {
+        await db.collection("serverSessions").doc(session.token).set(session);
+      }
+    } catch (err) {
+      console.warn("Firestore session save notice:", err);
+    }
+  };
+
+  const deleteAdminSession = async (token: string): Promise<void> => {
+    adminSessions.delete(token);
+    try {
+      const db = getAdminDb();
+      if (db) {
+        await db.collection("serverSessions").doc(token).delete();
+      }
+    } catch (err) {
+      console.warn("Firestore session delete notice:", err);
+    }
+  };
+
+  const getLoginAttempt = async (ip: string): Promise<{ count: number; lockUntil: number } | null> => {
+    const local = adminFailedAttempts.get(ip);
+    if (local) return local;
+
+    const safeIp = ip.replace(/[^a-zA-Z0-9_\-]/g, "_");
+    try {
+      const db = getAdminDb();
+      if (db) {
+        const snap = await db.collection("loginAttempts").doc(safeIp).get();
+        if (snap.exists) {
+          const data = snap.data() as { count: number; lockUntil: number };
+          if (data) {
+            adminFailedAttempts.set(ip, data);
+            return data;
+          }
+        }
+      }
+    } catch (err) {
+      console.warn("Firestore loginAttempt fetch notice:", err);
+    }
+    return local || null;
+  };
+
+  const setLoginAttempt = async (ip: string, data: { count: number; lockUntil: number }): Promise<void> => {
+    adminFailedAttempts.set(ip, data);
+    const safeIp = ip.replace(/[^a-zA-Z0-9_\-]/g, "_");
+    try {
+      const db = getAdminDb();
+      if (db) {
+        await db.collection("loginAttempts").doc(safeIp).set({ ...data, updatedAt: Date.now() });
+      }
+    } catch (err) {
+      console.warn("Firestore loginAttempt save notice:", err);
+    }
+  };
+
+  const deleteLoginAttempt = async (ip: string): Promise<void> => {
+    adminFailedAttempts.delete(ip);
+    const safeIp = ip.replace(/[^a-zA-Z0-9_\-]/g, "_");
+    try {
+      const db = getAdminDb();
+      if (db) {
+        await db.collection("loginAttempts").doc(safeIp).delete();
+      }
+    } catch (err) {
+      console.warn("Firestore loginAttempt delete notice:", err);
+    }
+  };
+
+  const getActiveAdminSessionsCount = async (): Promise<number> => {
+    try {
+      const db = getAdminDb();
+      if (db) {
+        const snap = await db.collection("serverSessions").where("expiresAt", ">", Date.now()).get();
+        return snap.size;
+      }
+    } catch (err) {
+      console.warn("Firestore active sessions count notice:", err);
+    }
+    return adminSessions.size;
+  };
+
   // Counter metrics for AI usage tracking
   let aiCounterTotal = 0;
   let aiCounterToday = 0;
@@ -525,12 +655,12 @@ async function startServer() {
   };
 
   // Secure Server-side Admin Password Verification
-  app.post("/api/admin/login", (req: Request, res: Response) => {
+  app.post("/api/admin/login", async (req: Request, res: Response) => {
     const clientIp = (req.headers["x-forwarded-for"] as string || req.socket.remoteAddress || "127.0.0.1").split(",")[0].trim();
     const now = Date.now();
 
     // 1. Check IP-based brute-force lockout status
-    const attemptInfo = adminFailedAttempts.get(clientIp);
+    const attemptInfo = await getLoginAttempt(clientIp);
     if (attemptInfo && attemptInfo.lockUntil > now) {
       const remainingSecs = Math.ceil((attemptInfo.lockUntil - now) / 1000);
       logSecurityEvent("RATE_LIMITED", clientIp, `Login locked out (${remainingSecs}s remaining)`);
@@ -554,7 +684,7 @@ async function startServer() {
       } else {
         logSecurityEvent("LOGIN_FAILED", clientIp, `Invalid password attempt (${currentCount}/5)`);
       }
-      adminFailedAttempts.set(clientIp, { count: currentCount, lockUntil });
+      await setLoginAttempt(clientIp, { count: currentCount, lockUntil });
 
       if (currentCount >= 5) {
         return res.status(429).json({
@@ -567,12 +697,12 @@ async function startServer() {
     }
 
     // Success! Reset failed attempts for client IP
-    adminFailedAttempts.delete(clientIp);
+    await deleteLoginAttempt(clientIp);
 
     const token = `admin_sess_${Date.now()}_${crypto.randomBytes(16).toString("hex")}`;
     const expiresAt = now + 24 * 60 * 60 * 1000;
 
-    adminSessions.set(token, {
+    await setAdminSession({
       token,
       createdAt: now,
       expiresAt,
@@ -597,7 +727,7 @@ async function startServer() {
   });
 
   // Verification Middleware for Admin API endpoints
-  const verifyAdminSession = (req: Request, res: Response, next: NextFunction) => {
+  const verifyAdminSession = async (req: Request, res: Response, next: NextFunction) => {
     let token = null;
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith("Bearer ")) {
@@ -615,7 +745,7 @@ async function startServer() {
       return res.status(401).json({ error: "Unauthorized access. Valid admin session required." });
     }
 
-    const session = adminSessions.get(token);
+    const session = await getAdminSession(token);
     const now = Date.now();
     if (session && now <= session.expiresAt) {
       return next();
@@ -631,23 +761,6 @@ async function startServer() {
   // ==========================================
   // FIREBASE ADMIN & FCM NOTIFICATION SYSTEM
   // ==========================================
-  let firebaseAdminApp: App | null = null;
-  try {
-    if (!getApps().length) {
-      firebaseAdminApp = initializeApp({
-        projectId: firebaseConfig.projectId
-      });
-    } else {
-      firebaseAdminApp = getApp();
-    }
-  } catch (err) {
-    console.warn("Firebase Admin SDK initialization notice:", err);
-  }
-
-  const getAdminDb = () => {
-    const dbId = firebaseConfig.firestoreDatabaseId || '(default)';
-    return getFirestore(firebaseAdminApp!, dbId);
-  };
 
   interface AuthenticatedRequest extends Request {
     verifiedUid?: string;
@@ -821,7 +934,7 @@ async function startServer() {
     });
   });
 
-  app.post("/api/admin/logout", (req: Request, res: Response) => {
+  app.post("/api/admin/logout", async (req: Request, res: Response) => {
     let token = null;
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith("Bearer ")) {
@@ -835,9 +948,9 @@ async function startServer() {
       token = cookies["genova_admin_session"];
     }
 
-    if (token && adminSessions.has(token)) {
+    if (token) {
       const clientIp = (req.headers["x-forwarded-for"] as string || req.socket.remoteAddress || "127.0.0.1").split(",")[0].trim();
-      adminSessions.delete(token);
+      await deleteAdminSession(token);
       logSecurityEvent("LOGOUT", clientIp, "Admin session logged out");
     }
 
@@ -849,6 +962,7 @@ async function startServer() {
   app.get("/api/admin/stats", verifyAdminSession, async (req: Request, res: Response) => {
     try {
       await ensureAdminAuthenticated();
+      const activeSessionsCount = await getActiveAdminSessionsCount();
       const usersSnap = await getDocs(collection(webDb, "users"));
       const userDocs = usersSnap.docs;
 
@@ -955,7 +1069,7 @@ async function startServer() {
         securitySummary: {
           failedLoginAttempts: securityLogs.filter(l => l.type === "LOGIN_FAILED").length,
           rateLimitedEvents: securityLogs.filter(l => l.type === "RATE_LIMITED").length,
-          activeAdminSessions: adminSessions.size
+          activeAdminSessions: activeSessionsCount
         }
       });
     } catch (err) {
@@ -965,7 +1079,7 @@ async function startServer() {
         platformOverview: { activeUsers: 0, usersTrackingHealth: 0, usersOnboarded: 0, aiInteractionsTotal: aiCounterTotal, healthLogsRecorded: 0, scannerUsageTotal: 0, connectedDevicesTotal: 0 },
         aiUsage: { totalRequests: aiCounterTotal, requestsToday: aiCounterToday, requestsThisWeek: aiCounterWeek, averageUsagePerUser: 0, failedRequests: aiFailedCounter, rateLimitedRequests: 0 },
         featureUsage: { healthTracking: 0, smartScan: 0, aiAssistants: aiCounterTotal, emergencyLocator: 0, wearablesIntegration: 0 },
-        securitySummary: { failedLoginAttempts: securityLogs.filter(l => l.type === "LOGIN_FAILED").length, rateLimitedEvents: securityLogs.filter(l => l.type === "RATE_LIMITED").length, activeAdminSessions: adminSessions.size }
+        securitySummary: { failedLoginAttempts: securityLogs.filter(l => l.type === "LOGIN_FAILED").length, rateLimitedEvents: securityLogs.filter(l => l.type === "RATE_LIMITED").length, activeAdminSessions: 0 }
       });
     }
   });

@@ -125,9 +125,40 @@
         "updatedAt": { "type": "integer" }
       },
       "required": ["latitude", "longitude", "updatedAt"]
+    },
+    "ServerSession": {
+      "title": "Server Admin Session",
+      "description": "Authenticated admin session stored server-side.",
+      "type": "object",
+      "properties": {
+        "token": { "type": "string" },
+        "createdAt": { "type": "integer" },
+        "expiresAt": { "type": "integer" },
+        "ip": { "type": "string" }
+      },
+      "required": ["token", "createdAt", "expiresAt"]
+    },
+    "LoginAttempt": {
+      "title": "Login Failed Attempt",
+      "description": "Brute force lockout tracking record for IP addresses.",
+      "type": "object",
+      "properties": {
+        "count": { "type": "integer" },
+        "lockUntil": { "type": "integer" },
+        "updatedAt": { "type": "integer" }
+      },
+      "required": ["count", "lockUntil"]
     }
   },
   "firestore": {
+    "/serverSessions/{tokenId}": {
+      "schema": "ServerSession",
+      "description": "Server admin active sessions."
+    },
+    "/loginAttempts/{ipId}": {
+      "schema": "LoginAttempt",
+      "description": "IP brute-force login lockout tracking."
+    },
     "/activeEmergencies/{userId}": {
       "schema": "ActiveEmergency",
       "description": "Live GPS coordinates during an active emergency."
